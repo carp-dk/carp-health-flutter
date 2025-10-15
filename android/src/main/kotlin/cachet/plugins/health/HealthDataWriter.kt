@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.response.InsertRecordsResponse
 import androidx.health.connect.client.units.*
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
@@ -96,7 +97,7 @@ class HealthDataWriter(
      *
      * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'value',
      * 'recordingMethod'
-     * @param result Flutter result callback returning boolean success status
+     * @param result Flutter result callback returning string inserted record UUID or empty string on failure
      */
     fun writeData(call: MethodCall, result: Result) {
         val type = call.argument<String>("dataTypeKey")!!
@@ -123,17 +124,31 @@ class HealthDataWriter(
         val record = createRecord(type, startTime, endTime, value, metadata)
 
         if (record == null) {
-            result.success(false)
+            result.success("")
             return
         }
 
         scope.launch {
             try {
-                healthConnectClient.insertRecords(listOf(record))
-                result.success(true)
+                // Insert records into Health Connect
+                val insertResponse: InsertRecordsResponse = healthConnectClient.insertRecords(listOf(record))
+
+                // Extract UUID from the first inserted record
+                val insertedUUID = insertResponse.recordIdsList.firstOrNull() ?: ""
+
+                if (insertedUUID.isEmpty()) {
+                    Log.e("FLUTTER_HEALTH::ERROR", "UUID is empty! No records were inserted.")
+                } else {
+                    Log.i(
+                        "FLUTTER_HEALTH::SUCCESS",
+                        "[Health Connect] Workout $insertedUUID was successfully added!"
+                    )
+                }
+
+                result.success(insertedUUID)
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error writing $type: ${e.message}")
-                result.success(false)
+                result.success("")
             }
         }
     }
@@ -148,7 +163,7 @@ class HealthDataWriter(
      *             'totalEnergyBurned', 'totalDistance', 'recordingMethod', 'title'
      * @param result
      * ```
-     * Flutter result callback returning boolean success status
+     * Flutter result callback returning string inserted record UUID or empty string on failure
      */
     fun writeWorkoutData(call: MethodCall, result: Result) {
         val type = call.argument<String>("activityType")!!
@@ -161,8 +176,11 @@ class HealthDataWriter(
         val workoutMetadata = buildMetadata(recordingMethod = recordingMethod, deviceType = deviceType)
 
         if (!HealthConstants.workoutTypeMap.containsKey(type)) {
-            result.success(false)
-            Log.w("FLUTTER_HEALTH::ERROR", "[Health Connect] Workout type not supported")
+            result.success("")
+            Log.w(
+                "FLUTTER_HEALTH::ERROR",
+                "[Health Connect] Workout type not supported"
+            )
             return
         }
 
@@ -213,10 +231,23 @@ class HealthDataWriter(
                             ),
                     )
                 }
+                
+                // Insert records into Health Connect
+                val insertResponse: InsertRecordsResponse = healthConnectClient.insertRecords(list)
 
-                healthConnectClient.insertRecords(list)
-                result.success(true)
-                Log.i("FLUTTER_HEALTH::SUCCESS", "[Health Connect] Workout was successfully added!")
+                // Extract UUID from the first inserted record
+                val insertedUUID = insertResponse.recordIdsList.firstOrNull() ?: ""
+
+                if (insertedUUID.isEmpty()) {
+                    Log.e("FLUTTER_HEALTH::ERROR", "UUID is empty! No records were inserted.")
+                }
+
+                Log.i(
+                    "FLUTTER_HEALTH::SUCCESS",
+                    "[Health Connect] Workout $insertedUUID was successfully added!"
+                )
+
+                result.success(insertedUUID)
             } catch (e: Exception) {
                 Log.w(
                         "FLUTTER_HEALTH::ERROR",
@@ -224,7 +255,7 @@ class HealthDataWriter(
                 )
                 Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
-                result.success(false)
+                result.success("")
             }
         }
     }
