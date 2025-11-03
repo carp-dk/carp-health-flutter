@@ -10,10 +10,12 @@ part of '../health.dart';
 class WorkoutMetadata {
   /// The activity type of the workout (e.g., "Running", "Cycling").
   /// Maps to HKMetadataKeyActivityType.
+  /// **Requires iOS 17.0 or later.**
   final String? activityType;
 
   /// Whether this workout is part of an Apple Fitness+ session.
   /// Maps to HKMetadataKeyAppleFitnessPlusSession.
+  /// **Requires iOS 17.0 or later.**
   final bool? appleFitnessPlusSession;
 
   /// Whether this workout was coached.

@@ -421,12 +421,17 @@ class HealthDataWriter {
         if let metadataDict = arguments["metadata"] as? [String: Any] {
             var workoutMetadata = [String: Any]()
             
-            if let activityType = metadataDict["activityType"] as? String {
-                workoutMetadata[HKMetadataKeyActivityType] = activityType
+            // iOS 17+ only metadata keys
+            if #available(iOS 17.0, *) {
+                if let activityType = metadataDict["activityType"] as? String {
+                    workoutMetadata[HKMetadataKeyActivityType] = activityType
+                }
+                if let appleFitnessPlusSession = metadataDict["appleFitnessPlusSession"] as? Bool {
+                    workoutMetadata[HKMetadataKeyAppleFitnessPlusSession] = appleFitnessPlusSession
+                }
             }
-            if let appleFitnessPlusSession = metadataDict["appleFitnessPlusSession"] as? Bool {
-                workoutMetadata[HKMetadataKeyAppleFitnessPlusSession] = appleFitnessPlusSession
-            }
+            
+            // Available on all iOS versions
             if let coachedWorkout = metadataDict["coachedWorkout"] as? Bool {
                 workoutMetadata[HKMetadataKeyCoachedWorkout] = coachedWorkout
             }
