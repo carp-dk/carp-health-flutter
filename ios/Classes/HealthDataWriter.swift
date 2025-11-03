@@ -416,10 +416,33 @@ class HealthDataWriter {
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
         let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
 
-        // Build metadata with optional brand name
+        // Build metadata from optional metadata dictionary
         var metadata: [String: Any]? = nil
-        if let brandName = arguments["brandName"] as? String {
-            metadata = [HKMetadataKeyWorkoutBrandName: brandName]
+        if let metadataDict = arguments["metadata"] as? [String: Any] {
+            var workoutMetadata = [String: Any]()
+            
+            if let activityType = metadataDict["activityType"] as? String {
+                workoutMetadata[HKMetadataKeyActivityType] = activityType
+            }
+            if let appleFitnessPlusSession = metadataDict["appleFitnessPlusSession"] as? Bool {
+                workoutMetadata[HKMetadataKeyAppleFitnessPlusSession] = appleFitnessPlusSession
+            }
+            if let coachedWorkout = metadataDict["coachedWorkout"] as? Bool {
+                workoutMetadata[HKMetadataKeyCoachedWorkout] = coachedWorkout
+            }
+            if let groupFitness = metadataDict["groupFitness"] as? Bool {
+                workoutMetadata[HKMetadataKeyGroupFitness] = groupFitness
+            }
+            if let indoorWorkout = metadataDict["indoorWorkout"] as? Bool {
+                workoutMetadata[HKMetadataKeyIndoorWorkout] = indoorWorkout
+            }
+            if let workoutBrandName = metadataDict["workoutBrandName"] as? String {
+                workoutMetadata[HKMetadataKeyWorkoutBrandName] = workoutBrandName
+            }
+            
+            if !workoutMetadata.isEmpty {
+                metadata = workoutMetadata
+            }
         }
 
         let workout = HKWorkout(
