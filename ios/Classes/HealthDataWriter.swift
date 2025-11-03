@@ -416,6 +416,12 @@ class HealthDataWriter {
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
         let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
 
+        // Build metadata with optional brand name
+        var metadata: [String: Any]? = nil
+        if let brandName = arguments["brandName"] as? String {
+            metadata = [HKMetadataKeyWorkoutBrandName: brandName]
+        }
+
         let workout = HKWorkout(
             activityType: activityTypeValue,
             start: dateFrom,
@@ -423,7 +429,7 @@ class HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned ?? nil,
             totalDistance: totalDistance ?? nil,
-            metadata: nil
+            metadata: metadata
         )
 
         healthStore.save(

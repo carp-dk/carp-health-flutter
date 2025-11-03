@@ -145,7 +145,8 @@ class HealthDataWriter(
      *
      * @param call Method call containing workout details: 'activityType', 'startTime', 'endTime',
      * ```
-     *             'totalEnergyBurned', 'totalDistance', 'recordingMethod', 'title'
+     *             'totalEnergyBurned', 'totalDistance', 'recordingMethod', 'title', 'brandName'
+     *             Note: 'brandName' is iOS-only and ignored on Android
      * @param result
      * ```
      * Flutter result callback returning boolean success status
@@ -158,6 +159,7 @@ class HealthDataWriter(
         val totalDistance = call.argument<Int>("totalDistance")
         val recordingMethod = call.argument<Int>("recordingMethod")!!
         val deviceType: Int? = call.argument<Int>("deviceType")
+        // Note: brandName parameter is ignored on Android as Health Connect does not support it
         val workoutMetadata = buildMetadata(recordingMethod = recordingMethod, deviceType = deviceType)
 
         if (!HealthConstants.workoutTypeMap.containsKey(type)) {

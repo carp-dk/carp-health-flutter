@@ -1497,6 +1497,8 @@ class Health {
   ///    *ONLY FOR IOS* Default value is METER.
   ///  - [title] The title of the workout.
   ///    *ONLY FOR HEALTH CONNECT* Default value is the [activityType], e.g. "STRENGTH_TRAINING".
+  ///  - [brandName] The brand name of the workout (e.g., "Peloton", "Nike Run Club").
+  ///    *ONLY FOR IOS* This parameter is ignored on Android.
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
   Future<bool> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
@@ -1507,6 +1509,7 @@ class Health {
     int? totalDistance,
     HealthDataUnit totalDistanceUnit = HealthDataUnit.METER,
     String? title,
+    String? brandName,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
@@ -1539,6 +1542,7 @@ class Health {
       'totalDistance': totalDistance,
       'totalDistanceUnit': totalDistanceUnit.name,
       'title': title,
+      'brandName': brandName,
       'recordingMethod': recordingMethod.toInt(),
     };
     return await _channel.invokeMethod('writeWorkoutData', args) == true;
