@@ -907,7 +907,7 @@ class HealthAppState extends State<HealthApp> {
   final Widget _contentNotFetched =
       const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
     Text("Press 'Auth' to get permissions to access health data."),
-    Text("Press 'Fetch Dat' to get health data."),
+    Text("Press 'Fetch Data' to get health data."),
     Text("Press 'Add Data' to add some random health data."),
     Text("Press 'Delete Data' to remove some random health data."),
   ]);
