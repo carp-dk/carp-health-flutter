@@ -61,7 +61,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     override fun onAttachedToEngine(
             @NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding
     ) {
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
         channel?.setMethodCallHandler(this)
         context = flutterPluginBinding.applicationContext
@@ -231,7 +231,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      */
     private fun initializeHelpers() {
         dataConverter = HealthDataConverter()
-        dataReader = HealthDataReader(healthConnectClient, scope, context!!, dataConverter)
+        dataReader = HealthDataReader(healthConnectClient, scope, dataConverter)
         dataWriter = HealthDataWriter(healthConnectClient, scope)
         dataOperations =
                 HealthDataOperations(

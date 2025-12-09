@@ -10,8 +10,11 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import java.time.Instant
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Handles Health Connect operational tasks including permissions, SDK status, and data deletion
@@ -21,7 +24,8 @@ class HealthDataOperations(
         private val healthConnectClient: HealthConnectClient,
         private val scope: CoroutineScope,
         private val healthConnectStatus: Int,
-        private val healthConnectAvailable: Boolean
+        private val healthConnectAvailable: Boolean,
+        private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) {
 
     /**
@@ -54,12 +58,13 @@ class HealthDataOperations(
         }
 
         scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(permList),
-            )
+            val hasPermissions = healthConnectClient
+                    .permissionController
+                    .getGrantedPermissions()
+                    .containsAll(permList)
+            withContext(mainDispatcher) {
+                result.success(hasPermissions)
+            }
         }
     }
 
@@ -104,11 +109,12 @@ class HealthDataOperations(
      */
     fun isHealthDataHistoryAvailable(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
+            val isAvailable = healthConnectClient.features.getFeatureStatus(
+                    HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
+            ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+            withContext(mainDispatcher) {
+                result.success(isAvailable)
+            }
         }
     }
 
@@ -121,12 +127,13 @@ class HealthDataOperations(
      */
     fun isHealthDataHistoryAuthorized(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_HISTORY)),
-            )
+            val isAuthorized = healthConnectClient
+                    .permissionController
+                    .getGrantedPermissions()
+                    .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_HISTORY))
+            withContext(mainDispatcher) {
+                result.success(isAuthorized)
+            }
         }
     }
 
@@ -139,11 +146,12 @@ class HealthDataOperations(
      */
     fun isHealthDataInBackgroundAvailable(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
+            val isAvailable = healthConnectClient.features.getFeatureStatus(
+                    HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+            ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+            withContext(mainDispatcher) {
+                result.success(isAvailable)
+            }
         }
     }
 
@@ -156,12 +164,13 @@ class HealthDataOperations(
      */
     fun isHealthDataInBackgroundAuthorized(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)),
-            )
+            val isAuthorized = healthConnectClient
+                    .permissionController
+                    .getGrantedPermissions()
+                    .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND))
+            withContext(mainDispatcher) {
+                result.success(isAuthorized)
+            }
         }
     }
 
@@ -191,14 +200,18 @@ class HealthDataOperations(
                         recordType = classType,
                         timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
                 )
-                result.success(true)
                 Log.i(
                         "FLUTTER_HEALTH::SUCCESS",
                         "Successfully deleted $type records between $startTime and $endTime"
                 )
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error deleting $type records: ${e.message}")
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }
@@ -230,16 +243,20 @@ class HealthDataOperations(
                         recordIdsList = listOf(uuid),
                         clientRecordIdsList = emptyList()
                 )
-                result.success(true)
                 Log.i(
                         "FLUTTER_HEALTH::SUCCESS",
                         "[Health Connect] Record with UUID $uuid was successfully deleted!"
                 )
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error deleting record with UUID: $uuid")
                 Log.e("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }
@@ -270,7 +287,9 @@ class HealthDataOperations(
                         recordId,
                         clientRecordId
                 )
-                result.success(true)
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.e(
                         "FLUTTER_HEALTH::ERROR",
@@ -278,7 +297,9 @@ class HealthDataOperations(
                 )
                 Log.e("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }

@@ -1,7 +1,5 @@
 package cachet.plugins.health
 
-import android.content.Context
-import android.os.Handler
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
@@ -13,8 +11,13 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.*
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -26,8 +29,8 @@ import java.time.temporal.ChronoUnit
 class HealthDataReader(
     private val healthConnectClient: HealthConnectClient,
     private val scope: CoroutineScope,
-    private val context: Context,
-    private val dataConverter: HealthDataConverter
+    private val dataConverter: HealthDataConverter,
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) {
     private val recordingFilter = HealthRecordingFilter()
 
@@ -107,14 +110,18 @@ class HealthDataReader(
                         }
                     }
                 }
-                Handler(context.mainLooper).run { result.success(healthConnectData) }
+                withContext(mainDispatcher) {
+                    result.success(healthConnectData)
+                }
             } catch (e: Exception) {
                 Log.i(
                     "FLUTTER_HEALTH::ERROR",
                     "Unable to return $dataType due to the following exception:"
                 )
                 Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
-                result.success(emptyList<Map<String, Any?>>()) // Return empty list instead of null
+                withContext(mainDispatcher) {
+                    result.success(emptyList<Map<String, Any?>>())
+                }
             }
         }
     }
@@ -175,16 +182,22 @@ class HealthDataReader(
                         "Success: $healthPoint"
                     )
 
-                    Handler(context.mainLooper).run { result.success(healthPoint) }
+                    withContext(mainDispatcher) {
+                        result.success(healthPoint)
+                    }
                 } else {
                     Log.e("FLUTTER_HEALTH::ERROR", "Record not found for UUID: $uuid")
-                    result.success(null)
+                    withContext(mainDispatcher) {
+                        result.success(null)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error fetching record with UUID: $uuid")
                 Log.e("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
-                result.success(null)
+                withContext(mainDispatcher) {
+                    result.success(null)
+                }
             }
         }
     }
@@ -235,14 +248,18 @@ class HealthDataReader(
                         healthConnectData.add(data)
                     }
                 }
-                Handler(context.mainLooper).run { result.success(healthConnectData) }
+                withContext(mainDispatcher) {
+                    result.success(healthConnectData)
+                }
             } catch (e: Exception) {
                 Log.i(
                     "FLUTTER_HEALTH::ERROR",
                     "Unable to return $dataType due to the following exception:"
                 )
                 Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
-                result.success(null)
+                withContext(mainDispatcher) {
+                    result.success(null)
+                }
             }
         }
     }
@@ -303,14 +320,18 @@ class HealthDataReader(
                 val stepsInInterval = response[StepsRecord.COUNT_TOTAL] ?: 0L
 
                 Log.i("FLUTTER_HEALTH::SUCCESS", "returning $stepsInInterval steps")
-                result.success(stepsInInterval)
+                withContext(mainDispatcher) {
+                    result.success(stepsInInterval)
+                }
             } catch (e: Exception) {
                 Log.e(
                     "FLUTTER_HEALTH::ERROR",
                     "Unable to return steps due to the following exception:"
                 )
                 Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
-                result.success(null)
+                withContext(mainDispatcher) {
+                    result.success(null)
+                }
             }
         }
     }
@@ -350,14 +371,18 @@ class HealthDataReader(
                     "FLUTTER_HEALTH::SUCCESS",
                     "returning $totalSteps steps (excluding manual entries)"
                 )
-                result.success(totalSteps)
+                withContext(mainDispatcher) {
+                    result.success(totalSteps)
+                }
             } catch (e: Exception) {
                 Log.e(
                     "FLUTTER_HEALTH::ERROR",
                     "Unable to return steps due to the following exception:"
                 )
                 Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
-                result.success(null)
+                withContext(mainDispatcher) {
+                    result.success(null)
+                }
             }
         }
     }
@@ -388,50 +413,48 @@ class HealthDataReader(
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
             
-            // Get distance data
-            val distanceRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+            val distanceDeferred = scope.async {
+                val response = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = DistanceRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
+                )
+                response.records.sumOf { it.distance.inMeters }
             }
-
-            // Get energy burned data
-            val energyBurnedRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+            
+            val energyDeferred = scope.async {
+                val response = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = TotalCaloriesBurnedRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                )
+                response.records.sumOf { it.energy.inKilocalories }
             }
-
-            // Get steps data
-            val stepRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime
+            
+            val stepsDeferred = scope.async {
+                val response = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = StepsRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime
+                        ),
                     ),
-                ),
-            )
-            var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
+                )
+                response.records.sumOf { it.count.toDouble() }
             }
+            
+            val totalDistance = distanceDeferred.await()
+            val totalEnergyBurned = energyDeferred.await()
+            val totalSteps = stepsDeferred.await()
 
             // Add final datapoint
             healthConnectData.add(
