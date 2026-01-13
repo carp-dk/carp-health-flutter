@@ -388,73 +388,78 @@ class HealthDataReader(
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
             
-            // Get distance data
-            val distanceRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+            try {
+                // Get distance data
+                val distanceRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = DistanceRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
-            }
+                )
+                var totalDistance = 0.0
+                for (distanceRec in distanceRequest.records) {
+                    totalDistance += distanceRec.distance.inMeters
+                }
 
-            // Get energy burned data
-            val energyBurnedRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+                // Get energy burned data
+                val energyBurnedRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = TotalCaloriesBurnedRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
-            }
+                )
+                var totalEnergyBurned = 0.0
+                for (energyBurnedRec in energyBurnedRequest.records) {
+                    totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                }
 
-            // Get steps data
-            val stepRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime
+                // Get steps data
+                val stepRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = StepsRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime
+                        ),
                     ),
-                ),
-            )
-            var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
-            }
+                )
+                var totalSteps = 0.0
+                for (stepRec in stepRequest.records) {
+                    totalSteps += stepRec.count
+                }
 
-            // Add final datapoint
-            healthConnectData.add(
-                mapOf<String, Any?>(
-                    "uuid" to record.metadata.id,
-                    "workoutActivityType" to
-                            (HealthConstants.workoutTypeMap
-                                .filterValues { it == record.exerciseType }
-                                .keys
-                                .firstOrNull() ?: "OTHER"),
-                    "totalDistance" to if (totalDistance == 0.0) null else totalDistance,
-                    "totalDistanceUnit" to "METER",
-                    "totalEnergyBurned" to if (totalEnergyBurned == 0.0) null else totalEnergyBurned,
-                    "totalEnergyBurnedUnit" to "KILOCALORIE",
-                    "totalSteps" to if (totalSteps == 0.0) null else totalSteps,
-                    "totalStepsUnit" to "COUNT",
-                    "unit" to "MINUTES",
-                    "date_from" to record.startTime.toEpochMilli(),
-                    "date_to" to record.endTime.toEpochMilli(),
-                    "source_id" to "",
-                    "source_name" to record.metadata.dataOrigin.packageName,
-                ),
-            )
+                // Add final datapoint
+                healthConnectData.add(
+                    mapOf<String, Any?>(
+                        "uuid" to record.metadata.id,
+                        "workoutActivityType" to
+                                (HealthConstants.workoutTypeMap
+                                    .filterValues { it == record.exerciseType }
+                                    .keys
+                                    .firstOrNull() ?: "OTHER"),
+                        "totalDistance" to if (totalDistance == 0.0) null else totalDistance,
+                        "totalDistanceUnit" to "METER",
+                        "totalEnergyBurned" to if (totalEnergyBurned == 0.0) null else totalEnergyBurned,
+                        "totalEnergyBurnedUnit" to "KILOCALORIE",
+                        "totalSteps" to if (totalSteps == 0.0) null else totalSteps,
+                        "totalStepsUnit" to "COUNT",
+                        "unit" to "MINUTES",
+                        "date_from" to record.startTime.toEpochMilli(),
+                        "date_to" to record.endTime.toEpochMilli(),
+                        "source_id" to "",
+                        "source_name" to record.metadata.dataOrigin.packageName,
+                    ),
+                )
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error reading workout data for record ${record.metadata.id}: ${e.message}")
+                continue
+            }
         }
     }
 
