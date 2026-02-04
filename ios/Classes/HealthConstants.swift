@@ -143,6 +143,7 @@ enum HealthConstants {
     
     static let EXERCISE_TIME = "EXERCISE_TIME"
     static let WORKOUT = "WORKOUT"
+    static let WORKOUT_ROUTE = "WORKOUT_ROUTE"
     static let HEADACHE_UNSPECIFIED = "HEADACHE_UNSPECIFIED"
     static let HEADACHE_NOT_PRESENT = "HEADACHE_NOT_PRESENT"
     static let HEADACHE_MILD = "HEADACHE_MILD"

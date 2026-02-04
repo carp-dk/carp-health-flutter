@@ -1,5 +1,6 @@
 import Flutter
 import HealthKit
+import CoreLocation
 
 /// Class responsible for writing health data to HealthKit
 class HealthDataWriter {
@@ -7,6 +8,14 @@ class HealthDataWriter {
     let dataTypesDict: [String: HKSampleType]
     let unitDict: [String: HKUnit]
     let workoutActivityTypeMap: [String: HKWorkoutActivityType]
+    private var workoutRouteBuilders: [String: HKWorkoutRouteBuilder] = [:]
+    private let workoutRouteBuildersQueue = DispatchQueue(
+        label: "com.carp.health.workoutRouteBuilders")
+    private lazy var isoFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 
     /// - Parameters:
     ///   - healthStore: The HealthKit store
@@ -21,6 +30,115 @@ class HealthDataWriter {
         self.dataTypesDict = dataTypesDict
         self.unitDict = unitDict
         self.workoutActivityTypeMap = workoutActivityTypeMap
+    }
+    
+    // MARK: - Workout Route Helpers
+    
+    private func storeWorkoutRouteBuilder(
+        _ builder: HKWorkoutRouteBuilder,
+        for identifier: String
+    ) {
+        workoutRouteBuildersQueue.async {
+            self.workoutRouteBuilders[identifier] = builder
+        }
+    }
+    
+    private func workoutRouteBuilder(for identifier: String) -> HKWorkoutRouteBuilder? {
+        var builder: HKWorkoutRouteBuilder?
+        workoutRouteBuildersQueue.sync {
+            builder = self.workoutRouteBuilders[identifier]
+        }
+        return builder
+    }
+    
+    private func removeWorkoutRouteBuilder(for identifier: String) -> HKWorkoutRouteBuilder? {
+        var builder: HKWorkoutRouteBuilder?
+        workoutRouteBuildersQueue.sync {
+            builder = self.workoutRouteBuilders.removeValue(forKey: identifier)
+        }
+        return builder
+    }
+    
+    private func parseTimestamp(_ value: Any) -> Date? {
+        if let milliseconds = value as? NSNumber {
+            return Date(timeIntervalSince1970: milliseconds.doubleValue / 1000.0)
+        } else if let doubleValue = value as? Double {
+            return Date(timeIntervalSince1970: doubleValue / 1000.0)
+        } else if let stringValue = value as? String {
+            if let date = isoFormatter.date(from: stringValue) {
+                return date
+            }
+            if let doubleValue = Double(stringValue) {
+                return Date(timeIntervalSince1970: doubleValue / 1000.0)
+            }
+        }
+        return nil
+    }
+    
+    private func doubleValue(from value: Any?) -> Double? {
+        if let number = value as? NSNumber {
+            return number.doubleValue
+        } else if let doubleValue = value as? Double {
+            return doubleValue
+        } else if let stringValue = value as? String {
+            return Double(stringValue)
+        }
+        return nil
+    }
+    
+    private func parseLocations(_ rawLocations: [NSDictionary]) throws -> [CLLocation] {
+        return try rawLocations.map { entry in
+            guard
+                let latitudeValue = doubleValue(from: entry["latitude"]),
+                let longitudeValue = doubleValue(from: entry["longitude"]),
+                let timestampValue = entry["timestamp"]
+            else {
+                throw PluginError(message: "Invalid workout route location entry")
+            }
+            
+            let latitude = CLLocationDegrees(latitudeValue)
+            let longitude = CLLocationDegrees(longitudeValue)
+            
+            guard let timestamp = parseTimestamp(timestampValue) else {
+                throw PluginError(message: "Invalid workout route timestamp")
+            }
+            
+            let altitude = doubleValue(from: entry["altitude"]) ?? 0
+            let horizontalAccuracy = doubleValue(from: entry["horizontalAccuracy"])
+                ?? kCLLocationAccuracyHundredMeters
+            let verticalAccuracy = doubleValue(from: entry["verticalAccuracy"])
+                ?? kCLLocationAccuracyHundredMeters
+            let speed = doubleValue(from: entry["speed"]) ?? -1
+            let course = doubleValue(from: entry["course"]) ?? -1
+            let speedAccuracyValue = doubleValue(from: entry["speedAccuracy"])
+            let courseAccuracyValue = doubleValue(from: entry["courseAccuracy"])
+            
+            if #available(iOS 13.4, *),
+                let speedAccuracyValue, let courseAccuracyValue
+            {
+                return CLLocation(
+                    coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                    altitude: altitude,
+                    horizontalAccuracy: horizontalAccuracy,
+                    verticalAccuracy: verticalAccuracy,
+                    course: course,
+                    courseAccuracy: courseAccuracyValue,
+                    speed: speed,
+                    speedAccuracy: speedAccuracyValue,
+                    timestamp: timestamp
+                )
+            } else {
+                return CLLocation(
+                    coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                    altitude: altitude,
+                    horizontalAccuracy: horizontalAccuracy,
+                    verticalAccuracy: verticalAccuracy,
+                    course: course,
+                    speed: speed,
+                    timestamp: timestamp
+                )
+            }
+        }
     }
 
     /// Writes general health data
@@ -76,6 +194,237 @@ class HealthDataWriter {
                     result(success)
                 }
             })
+    }
+    
+    /// Starts a new workout route builder session.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func startWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil))
+            return
+        }
+        
+        let identifier = UUID().uuidString
+        let builder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
+        storeWorkoutRouteBuilder(builder, for: identifier)
+        result(identifier)
+    }
+    
+    /// Inserts a batch of workout route locations into an active builder.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func insertWorkoutRouteData(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil))
+            return
+        }
+        
+        guard
+            let arguments = call.arguments as? NSDictionary,
+            let builderId = arguments["builderId"] as? String,
+            let rawLocations = arguments["locations"] as? [NSDictionary]
+        else {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: "Missing builderId or locations for route insertion",
+                    details: nil))
+            return
+        }
+        
+        guard let builder = workoutRouteBuilder(for: builderId) else {
+            result(
+                FlutterError(
+                    code: "ROUTE_ERROR",
+                    message: "No active workout route builder for identifier \(builderId)",
+                    details: nil))
+            return
+        }
+        
+        if rawLocations.isEmpty {
+            result(true)
+            return
+        }
+        
+        let locations: [CLLocation]
+        do {
+            locations = try parseLocations(rawLocations)
+        } catch {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: error.localizedDescription,
+                    details: nil))
+            return
+        }
+        
+        builder.insertRouteData(locations) { success, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    result(
+                        FlutterError(
+                            code: "ROUTE_ERROR",
+                            message: "Error inserting workout route data: \(error.localizedDescription)",
+                            details: nil))
+                } else {
+                    result(success)
+                }
+            }
+        }
+    }
+    
+    /// Completes an active workout route builder and associates it with an existing workout.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func finishWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil))
+            return
+        }
+        
+        guard
+            let arguments = call.arguments as? NSDictionary,
+            let builderId = arguments["builderId"] as? String,
+            let workoutUUIDString = arguments["workoutUUID"] as? String,
+            let workoutUUID = UUID(uuidString: workoutUUIDString)
+        else {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: "Missing builderId or workoutUUID for finishing route",
+                    details: nil))
+            return
+        }
+        
+        guard let builder = workoutRouteBuilder(for: builderId) else {
+            result(
+                FlutterError(
+                    code: "ROUTE_ERROR",
+                    message: "No active workout route builder for identifier \(builderId)",
+                    details: nil))
+            return
+        }
+        
+        let metadata = arguments["metadata"] as? [String: Any]
+        let predicate = HKQuery.predicateForObject(with: workoutUUID)
+        let workoutType = HKObjectType.workoutType()
+        
+        let query = HKSampleQuery(
+            sampleType: workoutType,
+            predicate: predicate,
+            limit: 1,
+            sortDescriptors: nil
+        ) { [weak self] _, samplesOrNil, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                DispatchQueue.main.async {
+                    result(
+                        FlutterError(
+                            code: "ROUTE_ERROR",
+                            message: "Error fetching workout for route: \(error.localizedDescription)",
+                            details: nil))
+                }
+                return
+            }
+            
+            guard let workout = (samplesOrNil?.first as? HKWorkout) else {
+                DispatchQueue.main.async {
+                    result(
+                        FlutterError(
+                            code: "ROUTE_ERROR",
+                            message: "Workout with UUID \(workoutUUIDString) not found",
+                            details: nil))
+                }
+                return
+            }
+            
+            var finalMetadata = metadata ?? [:]
+            finalMetadata["workout_uuid"] = workoutUUIDString
+
+            builder.finishRoute(with: workout, metadata: finalMetadata) {
+                [weak self] route, finishError in
+                guard let self = self else { return }
+                DispatchQueue.main.async {
+                    self.removeWorkoutRouteBuilder(for: builderId)
+                    if let finishError = finishError {
+                        result(
+                            FlutterError(
+                                code: "ROUTE_ERROR",
+                                message:
+                                    "Error finishing workout route: \(finishError.localizedDescription)",
+                                details: nil))
+                    } else if let route = route {
+                        result([
+                            "uuid": "\(route.uuid)",
+                            "startDate":
+                                Int(route.startDate.timeIntervalSince1970 * 1000),
+                            "endDate":
+                                Int(route.endDate.timeIntervalSince1970 * 1000),
+                        ])
+                    } else {
+                        result(
+                            FlutterError(
+                                code: "ROUTE_ERROR",
+                                message: "Workout route builder returned no route",
+                                details: nil))
+                    }
+                }
+            }
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Discards an active workout route builder session.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func discardWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil))
+            return
+        }
+        
+        guard
+            let arguments = call.arguments as? NSDictionary,
+            let builderId = arguments["builderId"] as? String
+        else {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: "Missing builderId for discarding workout route",
+                    details: nil))
+            return
+        }
+        
+        guard let builder = removeWorkoutRouteBuilder(for: builderId) else {
+            result(false)
+            return
+        }
+        
+        builder.discard()
+        result(true)
     }
 
     /// Writes audiogram data

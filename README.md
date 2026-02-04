@@ -10,6 +10,7 @@ The plugin supports:
 - reading health data using the `getHealthDataFromTypes` method.
 - writing health data using the `writeHealthData` method.
 - writing workouts using the `writeWorkout` method.
+- writing workout routes on iOS and Android using the `startWorkoutRoute` / `insertWorkoutRouteData` / `finishWorkoutRoute` methods.
 - writing meals on iOS (Apple Health) & Android using the `writeMeal` method.
 - writing audiograms on iOS using the `writeAudiogram` method.
 - writing blood pressure data using the `writeBloodPressure` method.
@@ -72,6 +73,13 @@ An example of asking for permission to read and write heart rate data is shown b
 ```xml
 <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
 <uses-permission android:name="android.permission.health.WRITE_HEART_RATE"/>
+```
+
+If you plan to read or write Activity Intensity records (the `HealthDataType.ACTIVITY_INTENSITY` type), be sure to add the corresponding Health Connect permissions introduced with that data type:
+
+```xml
+<uses-permission android:name="android.permission.health.READ_ACTIVITY_INTENSITY"/>
+<uses-permission android:name="android.permission.health.WRITE_ACTIVITY_INTENSITY"/>
 ```
 
 By default, Health Connect restricts read data to 30 days from when permission has been granted.
@@ -204,6 +212,24 @@ Below is a simplified flow of how to use the plugin.
   var midnight = DateTime(now.year, now.month, now.day);
   int? steps = await health.getTotalStepsInInterval(midnight, now);
 ```
+
+### Writing workout routes (iOS & Android)
+
+1. Request share/read permissions for both `HealthDataType.WORKOUT` and `HealthDataType.WORKOUT_ROUTE`, and ensure location permissions are granted (iOS: Core Location permissions; Android: `ACCESS_FINE_LOCATION` or `ACCESS_COARSE_LOCATION`).
+2. When the workout session starts, open a builder with `final builderId = await health.startWorkoutRoute();`.
+3. Collect GPS samples using `CLLocationManager` (or an equivalent service) and periodically push ordered batches of `WorkoutRouteLocation` values via `insertWorkoutRouteData`.
+4. Save the workout itself (for example, with `writeWorkoutData`) and capture the resulting HealthKit workout UUID.
+5. Call `finishWorkoutRoute(builderId: builderId, workoutUuid: workoutUuid, metadata: {...})` to commit the route, or `discardWorkoutRoute(builderId)` if the session is cancelled.
+
+> **Health Connect note:** Android only surfaces routes while your app is in the foreground, and
+> other apps' routes may return a `ConsentRequired` flag. Today (Health Connect 1.1.0) the system
+> does **not** expose the `ExerciseRouteRequestContract` documented by Google, so the only way to
+> read third-party routes is to have the user manually grant "Always allow" for *Exercise routes*
+> inside the Health Connect app (`Health Connect → App permissions → Your app → Exercise routes`).
+> Also remember to declare the following permissions in your Android manifest:
+> - `<uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTE"/>`
+> - `<uses-permission android:name="android.permission.health.WRITE_EXERCISE_ROUTE"/>`
+> - `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>` (or `ACCESS_COARSE_LOCATION`)
 
 ### Health Data
 
@@ -419,6 +445,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | WATER                        | LITER                   | yes              | yes                       |                                                                                                                                    |
 | EXERCISE_TIME                | MINUTES                 | yes              |                           |                                                                                                                                    |
 | WORKOUT                      | NO_UNIT                 | yes              | yes                       | See table below                                                                                                                    |
+| WORKOUT_ROUTE                | NO_UNIT                 | yes              | yes                       | iOS 11+ and Android (as Exercise Route); use the workout route builder APIs described in the [Writing workout routes](#writing-workout-routes-ios--android) section above. |
 | HIGH_HEART_RATE_EVENT        | NO_UNIT                 | yes              |                           | Requires Apple Watch to write the data                                                                                             |
 | LOW_HEART_RATE_EVENT         | NO_UNIT                 | yes              |                           | Requires Apple Watch to write the data                                                                                             |
 | IRREGULAR_HEART_RATE_EVENT   | NO_UNIT                 | yes              |                           | Requires Apple Watch to write the data                                                                                             |

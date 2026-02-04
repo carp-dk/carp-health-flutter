@@ -140,6 +140,18 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     details: nil))
             }
             
+        case "startWorkoutRoute":
+            healthDataWriter.startWorkoutRoute(call: call, result: result)
+            
+        case "insertWorkoutRouteData":
+            healthDataWriter.insertWorkoutRouteData(call: call, result: result)
+            
+        case "finishWorkoutRoute":
+            healthDataWriter.finishWorkoutRoute(call: call, result: result)
+            
+        case "discardWorkoutRoute":
+            healthDataWriter.discardWorkoutRoute(call: call, result: result)
+            
         case "writeMenstruationFlow":
             do {
                 try healthDataWriter.writeMenstruationFlow(call: call, result: result)
@@ -316,6 +328,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     @available(iOS 11.0, *)
     private func initializeIOS11Types() {
         dataTypesDict[HealthConstants.APPLE_STAND_HOUR] = HKSampleType.categoryType(forIdentifier: .appleStandHour)!
+        dataTypesDict[HealthConstants.WORKOUT_ROUTE] = HKSeriesType.workoutRoute()
         
         dataQuantityTypesDict[HealthConstants.ACTIVE_ENERGY_BURNED] = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
         dataQuantityTypesDict[HealthConstants.BASAL_ENERGY_BURNED] = HKQuantityType.quantityType(forIdentifier: .basalEnergyBurned)!

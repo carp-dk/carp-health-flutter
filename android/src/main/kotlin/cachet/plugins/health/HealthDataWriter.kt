@@ -21,6 +21,8 @@ class HealthDataWriter(
         private val healthConnectClient: HealthConnectClient,
         private val scope: CoroutineScope
 ) {
+    private val workoutRouteBuilders =
+        mutableMapOf<String, MutableList<ExerciseRoute.Location>>()
 
     // Maps incoming recordingMethod int -> Metadata factory method.
     // 0: unknown, 1: manual, 2: auto, 3: active (default unknown for others)
@@ -89,6 +91,37 @@ class HealthDataWriter(
         }
     }
 
+    fun startWorkoutRoute(result: Result) {
+        val builderId = java.util.UUID.randomUUID().toString()
+        workoutRouteBuilders[builderId] = mutableListOf()
+        result.success(builderId)
+    }
+
+    fun insertWorkoutRouteData(call: MethodCall, result: Result) {
+        val builderId = call.argument<String>("builderId")
+        val locations =
+            call.argument<List<Map<String, Any?>>>("locations") ?: emptyList()
+
+        if (builderId == null) {
+            result.error("ARGUMENT_ERROR", "Missing builderId for workout route insertion", null)
+            return
+        }
+
+        val builder = workoutRouteBuilders[builderId]
+        if (builder == null) {
+            result.error("ROUTE_ERROR", "Invalid workout route builder: $builderId", null)
+            return
+        }
+
+        try {
+            val parsedLocations = parseWorkoutLocations(locations)
+            builder.addAll(parsedLocations)
+            result.success(true)
+        } catch (e: IllegalArgumentException) {
+            result.error("ARGUMENT_ERROR", e.message, null)
+        }
+    }
+
 
     /**
      * Writes a single health data record to Health Connect. Supports most basic health metrics with
@@ -137,6 +170,47 @@ class HealthDataWriter(
             }
         }
     }
+
+        fun writeActivityIntensity(call: MethodCall, result: Result) {
+                val intensityType = call.argument<Int>("intensityType")!!
+                val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
+                val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
+                val recordingMethod = call.argument<Int>("recordingMethod")!!
+                val clientRecordId: String? = call.argument("clientRecordId")
+                val clientRecordVersion: Double? = call.argument<Double>("clientRecordVersion")
+                val deviceType: Int? = call.argument<Int>("deviceType")
+
+                val metadata: Metadata = buildMetadata(
+                        recordingMethod = recordingMethod,
+                        clientRecordId = clientRecordId,
+                        clientRecordVersion = clientRecordVersion?.toLong(),
+                        deviceType = deviceType,
+                )
+
+                scope.launch {
+                        try {
+                                val record = ActivityIntensityRecord(
+                                        startTime = startTime,
+                                        startZoneOffset = null,
+                                        endTime = endTime,
+                                        endZoneOffset = null,
+                                        activityIntensityType = intensityType,
+                                        metadata = metadata,
+                                )
+                                healthConnectClient.insertRecords(listOf(record))
+                                result.success(true)
+                                Log.i("FLUTTER_HEALTH::SUCCESS", "[Health Connect] Activity intensity was successfully added!")
+                        } catch (e: Exception) {
+                                Log.e(
+                                                "FLUTTER_HEALTH::ERROR",
+                                                "[Health Connect] There was an error adding the activity intensity record"
+                                )
+                                Log.e("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
+                                Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
+                                result.success(false)
+                        }
+                }
+        }
 
     /**
      * Writes a comprehensive workout session with optional distance and calorie data. Creates an
@@ -787,6 +861,10 @@ class HealthDataWriter(
                 Log.e("FLUTTER_HEALTH::ERROR", "You must use the [writeMeal] API")
                 null
             }
+                        ACTIVITY_INTENSITY -> {
+                                Log.e("FLUTTER_HEALTH::ERROR", "You must use the [writeActivityIntensity] API")
+                                null
+                        }
             else -> {
                 Log.e(
                         "FLUTTER_HEALTH::ERROR",
@@ -858,6 +936,7 @@ class HealthDataWriter(
         private const val WORKOUT = "WORKOUT"
         private const val NUTRITION = "NUTRITION"
         private const val SPEED = "SPEED"
+        private const val ACTIVITY_INTENSITY = "ACTIVITY_INTENSITY"
 
         // Recording method mapping expected from Flutter side
         private const val RECORDING_METHOD_UNKNOWN = 0
@@ -876,4 +955,124 @@ class HealthDataWriter(
         private const val SLEEP_UNKNOWN = "SLEEP_UNKNOWN"
         private const val SLEEP_SESSION = "SLEEP_SESSION"
     }
+
+    fun finishWorkoutRoute(call: MethodCall, result: Result) {
+        val builderId = call.argument<String>("builderId")
+        val workoutUUID = call.argument<String>("workoutUUID")
+
+        if (builderId.isNullOrBlank() || workoutUUID.isNullOrBlank()) {
+            result.error("ARGUMENT_ERROR", "Missing builderId or workoutUUID", null)
+            return
+        }
+
+        val locations = workoutRouteBuilders[builderId]
+        if (locations == null) {
+            result.error("ROUTE_ERROR", "Invalid workout route builder: $builderId", null)
+            return
+        }
+
+        scope.launch {
+            try {
+                val response =
+                    healthConnectClient.readRecord(
+                        ExerciseSessionRecord::class,
+                        workoutUUID
+                    )
+                val session = response.record
+                if (session == null) {
+                    result.error(
+                        "ROUTE_ERROR",
+                        "Workout with UUID $workoutUUID not found",
+                        null
+                    )
+                    return@launch
+                }
+
+                if (locations.isEmpty()) {
+                    workoutRouteBuilders.remove(builderId)
+                    result.success(mapOf("uuid" to workoutUUID))
+                    return@launch
+                }
+
+                val sortedLocations = locations.sortedBy { it.time }
+                val route = ExerciseRoute(sortedLocations)
+
+                val updatedRecord =
+                    ExerciseSessionRecord(
+                        startTime = session.startTime,
+                        startZoneOffset = session.startZoneOffset,
+                        endTime = session.endTime,
+                        endZoneOffset = session.endZoneOffset,
+                        metadata = session.metadata,
+                        exerciseType = session.exerciseType,
+                        title = session.title,
+                        notes = session.notes,
+                        segments = session.segments,
+                        laps = session.laps,
+                        exerciseRoute = route,
+                        plannedExerciseSessionId = session.plannedExerciseSessionId
+                    )
+
+                healthConnectClient.updateRecords(listOf(updatedRecord))
+                workoutRouteBuilders.remove(builderId)
+                result.success(mapOf("uuid" to workoutUUID))
+            } catch (e: Exception) {
+                Log.e(
+                    "FLUTTER_HEALTH::ERROR",
+                    "Error finishing workout route: ${e.message}"
+                )
+                result.error("ROUTE_ERROR", e.message, null)
+            }
+        }
+    }
+
+    fun discardWorkoutRoute(call: MethodCall, result: Result) {
+        val builderId = call.argument<String>("builderId")
+        if (builderId.isNullOrBlank()) {
+            result.error("ARGUMENT_ERROR", "Missing builderId for discard", null)
+            return
+        }
+        workoutRouteBuilders.remove(builderId)
+        result.success(true)
+    }
+
+    private fun parseWorkoutLocations(
+        rawLocations: List<Map<String, Any?>>
+    ): List<ExerciseRoute.Location> {
+        return rawLocations.map { entry ->
+            val latitude = entry["latitude"].toDoubleOrNull()
+                ?: throw IllegalArgumentException("Missing latitude in route location")
+            val longitude = entry["longitude"].toDoubleOrNull()
+                ?: throw IllegalArgumentException("Missing longitude in route location")
+            val timestamp = entry["timestamp"]?.toLongOrNull()
+                ?: throw IllegalArgumentException("Missing timestamp in route location")
+
+            val altitude = entry["altitude"].toDoubleOrNull()
+            val horizontalAccuracy = entry["horizontalAccuracy"].toDoubleOrNull()
+            val verticalAccuracy = entry["verticalAccuracy"].toDoubleOrNull()
+
+            ExerciseRoute.Location(
+                time = Instant.ofEpochMilli(timestamp),
+                latitude = latitude,
+                longitude = longitude,
+                horizontalAccuracy = horizontalAccuracy?.let { Length.meters(it) },
+                verticalAccuracy = verticalAccuracy?.let { Length.meters(it) },
+                altitude = altitude?.let { Length.meters(it) }
+            )
+        }
+    }
+
+    private fun Any?.toLongOrNull(): Long? =
+        when (this) {
+            is Number -> this.toLong()
+            is String -> this.toLongOrNull()
+            else -> null
+        }
+
+    private fun Any?.toDoubleOrNull(): Double? =
+        when (this) {
+            is Number -> this.toDouble()
+            is String -> this.toDoubleOrNull()
+            else -> null
+        }
 }

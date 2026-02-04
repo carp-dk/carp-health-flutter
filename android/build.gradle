@@ -55,7 +55,7 @@ dependencies {
     implementation(composeBom)
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.10"
 
-    implementation("androidx.health.connect:connect-client:1.2.0-alpha01")
+    implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
     implementation "androidx.fragment:fragment-ktx:1.8.9"
 
 }

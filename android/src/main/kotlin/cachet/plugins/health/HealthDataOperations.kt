@@ -6,6 +6,7 @@ import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.permission.HealthPermission.Companion.PERMISSION_READ_HEALTH_DATA_HISTORY
 import androidx.health.connect.client.permission.HealthPermission.Companion.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.time.TimeRangeFilter
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
@@ -298,6 +299,26 @@ class HealthDataOperations(
         val permList = mutableListOf<String>()
 
         for ((i, typeKey) in types.withIndex()) {
+            if (typeKey == HealthConstants.WORKOUT_ROUTE) {
+                val access = permissions[i]
+                val sessionRead =
+                    HealthPermission.getReadPermission(ExerciseSessionRecord::class)
+                val sessionWrite =
+                    HealthPermission.getWritePermission(ExerciseSessionRecord::class)
+                when (access) {
+                    0 -> permList.add(sessionRead)
+                    1 -> {
+                        permList.add(HealthPermission.PERMISSION_WRITE_EXERCISE_ROUTE)
+                        permList.add(sessionWrite)
+                    }
+                    else -> {
+                        permList.add(sessionRead)
+                        permList.add(sessionWrite)
+                        permList.add(HealthPermission.PERMISSION_WRITE_EXERCISE_ROUTE)
+                    }
+                }
+                continue
+            }
             if (!HealthConstants.mapToType.containsKey(typeKey)) {
                 Log.w("FLUTTER_HEALTH::ERROR", "Datatype $typeKey not found in HC")
                 return null

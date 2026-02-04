@@ -12,8 +12,7 @@ class HealthException implements Exception {
   HealthException(this.dataType, this.cause);
 
   @override
-  String toString() =>
-      "Error requesting health data type '$dataType' - cause: $cause";
+  String toString() => "Error requesting health data type '$dataType' - cause: $cause";
 }
 
 /// The status of Google Health Connect.
@@ -40,7 +39,8 @@ enum HealthConnectSdkStatus {
 
   factory HealthConnectSdkStatus.fromNativeValue(int value) {
     return HealthConnectSdkStatus.values.firstWhere(
-        (e) => e.nativeValue == value,
-        orElse: () => HealthConnectSdkStatus.sdkUnavailable);
+      (e) => e.nativeValue == value,
+      orElse: () => HealthConnectSdkStatus.sdkUnavailable,
+    );
   }
 }

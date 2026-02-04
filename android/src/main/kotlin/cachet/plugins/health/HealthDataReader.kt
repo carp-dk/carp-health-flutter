@@ -6,6 +6,9 @@ import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.records.ExerciseRouteResult.ConsentRequired
+import androidx.health.connect.client.records.ExerciseRouteResult.Data
+import androidx.health.connect.client.records.ExerciseRouteResult.NoData
 import androidx.health.connect.client.request.AggregateGroupByDurationRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -54,12 +57,26 @@ class HealthDataReader(
 
         scope.launch {
             try {
-                val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
+                val grantedPermissions =
+                    healthConnectClient.permissionController.getGrantedPermissions()
 
-                val authorizedTypeMap = HealthConstants.mapToType.filter { (typeKey, classType) ->
-                    val requiredPermission = HealthPermission.getReadPermission(classType)
-                    grantedPermissions.contains(requiredPermission)
+                if (dataType == HealthConstants.WORKOUT_ROUTE) {
+                    handleWorkoutRouteData(
+                        startTime,
+                        endTime,
+                        recordingMethodsToFilter,
+                        healthConnectData,
+                        grantedPermissions
+                    )
+                    Handler(context.mainLooper).run { result.success(healthConnectData) }
+                    return@launch
                 }
+
+                val authorizedTypeMap =
+                    HealthConstants.mapToType.filter { (_, classType) ->
+                        val requiredPermission = HealthPermission.getReadPermission(classType)
+                        grantedPermissions.contains(requiredPermission)
+                    }
 
                 authorizedTypeMap[dataType]?.let { classType ->
                     val records = mutableListOf<Record>()
@@ -130,6 +147,40 @@ class HealthDataReader(
         val uuid = call.argument<String>("uuid")!!
         var healthPoint = mapOf<String, Any?>()
 
+        if (dataType == HealthConstants.WORKOUT_ROUTE) {
+            scope.launch {
+                try {
+                    val response =
+                        healthConnectClient.readRecord(ExerciseSessionRecord::class, uuid)
+                    val session = response.record
+
+                    val point =
+                        if (session == null) {
+                            emptyMap()
+                        } else {
+                            when (val routeResult = session.exerciseRouteResult) {
+                                is Data ->
+                                    buildWorkoutRouteMap(session, routeResult.exerciseRoute)
+                                        ?: emptyMap()
+                                is ConsentRequired -> buildConsentRequiredRouteMap(session)
+                                else -> emptyMap()
+                            }
+                        }
+
+                    Handler(context.mainLooper).run { result.success(point) }
+                } catch (e: Exception) {
+                    Log.e(
+                        "FLUTTER_HEALTH::ERROR",
+                        "Error fetching workout route with UUID: $uuid"
+                    )
+                    Log.e("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
+                    Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
+                    result.success(null)
+                }
+            }
+            return
+        }
+
         if (!HealthConstants.mapToType.containsKey(dataType)) {
             Log.w("FLUTTER_HEALTH::ERROR", "Datatype $dataType not found in HC")
             result.success(null)
@@ -152,17 +203,33 @@ class HealthDataReader(
                 if (matchingRecord != null) {
                     // Handle special cases using shared logic
                     when (dataType) {
-                        WORKOUT -> {
+                        HealthConstants.WORKOUT -> {
                             val tempData = mutableListOf<Map<String, Any?>>()
                             handleWorkoutData(listOf(matchingRecord), emptyList(), tempData)
                             healthPoint = if (tempData.isNotEmpty()) tempData[0] else mapOf()
                         }
-                        SLEEP_SESSION, SLEEP_ASLEEP, SLEEP_AWAKE, SLEEP_AWAKE_IN_BED,
-                        SLEEP_LIGHT, SLEEP_DEEP, SLEEP_REM, SLEEP_OUT_OF_BED, SLEEP_UNKNOWN -> {
+                        HealthConstants.SLEEP_SESSION,
+                        HealthConstants.SLEEP_ASLEEP,
+                        HealthConstants.SLEEP_AWAKE,
+                        HealthConstants.SLEEP_AWAKE_IN_BED,
+                        HealthConstants.SLEEP_LIGHT,
+                        HealthConstants.SLEEP_DEEP,
+                        HealthConstants.SLEEP_REM,
+                        HealthConstants.SLEEP_OUT_OF_BED,
+                        HealthConstants.SLEEP_UNKNOWN -> {
                             if (matchingRecord is SleepSessionRecord) {
                                 val tempData = mutableListOf<Map<String, Any?>>()
                                 handleSleepData(listOf(matchingRecord), emptyList(), dataType, tempData)
                                 healthPoint = if (tempData.isNotEmpty()) tempData[0] else mapOf()
+                            }
+                        }
+                        HealthConstants.WORKOUT_ROUTE -> {
+                            if (matchingRecord is ExerciseSessionRecord) {
+                                val routeMap = buildWorkoutRouteMap(
+                                    matchingRecord,
+                                    (matchingRecord.exerciseRouteResult as? Data)?.exerciseRoute
+                                )
+                                healthPoint = routeMap ?: mapOf()
                             }
                         }
                         else -> {
@@ -187,6 +254,144 @@ class HealthDataReader(
                 result.success(null)
             }
         }
+    }
+
+    private suspend fun handleWorkoutRouteData(
+        startTime: Instant,
+        endTime: Instant,
+        recordingMethodsToFilter: List<Int>,
+        healthConnectData: MutableList<Map<String, Any?>>,
+        grantedPermissions: Set<String>,
+    ) {
+        val workoutPermission = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
+        if (!grantedPermissions.contains(workoutPermission)) {
+            Log.w(
+                "FLUTTER_HEALTH",
+                "Workout route access requires ExerciseSession read permission"
+            )
+            return
+        }
+
+        val sessions = mutableListOf<ExerciseSessionRecord>()
+        var request = ReadRecordsRequest(
+            recordType = ExerciseSessionRecord::class,
+            timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+        )
+
+        var response = healthConnectClient.readRecords(request)
+        var pageToken = response.pageToken
+        sessions.addAll(response.records)
+
+        while (!pageToken.isNullOrEmpty()) {
+            request = ReadRecordsRequest(
+                recordType = ExerciseSessionRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                pageToken = pageToken,
+            )
+            response = healthConnectClient.readRecords(request)
+            pageToken = response.pageToken
+            sessions.addAll(response.records)
+        }
+
+        val filteredSessions =
+            if (recordingMethodsToFilter.isEmpty()) {
+                sessions
+            } else {
+                recordingFilter.filterRecordsByRecordingMethods(
+                    recordingMethodsToFilter,
+                    sessions.map { it as Record }
+                ).map { it as ExerciseSessionRecord }
+            }
+
+        for (session in filteredSessions) {
+            when (val routeResult = session.exerciseRouteResult) {
+                is Data -> {
+                    val routeMap = buildWorkoutRouteMap(session, routeResult.exerciseRoute)
+                    if (routeMap != null) {
+                        healthConnectData.add(routeMap)
+                    }
+                }
+                is ConsentRequired -> {
+                    healthConnectData.add(
+                        buildConsentRequiredRouteMap(session)
+                    )
+                }
+                is NoData -> {
+                    // no-op
+                }
+            }
+        }
+    }
+
+    private fun buildWorkoutRouteMap(
+        session: ExerciseSessionRecord,
+        route: ExerciseRoute?
+    ): Map<String, Any?>? {
+        if (route == null || route.route.isEmpty()) return null
+
+        val routePoints = route.route.map { location ->
+            mutableMapOf<String, Any?>(
+                "latitude" to location.latitude,
+                "longitude" to location.longitude,
+                "timestamp" to location.time.toEpochMilli(),
+            ).apply {
+                location.altitude?.let { put("altitude", it.inMeters) }
+                location.horizontalAccuracy?.let {
+                    put("horizontalAccuracy", it.inMeters)
+                }
+                location.verticalAccuracy?.let {
+                    put("verticalAccuracy", it.inMeters)
+                }
+            }
+        }
+
+        val startTimestamp = routePoints.firstOrNull()?.get("timestamp") as? Long
+            ?: session.startTime.toEpochMilli()
+        val endTimestamp = routePoints.lastOrNull()?.get("timestamp") as? Long
+            ?: session.endTime.toEpochMilli()
+
+        val metadata = mutableMapOf<String, Any?>(
+            "workout_uuid" to session.metadata.id,
+            "workout_activity_type" to (
+                HealthConstants.workoutTypeReverseMap[session.exerciseType] ?: "OTHER"
+            ),
+            "workout_start_time" to session.startTime.toEpochMilli(),
+            "workout_end_time" to session.endTime.toEpochMilli(),
+            "route_point_count" to routePoints.size,
+        )
+
+        return mutableMapOf<String, Any?>(
+            "uuid" to session.metadata.id,
+            "route" to routePoints,
+            "date_from" to startTimestamp,
+            "date_to" to endTimestamp,
+            "source_id" to session.metadata.dataOrigin.packageName,
+            "source_name" to session.metadata.dataOrigin.packageName,
+            "recording_method" to session.metadata.recordingMethod,
+            "metadata" to metadata,
+        )
+    }
+
+    private fun buildConsentRequiredRouteMap(session: ExerciseSessionRecord): Map<String, Any?> {
+        val metadata = mapOf(
+            "workout_uuid" to session.metadata.id,
+            "route_requires_consent" to true,
+            "workout_activity_type" to (
+                HealthConstants.workoutTypeReverseMap[session.exerciseType] ?: "OTHER"
+            ),
+            "workout_start_time" to session.startTime.toEpochMilli(),
+            "workout_end_time" to session.endTime.toEpochMilli(),
+        )
+        return mapOf(
+            "uuid" to session.metadata.id,
+            "route" to emptyList<Map<String, Any?>>(),
+            "date_from" to session.startTime.toEpochMilli(),
+            "date_to" to session.endTime.toEpochMilli(),
+            "source_id" to session.metadata.dataOrigin.packageName,
+            "source_name" to session.metadata.dataOrigin.packageName,
+            "recording_method" to session.metadata.recordingMethod,
+            "metadata" to metadata,
+        )
     }
 
     /**

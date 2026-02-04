@@ -1,3 +1,9 @@
+## 13.3.0
+
+* Add support for `WORKOUT_ROUTE` - PR [#454](https://github.com/carp-dk/carp-health-flutter/pull/454)
+* Android: Add support for `ActivityIntensityRecord` (READ/WRITE/Aggregate)
+* Update to `androidx.health.connect:connect-client:1.2.0-alpha02`
+
 ## 13.2.1
 
 No changes - Now the [Health](https://pub.dev/packages/health) package lives in its own repository at [https://github.com/carp-dk/carp-health-flutter](https://github.com/carp-dk/carp-health-flutter)

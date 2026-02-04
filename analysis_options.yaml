@@ -17,3 +17,6 @@ linter:
     depend_on_referenced_packages: true
     avoid_print: true
     use_string_in_part_of_directives: true
+
+formatter: 
+  page_width: 120

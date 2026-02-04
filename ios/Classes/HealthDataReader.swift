@@ -1,5 +1,6 @@
 import Flutter
 import HealthKit
+import CoreLocation
 
 /// Class responsible for reading health data from HealthKit
 class HealthDataReader {
@@ -157,6 +158,15 @@ class HealthDataReader {
                 DispatchQueue.main.async {
                     result([])
                 }
+                return
+            }
+
+            if dataTypeKey == HealthConstants.WORKOUT_ROUTE {
+                self.processWorkoutRouteSamples(
+                    samples: samples,
+                    includeManualEntry: includeManualEntry,
+                    completion: result
+                )
                 return
             }
 
@@ -321,9 +331,9 @@ class HealthDataReader {
                                                 ? HKUnit.literUnit(with: .milli) : HKUnit.gram()
                                         sampleDict[key] = quantitySample.quantity.doubleValue(
                                             for: unit)
-                                    }
-                                }
-                            }
+            }
+        }
+    }
                         }
                         foods.append(sampleDict as! [String: Any?])
                     }
@@ -419,6 +429,22 @@ class HealthDataReader {
             guard let samples = samplesOrNil else {
                 DispatchQueue.main.async {
                     result(nil)
+                }
+                return
+            }
+
+            if dataTypeKey == HealthConstants.WORKOUT_ROUTE {
+                self.processWorkoutRouteSamples(
+                    samples: samples,
+                    includeManualEntry: true
+                ) { value in
+                    if let error = value as? FlutterError {
+                        result(error)
+                    } else if let routes = value as? [[String: Any]], let first = routes.first {
+                        result(first)
+                    } else {
+                        result(nil)
+                    }
                 }
                 return
             }
@@ -815,6 +841,145 @@ class HealthDataReader {
         }
 
         healthStore.execute(query)
+    }
+
+    private func processWorkoutRouteSamples(
+        samples: [HKSample],
+        includeManualEntry: Bool,
+        completion: @escaping FlutterResult
+    ) {
+        guard let routeSamples = samples as? [HKWorkoutRoute], !routeSamples.isEmpty else {
+            DispatchQueue.main.async {
+                completion([])
+            }
+            return
+        }
+
+        let dispatchGroup = DispatchGroup()
+        let synchronizationQueue = DispatchQueue(label: "com.carp.health.workoutroute")
+
+        var routeDictionaries = [[String: Any]]()
+        var capturedError: Error?
+
+        for route in routeSamples {
+            if !includeManualEntry,
+                route.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true {
+                continue
+            }
+
+            dispatchGroup.enter()
+            var collectedLocations: [CLLocation] = []
+
+            let routeQuery = HKWorkoutRouteQuery(route: route) {
+                [weak self] _, locationsOrNil, done, error in
+
+                if let error = error {
+                    synchronizationQueue.async {
+                        if capturedError == nil {
+                            capturedError = error
+                        }
+                    }
+                }
+
+                if let locations = locationsOrNil {
+                    collectedLocations.append(contentsOf: locations)
+                }
+
+                if done {
+                    synchronizationQueue.async {
+                        if capturedError == nil, let strongSelf = self {
+                            let dictionary = strongSelf.buildWorkoutRouteDictionary(
+                                route: route,
+                                locations: collectedLocations
+                            )
+                            routeDictionaries.append(dictionary)
+                        }
+                        dispatchGroup.leave()
+                    }
+                }
+            }
+
+            healthStore.execute(routeQuery)
+        }
+
+        dispatchGroup.notify(queue: .main) {
+            if let error = capturedError {
+                completion(
+                    FlutterError(
+                        code: "ROUTE_ERROR",
+                        message: "Error getting workout routes: \(error.localizedDescription)",
+                        details: nil))
+            } else {
+                completion(routeDictionaries)
+            }
+        }
+    }
+
+    private func buildWorkoutRouteDictionary(
+        route: HKWorkoutRoute,
+        locations: [CLLocation]
+    ) -> [String: Any] {
+        let routePoints: [[String: Any]] = locations.map { location in
+            var entry: [String: Any?] = [
+                "latitude": location.coordinate.latitude,
+                "longitude": location.coordinate.longitude,
+                "timestamp": Int(location.timestamp.timeIntervalSince1970 * 1000),
+            ]
+
+            if location.horizontalAccuracy >= 0 {
+                entry["horizontalAccuracy"] = location.horizontalAccuracy
+            }
+            if location.verticalAccuracy >= 0 {
+                entry["verticalAccuracy"] = location.verticalAccuracy
+                entry["altitude"] = location.altitude
+            }
+            if location.speed >= 0 {
+                entry["speed"] = location.speed
+            }
+            if #available(iOS 13.4, *) {
+                if location.speedAccuracy >= 0 {
+                    entry["speedAccuracy"] = location.speedAccuracy
+                }
+            }
+            if location.course >= 0 && location.course <= 360 {
+                entry["course"] = location.course
+            }
+            if #available(iOS 13.4, *) {
+                if location.courseAccuracy >= 0 {
+                    entry["courseAccuracy"] = location.courseAccuracy
+                }
+            }
+
+            return entry.compactMapValues { $0 }
+        }
+
+        let startTimestamp = routePoints.first?["timestamp"] as? Int
+            ?? Int(route.startDate.timeIntervalSince1970 * 1000)
+        let endTimestamp = routePoints.last?["timestamp"] as? Int
+            ?? Int(route.endDate.timeIntervalSince1970 * 1000)
+
+        var metadata = HealthUtilities.sanitizeMetadata(route.metadata) ?? [:]
+        metadata["route_point_count"] = routePoints.count
+
+        var dictionary: [String: Any] = [
+            "uuid": "\(route.uuid)",
+            "route": routePoints,
+            "date_from": startTimestamp,
+            "date_to": endTimestamp,
+            "source_id": route.sourceRevision.source.bundleIdentifier,
+            "source_name": route.sourceRevision.source.name,
+            "recording_method":
+                (route.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
+                ? HealthConstants.RecordingMethod.manual.rawValue
+                : HealthConstants.RecordingMethod.automatic.rawValue,
+            "metadata": metadata,
+        ]
+
+        if let workoutUUID = metadata["workout_uuid"] as? String {
+            dictionary["workout_uuid"] = workoutUUID
+        }
+
+        return dictionary
     }
 
     /// Gets birth date from HealthKit

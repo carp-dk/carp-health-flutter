@@ -125,3 +125,4 @@ app.*.symbols
 .sdkmanrc
 **/.cxx/
 .zed/settings.json
+android/bin

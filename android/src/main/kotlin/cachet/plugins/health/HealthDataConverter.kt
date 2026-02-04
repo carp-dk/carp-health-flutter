@@ -60,6 +60,16 @@ class HealthDataConverter {
             is HydrationRecord -> listOf(createIntervalRecord(metadata, record.startTime, record.endTime, record.volume.inLiters))
             is TotalCaloriesBurnedRecord -> listOf(createIntervalRecord(metadata, record.startTime, record.endTime, record.energy.inKilocalories))
             is FloorsClimbedRecord -> listOf(createIntervalRecord(metadata, record.startTime, record.endTime, record.floors))
+            is ActivityIntensityRecord -> listOf(
+                createIntervalRecord(
+                    metadata,
+                    record.startTime,
+                    record.endTime,
+                    ChronoUnit.MINUTES.between(record.startTime, record.endTime)
+                ).toMutableMap().apply {
+                    put("activityIntensityType", record.activityIntensityType)
+                }
+            )
             
             // Special cases
             is BloodPressureRecord -> listOf(

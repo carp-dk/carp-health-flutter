@@ -7,9 +7,10 @@ name: Dart Format Check
 
 on:
   pull_request:
-    branches: [ "main" ]
-    paths:
-      - '**.dart'
+    branches: [main]
+  push:
+    branches: [main]
+
 
 jobs:
   format:
@@ -17,11 +18,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      # Note: This workflow uses the latest stable version of the Dart SDK.
-      # You can specify other versions if desired, see documentation here:
-      # https://github.com/dart-lang/setup-dart/blob/main/README.md
-      - uses: dart-lang/setup-dart@9a04e6d73cca37bd455e0608d7e5092f881fd603
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          # flutter-version: '3.16.8'
 
       # Cache Dart dependencies to speed up workflow runs
       - name: Cache Dart dependencies
@@ -38,18 +39,17 @@ jobs:
             ${{ runner.os }}-dart-
 
       - name: Install dependencies
-        run: dart pub get
+        run: flutter pub get
 
-      # Verify that all Dart files are formatted correctly
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 
       # Consider passing '--fatal-infos' for slightly stricter analysis.
       - name: Analyze project source
-        run: dart analyze
+        run: flutter analyze
 
       # Your project will need to have tests in test/ and a dependency on
       # package:test for this step to succeed. Note that Flutter projects will
       # want to change this to 'flutter test'.
       - name: Run tests
-        run: dart test
+        run: flutter test
