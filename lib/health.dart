@@ -17,6 +17,7 @@ part 'src/health_changes.dart';
 part 'src/health_value_types.dart';
 part 'src/health_plugin.dart';
 part 'src/workout_summary.dart';
+part 'src/workout_metadata.dart';
 
 part 'health.g.dart';
 part 'health.json.dart';

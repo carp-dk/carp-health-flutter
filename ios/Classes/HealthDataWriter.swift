@@ -866,6 +866,40 @@ class HealthDataWriter {
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
         let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
 
+        // Build metadata from optional metadata dictionary
+        var metadata: [String: Any]? = nil
+        if let metadataDict = arguments["metadata"] as? [String: Any] {
+            var workoutMetadata = [String: Any]()
+            
+            // iOS 17+ only metadata keys
+            if #available(iOS 17.0, *) {
+                if let activityType = metadataDict["activityType"] as? String {
+                    workoutMetadata[HKMetadataKeyActivityType] = activityType
+                }
+                if let appleFitnessPlusSession = metadataDict["appleFitnessPlusSession"] as? Bool {
+                    workoutMetadata[HKMetadataKeyAppleFitnessPlusSession] = appleFitnessPlusSession
+                }
+            }
+            
+            // Available on all iOS versions
+            if let coachedWorkout = metadataDict["coachedWorkout"] as? Bool {
+                workoutMetadata[HKMetadataKeyCoachedWorkout] = coachedWorkout
+            }
+            if let groupFitness = metadataDict["groupFitness"] as? Bool {
+                workoutMetadata[HKMetadataKeyGroupFitness] = groupFitness
+            }
+            if let indoorWorkout = metadataDict["indoorWorkout"] as? Bool {
+                workoutMetadata[HKMetadataKeyIndoorWorkout] = indoorWorkout
+            }
+            if let workoutBrandName = metadataDict["workoutBrandName"] as? String {
+                workoutMetadata[HKMetadataKeyWorkoutBrandName] = workoutBrandName
+            }
+            
+            if !workoutMetadata.isEmpty {
+                metadata = workoutMetadata
+            }
+        }
+
         let workout = HKWorkout(
             activityType: activityTypeValue,
             start: dateFrom,
@@ -873,7 +907,7 @@ class HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned ?? nil,
             totalDistance: totalDistance ?? nil,
-            metadata: nil
+            metadata: metadata
         )
 
         healthStore.save(
