@@ -92,9 +92,9 @@ class HealthChangesResponse {
   factory HealthChangesResponse.fromMethodChannel(Map<dynamic, dynamic> map) {
     final rawChanges = map['changes'] as List? ?? const [];
     final changes = rawChanges
-        .whereType<Map>()
-        .map((change) => HealthChange.fromMethodChannel(change))
-        .toList();
+      .whereType<Map<dynamic, dynamic>>()
+      .map((change) => HealthChange.fromMethodChannel(change))
+      .toList();
 
     return HealthChangesResponse(
       changes: changes,
