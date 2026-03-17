@@ -191,6 +191,7 @@ object HealthConstants {
         "BASEBALL" to ExerciseSessionRecord.EXERCISE_TYPE_BASEBALL,
         "BASKETBALL" to ExerciseSessionRecord.EXERCISE_TYPE_BASKETBALL,
         "BIKING" to ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+        "BIKING_STATIONARY" to ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY,
         "BOXING" to ExerciseSessionRecord.EXERCISE_TYPE_BOXING,
         "CALISTHENICS" to ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS,
         "CARDIO_DANCE" to ExerciseSessionRecord.EXERCISE_TYPE_DANCING,
