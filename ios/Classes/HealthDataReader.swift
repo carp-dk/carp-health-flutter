@@ -190,6 +190,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                         "recording_method":
                             (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                             ? HealthConstants.RecordingMethod.manual.rawValue
@@ -238,6 +239,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                         "recording_method":
                             (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                             ? HealthConstants.RecordingMethod.manual.rawValue
@@ -265,6 +267,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                         "recording_method":
                             (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                             ? HealthConstants.RecordingMethod.manual.rawValue
@@ -308,6 +311,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                     ]
                 }
                 DispatchQueue.main.async {
@@ -328,6 +332,7 @@ class HealthDataReader {
                             "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                             "source_id": sample.sourceRevision.source.bundleIdentifier,
                             "source_name": sample.sourceRevision.source.name,
+                            "device_model": sample.sourceRevision.productType,
                             "recording_method":
                                 (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                                 ? HealthConstants.RecordingMethod.manual.rawValue
@@ -479,6 +484,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                         "recording_method":
                             (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                             ? HealthConstants.RecordingMethod.manual.rawValue
@@ -527,6 +533,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                         "recording_method":
                             (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                             ? HealthConstants.RecordingMethod.manual.rawValue
@@ -554,6 +561,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                         "recording_method":
                             (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                             ? HealthConstants.RecordingMethod.manual.rawValue
@@ -597,6 +605,7 @@ class HealthDataReader {
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
                         "source_name": sample.sourceRevision.source.name,
+                        "device_model": sample.sourceRevision.productType,
                     ]
                 }
                 DispatchQueue.main.async {
@@ -617,6 +626,7 @@ class HealthDataReader {
                             "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                             "source_id": sample.sourceRevision.source.bundleIdentifier,
                             "source_name": sample.sourceRevision.source.name,
+                            "device_model": sample.sourceRevision.productType,
                             "recording_method":
                                 (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                                 ? HealthConstants.RecordingMethod.manual.rawValue
@@ -1011,6 +1021,7 @@ class HealthDataReader {
             "date_to": endTimestamp,
             "source_id": route.sourceRevision.source.bundleIdentifier,
             "source_name": route.sourceRevision.source.name,
+            "device_model": route.sourceRevision.productType,
             "recording_method":
                 (route.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                 ? HealthConstants.RecordingMethod.manual.rawValue
@@ -1111,6 +1122,7 @@ class HealthDataReader {
                         "date_to": Int(ecg.endDate.timeIntervalSince1970 * 1000),
                         "source_id": ecg.sourceRevision.source.bundleIdentifier,
                         "source_name": ecg.sourceRevision.source.name,
+                        "device_model": ecg.sourceRevision.productType,
                     ]
                     lock.lock()
                     dictionaries.append(dict)
