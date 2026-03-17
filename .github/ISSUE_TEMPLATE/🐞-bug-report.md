@@ -8,9 +8,11 @@ type: Bug
 
 ---
 
+NOTE: **Without any logs _and_ steps to reproduce the bug the issue will not be looked into!**
+
+
 **Describe the bug**
 A clear and concise description of what the bug is.
-**Without any logs _and_ steps to reproduce the bug the issue will be closed!**
 
 **To Reproduce**
 Steps to reproduce the behaviour:
@@ -21,6 +23,11 @@ Steps to reproduce the behaviour:
 
 **Expected behaviour**
 A clear and concise description of what you expected to happen.
+
+**Logs**
+```
+Paste your logs here
+```
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem.

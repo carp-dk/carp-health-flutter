@@ -2,8 +2,9 @@
 name: "\U0001F984 Feature request"
 about: Suggest an idea for this project
 title: ''
-labels: ''
+labels: enhancement
 assignees: ''
+type: Feature
 
 ---
 
