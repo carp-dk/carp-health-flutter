@@ -605,11 +605,28 @@ class HealthDataReader(
                     ),
                 ),
             )
-            var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
-            }
 
+            val fitbitPackageName = "com.fitbit.FitbitMobile"
+
+			// Deduplicate distance records based on startTime and endTime, keeping the one with highest distance
+			val uniqueDistanceRecords = distanceRequest.records
+				.groupBy { Pair(it.startTime.toEpochMilli(), it.endTime.toEpochMilli()) }
+				.map { entry -> entry.value.maxByOrNull { it.distance.inMeters } ?: entry.value.first() }
+
+			// Group distance records by packageName and sum for each package
+			val distanceByPackage = distanceRequest.records
+				.groupBy { it.metadata.dataOrigin.packageName }
+				.mapValues { entry ->
+					entry.value.sumOf { it.distance.inMeters }
+				}
+
+			// Check if Fitbit data exists, otherwise use the package with highest sum
+			val totalDistance = if (distanceByPackage.containsKey(fitbitPackageName)) {
+				distanceByPackage[fitbitPackageName] ?: 0.0
+			} else {
+				distanceByPackage.values.maxOrNull() ?: 0.0
+			}
+			
             // Get energy burned data
             val energyBurnedRequest = healthConnectClient.readRecords(
                 ReadRecordsRequest(
@@ -620,10 +637,13 @@ class HealthDataReader(
                     ),
                 ),
             )
-            var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
-            }
+
+            // Deduplicate energy burned records based on startTime and endTime, keeping the one with highest calories
+			val uniqueEnergyBurnedRecords = energyBurnedRequest.records
+				.groupBy { Pair(it.startTime.toEpochMilli(), it.endTime.toEpochMilli()) }
+				.map { entry -> entry.value.maxByOrNull { it.energy.inKilocalories } ?: entry.value.first() }
+
+			val totalEnergyBurned = energyBurnedRequest.records.sumOf { it.energy.inKilocalories }
 
             // Get steps data
             val stepRequest = healthConnectClient.readRecords(
@@ -635,10 +655,25 @@ class HealthDataReader(
                     ),
                 ),
             )
-            var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
-            }
+            
+			// Deduplicate steps records based on startTime and endTime, keeping the one with highest step count
+			val uniqueStepRecords = stepRequest.records
+				.groupBy { Pair(it.startTime.toEpochMilli(), it.endTime.toEpochMilli()) }
+				.map { entry -> entry.value.maxByOrNull { it.count } ?: entry.value.first() }
+
+			// Group distance records by packageName and sum for each package
+			val stepsByPackage = stepRequest.records
+				.groupBy { it.metadata.dataOrigin.packageName }
+				.mapValues { entry ->
+					entry.value.sumOf { it.count }
+				}
+
+			// Check if Fitbit data exists, otherwise use the package with highest sum
+			val totalSteps = if (stepsByPackage.containsKey(fitbitPackageName)) {
+				stepsByPackage[fitbitPackageName] ?: 0
+			} else {
+				stepsByPackage.values.maxOrNull() ?: 0
+			}.toDouble()
 
             // Add final datapoint
             healthConnectData.add(
