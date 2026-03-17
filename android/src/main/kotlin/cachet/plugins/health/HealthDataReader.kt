@@ -33,12 +33,13 @@ class HealthDataReader(
     private val dataConverter: HealthDataConverter
 ) {
     private val recordingFilter = HealthRecordingFilter()
+    private val permissionChecker = HealthPermissionChecker(context)
 
     /**
      * Retrieves all health data points of a specified type within a given time range.
      * Handles pagination for large datasets and applies recording method filtering.
      * Supports special processing for workout and sleep data.
-     * 
+     *
      * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'recordingMethodsToFilter'
      * @param result Flutter result callback returning list of health data maps
      */
@@ -108,8 +109,8 @@ class HealthDataReader(
                     // Handle special cases
                     when (dataType) {
                         WORKOUT -> handleWorkoutData(records, recordingMethodsToFilter, healthConnectData)
-                        SLEEP_SESSION, SLEEP_ASLEEP, SLEEP_AWAKE, SLEEP_AWAKE_IN_BED, 
-                        SLEEP_LIGHT, SLEEP_DEEP, SLEEP_REM, SLEEP_OUT_OF_BED, SLEEP_UNKNOWN -> 
+                        SLEEP_SESSION, SLEEP_ASLEEP, SLEEP_AWAKE, SLEEP_AWAKE_IN_BED,
+                        SLEEP_LIGHT, SLEEP_DEEP, SLEEP_REM, SLEEP_OUT_OF_BED, SLEEP_UNKNOWN ->
                             handleSleepData(records, recordingMethodsToFilter, dataType, healthConnectData)
                         else -> {
                             val filteredRecords = recordingFilter.filterRecordsByRecordingMethods(
@@ -131,14 +132,15 @@ class HealthDataReader(
                     "Unable to return $dataType due to the following exception:"
                 )
                 Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
-                result.success(emptyList<Map<String, Any?>>()) // Return empty list instead of null
+                // Return empty list instead of null
+                result.error("UNAVAILABLE", "Data not available", emptyList<Map<String, Any?>>())
             }
         }
     }
 
     /**
      * Retrieves single health data point by given UUID and type.
-     * 
+     *
      * @param call Method call containing 'UUID' and 'dataTypeKey'
      * @param result Flutter result callback returning list of health data maps
      */
@@ -397,7 +399,7 @@ class HealthDataReader(
     /**
      * Retrieves aggregated health data grouped by time intervals.
      * Calculates totals, averages, or counts over specified time periods.
-     * 
+     *
      * @param call Method call containing 'dataTypeKey', 'interval', 'startTime', 'endTime'
      * @param result Flutter result callback returning list of aggregated data maps
      */
@@ -407,7 +409,7 @@ class HealthDataReader(
         val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
         val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
         val healthConnectData = mutableListOf<Map<String, Any?>>()
-        
+
         scope.launch {
             try {
                 HealthConstants.mapToAggregateMetric[dataType]?.let { metricClassType ->
@@ -457,7 +459,7 @@ class HealthDataReader(
     /**
      * Retrieves interval-based health data. Currently delegates to getAggregateData.
      * Maintained for API compatibility and potential future differentiation.
-     * 
+     *
      * @param call Method call with interval data parameters
      * @param result Flutter result callback returning interval data
      */
@@ -469,7 +471,7 @@ class HealthDataReader(
      * Gets total step count within a specified time interval with optional filtering.
      * Optimizes between aggregated queries and filtered individual record queries
      * based on whether recording method filtering is required.
-     * 
+     *
      * @param call Method call containing 'startTime', 'endTime', 'recordingMethodsToFilter'
      * @param result Flutter result callback returning total step count as integer
      */
@@ -490,7 +492,7 @@ class HealthDataReader(
     /**
      * Retrieves aggregated step count using Health Connect's built-in aggregation.
      * Provides optimized step counting when no filtering is required.
-     * 
+     *
      * @param start Start time in milliseconds
      * @param end End time in milliseconds
      * @param result Flutter result callback returning step count
@@ -498,7 +500,7 @@ class HealthDataReader(
     private fun getAggregatedStepCount(start: Long, end: Long, result: Result) {
         val startInstant = Instant.ofEpochMilli(start)
         val endInstant = Instant.ofEpochMilli(end)
-        
+
         scope.launch {
             try {
                 val response = healthConnectClient.aggregate(
@@ -525,16 +527,16 @@ class HealthDataReader(
     /**
      * Retrieves step count with recording method filtering applied.
      * Manually sums individual step records after applying specified filters.
-     * 
+     *
      * @param start Start time in milliseconds
      * @param end End time in milliseconds
      * @param recordingMethodsToFilter List of recording methods to exclude
      * @param result Flutter result callback returning filtered step count
      */
     private fun getStepCountFiltered(
-        start: Long, 
-        end: Long, 
-        recordingMethodsToFilter: List<Int>, 
+        start: Long,
+        end: Long,
+        recordingMethodsToFilter: List<Int>,
         result: Result
     ) {
         scope.launch {
@@ -552,7 +554,7 @@ class HealthDataReader(
                     response.records
                 )
                 val totalSteps = filteredRecords.sumOf { (it as StepsRecord).count.toInt() }
-                
+
                 Log.i(
                     "FLUTTER_HEALTH::SUCCESS",
                     "returning $totalSteps steps (excluding manual entries)"
@@ -573,7 +575,7 @@ class HealthDataReader(
      * Handles special processing for workout/exercise session data.
      * Enriches workout records with associated distance, energy, and step data
      * by querying related records within the workout time period.
-     * 
+     *
      * @param records List of ExerciseSessionRecord objects
      * @param recordingMethodsToFilter Recording methods to exclude (empty list means no filtering)
      * @param healthConnectData Mutable list to append processed workout data
@@ -594,50 +596,75 @@ class HealthDataReader(
 
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
-            
-            // Get distance data
-            val distanceRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+
+            var totalDistance: Double? = null
+            if (permissionChecker.isHealthDistancePermissionGranted()) {
+                totalDistance = 0.0
+                val distanceRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = DistanceRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
+                )
+                for (distanceRec in distanceRequest.records) {
+                    totalDistance = totalDistance!! + distanceRec.distance.inMeters
+                }
+            } else {
+                Log.i(
+                    "FLUTTER_HEALTH",
+                    "Skipping distance data retrieval for workout due to missing health distance permission"
+                )
             }
 
             // Get energy burned data
-            val energyBurnedRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+            var totalEnergyBurned: Double? = null
+            if (permissionChecker.isHealthTotalCaloriesBurnedPermissionGranted()) {
+                totalEnergyBurned = 0.0
+                val energyBurnedRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = TotalCaloriesBurnedRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                )
+                for (energyBurnedRec in energyBurnedRequest.records) {
+                    totalEnergyBurned = totalEnergyBurned!! + energyBurnedRec.energy.inKilocalories
+                }
+            } else {
+                Log.i(
+                    "FLUTTER_HEALTH",
+                    "Skipping total calories burned data retrieval for workout due to missing permissions"
+                )
             }
 
             // Get steps data
-            val stepRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime
+            var totalSteps: Double? = null
+            if (permissionChecker.isHealthStepsPermissionGranted()) {
+                totalSteps = 0.0
+                val stepRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = StepsRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime
+                        ),
                     ),
-                ),
-            )
-            var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
+                )
+
+                for (stepRec in stepRequest.records) {
+                    totalSteps = totalSteps!! + stepRec.count.toDouble()
+                }
+
+            } else {
+                Log.i(
+                    "FLUTTER_HEALTH",
+                    "Skipping steps data retrieval for workout due to missing permissions"
+                )
             }
 
             // Add final datapoint
@@ -649,11 +676,11 @@ class HealthDataReader(
                                 .filterValues { it == record.exerciseType }
                                 .keys
                                 .firstOrNull() ?: "OTHER"),
-                    "totalDistance" to if (totalDistance == 0.0) null else totalDistance,
+                    "totalDistance" to totalDistance,
                     "totalDistanceUnit" to "METER",
-                    "totalEnergyBurned" to if (totalEnergyBurned == 0.0) null else totalEnergyBurned,
+                    "totalEnergyBurned" to totalEnergyBurned,
                     "totalEnergyBurnedUnit" to "KILOCALORIE",
-                    "totalSteps" to if (totalSteps == 0.0) null else totalSteps,
+                    "totalSteps" to totalSteps,
                     "totalStepsUnit" to "COUNT",
                     "unit" to "MINUTES",
                     "date_from" to record.startTime.toEpochMilli(),
@@ -669,7 +696,7 @@ class HealthDataReader(
      * Handles special processing for sleep session and stage data.
      * Processes sleep sessions and individual sleep stages based on requested data type.
      * Converts sleep stage enumerations to meaningful duration and type information.
-     * 
+     *
      * @param records List of SleepSessionRecord objects
      * @param recordingMethodsToFilter Recording methods to exclude (empty list means no filtering)
      * @param dataType Specific sleep data type being requested
