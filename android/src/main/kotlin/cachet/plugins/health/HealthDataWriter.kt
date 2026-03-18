@@ -835,6 +835,17 @@ class HealthDataWriter(
                             zoneOffset = null,
                             metadata = metadata,
                     )
+            MINDFULNESS ->
+                    MindfulnessSessionRecord(
+                            startTime = Instant.ofEpochMilli(startTime),
+                            endTime = Instant.ofEpochMilli(endTime),
+                            startZoneOffset = null,
+                            endZoneOffset = null,
+                            mindfulnessSessionType = MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MEDITATION,
+                            metadata = metadata,
+                            title = "",
+                            notes = "",
+                    )
             SPEED ->
                     SpeedRecord(
                             startTime = Instant.ofEpochMilli(startTime),
@@ -936,6 +947,7 @@ class HealthDataWriter(
         private const val RESPIRATORY_RATE = "RESPIRATORY_RATE"
         private const val TOTAL_CALORIES_BURNED = "TOTAL_CALORIES_BURNED"
         private const val MENSTRUATION_FLOW = "MENSTRUATION_FLOW"
+        private const val MINDFULNESS = "MINDFULNESS"
         private const val BLOOD_PRESSURE_SYSTOLIC = "BLOOD_PRESSURE_SYSTOLIC"
         private const val BLOOD_PRESSURE_DIASTOLIC = "BLOOD_PRESSURE_DIASTOLIC"
         private const val WORKOUT = "WORKOUT"
