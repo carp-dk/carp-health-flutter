@@ -55,12 +55,17 @@ class HealthDataOperations(
         }
 
         scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(permList),
-            )
+            try {
+                result.success(
+                        healthConnectClient
+                                .permissionController
+                                .getGrantedPermissions()
+                                .containsAll(permList),
+                )
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error checking permissions: ${e.message}")
+                result.success(false)
+            }
         }
     }
 
@@ -90,8 +95,12 @@ class HealthDataOperations(
      */
     fun revokePermissions(call: MethodCall, result: Result) {
         scope.launch {
-            Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
-            healthConnectClient.permissionController.revokeAllPermissions()
+            try {
+                Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
+                healthConnectClient.permissionController.revokeAllPermissions()
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error revoking permissions: ${e.message}")
+            }
         }
         result.success(true)
     }
@@ -105,11 +114,16 @@ class HealthDataOperations(
      */
     fun isHealthDataHistoryAvailable(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
+            try {
+                result.success(
+                        healthConnectClient.features.getFeatureStatus(
+                                HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
+                        ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+                )
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error checking health data history availability: ${e.message}")
+                result.success(false)
+            }
         }
     }
 
@@ -122,12 +136,17 @@ class HealthDataOperations(
      */
     fun isHealthDataHistoryAuthorized(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_HISTORY)),
-            )
+            try {
+                result.success(
+                        healthConnectClient
+                                .permissionController
+                                .getGrantedPermissions()
+                                .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_HISTORY)),
+                )
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error checking health data history authorization: ${e.message}")
+                result.success(false)
+            }
         }
     }
 
@@ -140,11 +159,16 @@ class HealthDataOperations(
      */
     fun isHealthDataInBackgroundAvailable(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
+            try {
+                result.success(
+                        healthConnectClient.features.getFeatureStatus(
+                                HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+                        ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+                )
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error checking background data availability: ${e.message}")
+                result.success(false)
+            }
         }
     }
 
@@ -157,12 +181,17 @@ class HealthDataOperations(
      */
     fun isHealthDataInBackgroundAuthorized(call: MethodCall, result: Result) {
         scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)),
-            )
+            try {
+                result.success(
+                        healthConnectClient
+                                .permissionController
+                                .getGrantedPermissions()
+                                .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)),
+                )
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error checking background data authorization: ${e.message}")
+                result.success(false)
+            }
         }
     }
 
