@@ -159,6 +159,7 @@ enum HealthConstants {
     static let WATER_TEMPERATURE = "WATER_TEMPERATURE"
     static let UNDERWATER_DEPTH = "UNDERWATER_DEPTH"
     static let UV_INDEX = "UV_INDEX"
+    static let VO2_MAX = "VO2_MAX"
 
     // Health Unit types
     static let GRAM = "GRAM"
@@ -208,6 +209,7 @@ enum HealthConstants {
     static let RESPIRATIONS_PER_MINUTE = "RESPIRATIONS_PER_MINUTE"
     static let MILLIGRAM_PER_DECILITER = "MILLIGRAM_PER_DECILITER"
     static let METER_PER_SECOND = "METER_PER_SECOND"
+    static let MILLILITER_PER_KILOGRAM_PER_MINUTE = "MILLILITER_PER_KILOGRAM_PER_MINUTE"
     static let UNKNOWN_UNIT = "UNKNOWN_UNIT"
     static let NO_UNIT = "NO_UNIT"
 }

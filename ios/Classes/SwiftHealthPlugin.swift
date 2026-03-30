@@ -234,8 +234,9 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[HealthConstants.RESPIRATIONS_PER_MINUTE] = HKUnit(from: "count/min")
         unitDict[HealthConstants.MILLIGRAM_PER_DECILITER] = HKUnit(from: "mg/dL")
         unitDict[HealthConstants.METER_PER_SECOND] = HKUnit(from: "m/s")
-        unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit(from: "")
-        unitDict[HealthConstants.NO_UNIT] = HKUnit(from: "")
+        unitDict[HealthConstants.MILLILITER_PER_KILOGRAM_PER_MINUTE] = HKUnit(from: "mL/(kg*min)")
+        unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit.count()
+        unitDict[HealthConstants.NO_UNIT] = HKUnit.count()
 
         // init workout activity types
         initializeWorkoutTypes()
@@ -351,6 +352,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataQuantityTypesDict[HealthConstants.DISTANCE_SWIMMING] = HKQuantityType.quantityType(forIdentifier: .distanceSwimming)!
         dataQuantityTypesDict[HealthConstants.DISTANCE_CYCLING] = HKQuantityType.quantityType(forIdentifier: .distanceCycling)!
         dataQuantityTypesDict[HealthConstants.FLIGHTS_CLIMBED] = HKQuantityType.quantityType(forIdentifier: .flightsClimbed)!
+        dataQuantityTypesDict[HealthConstants.VO2_MAX] = HKQuantityType.quantityType(forIdentifier: .vo2Max)!
     }
 
     /// Initialize nutrition quantity types
@@ -434,6 +436,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataTypesDict[HealthConstants.DISTANCE_SWIMMING] = HKSampleType.quantityType(forIdentifier: .distanceSwimming)!
         dataTypesDict[HealthConstants.DISTANCE_CYCLING] = HKSampleType.quantityType(forIdentifier: .distanceCycling)!
         dataTypesDict[HealthConstants.FLIGHTS_CLIMBED] = HKSampleType.quantityType(forIdentifier: .flightsClimbed)!
+        dataTypesDict[HealthConstants.VO2_MAX] = HKSampleType.quantityType(forIdentifier: .vo2Max)!
         dataTypesDict[HealthConstants.MINDFULNESS] = HKSampleType.categoryType(forIdentifier: .mindfulSession)!
         dataTypesDict[HealthConstants.SLEEP_AWAKE] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
         dataTypesDict[HealthConstants.SLEEP_DEEP] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!

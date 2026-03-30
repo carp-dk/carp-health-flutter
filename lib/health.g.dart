@@ -147,6 +147,7 @@ const _$HealthDataTypeEnumMap = {
   HealthDataType.HEADACHE_UNSPECIFIED: 'HEADACHE_UNSPECIFIED',
   HealthDataType.NUTRITION: 'NUTRITION',
   HealthDataType.UV_INDEX: 'UV_INDEX',
+  HealthDataType.VO2_MAX: 'VO2_MAX',
   HealthDataType.GENDER: 'GENDER',
   HealthDataType.BIRTH_DATE: 'BIRTH_DATE',
   HealthDataType.BLOOD_TYPE: 'BLOOD_TYPE',
@@ -215,6 +216,8 @@ const _$HealthDataUnitEnumMap = {
   HealthDataUnit.MILLIGRAM_PER_DECILITER: 'MILLIGRAM_PER_DECILITER',
   HealthDataUnit.MILLIMOLES_PER_LITER: 'MILLIMOLES_PER_LITER',
   HealthDataUnit.METER_PER_SECOND: 'METER_PER_SECOND',
+  HealthDataUnit.MILLILITER_PER_KILOGRAM_PER_MINUTE:
+      'MILLILITER_PER_KILOGRAM_PER_MINUTE',
   HealthDataUnit.UNKNOWN_UNIT: 'UNKNOWN_UNIT',
   HealthDataUnit.NO_UNIT: 'NO_UNIT',
 };

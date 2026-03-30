@@ -78,7 +78,8 @@ class HealthDataConverter {
             is BasalMetabolicRateRecord -> listOf(createInstantRecord(metadata, record.time, record.basalMetabolicRate.inKilocaloriesPerDay))
             is RestingHeartRateRecord -> listOf(createInstantRecord(metadata, record.time, record.beatsPerMinute))
             is RespiratoryRateRecord -> listOf(createInstantRecord(metadata, record.time, record.rate))
-            
+            is Vo2MaxRecord -> listOf(createInstantRecord(metadata, record.time, record.vo2MillilitersPerMinuteKilogram))
+
             // Interval records
             is StepsRecord -> listOf(createIntervalRecord(metadata, record.startTime, record.endTime, record.count))
             is ActiveCaloriesBurnedRecord -> listOf(createIntervalRecord(metadata, record.startTime, record.endTime, record.energy.inKilocalories))

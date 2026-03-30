@@ -39,6 +39,7 @@ object HealthConstants {
     const val SPEED = "SPEED"
     const val ACTIVITY_INTENSITY = "ACTIVITY_INTENSITY"
     const val SKIN_TEMPERATURE = "SKIN_TEMPERATURE"
+    const val VO2_MAX = "VO2_MAX"
 
     // Meal types
     const val BREAKFAST = "BREAKFAST"
@@ -108,6 +109,7 @@ object HealthConstants {
         SPEED to SpeedRecord::class,
         ACTIVITY_INTENSITY to ActivityIntensityRecord::class,
         SKIN_TEMPERATURE to SkinTemperatureRecord::class,
+        VO2_MAX to Vo2MaxRecord::class,
     )
     
     /**

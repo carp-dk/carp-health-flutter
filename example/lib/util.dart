@@ -51,6 +51,7 @@ const List<HealthDataType> dataTypesIOS = [
   HealthDataType.HEADACHE_SEVERE,
   HealthDataType.HEADACHE_UNSPECIFIED,
   HealthDataType.LEAN_BODY_MASS,
+  HealthDataType.VO2_MAX,
 
   // note that a phone cannot write these ECG-based types - only read them
   HealthDataType.ELECTROCARDIOGRAM,
@@ -111,4 +112,5 @@ const List<HealthDataType> dataTypesAndroid = [
   HealthDataType.MENSTRUATION_FLOW,
   HealthDataType.ACTIVITY_INTENSITY,
   HealthDataType.SKIN_TEMPERATURE,
+  HealthDataType.VO2_MAX,
 ];
