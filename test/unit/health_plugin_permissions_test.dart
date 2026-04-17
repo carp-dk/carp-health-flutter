@@ -87,6 +87,74 @@ void main() {
     });
   });
 
+  group('accurateAuthorizationStatus', () {
+    test('throws when types list is empty', () {
+      expect(
+        () => ctx.health.accurateAuthorizationStatus(types: const []),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('parses granted wire string', () async {
+      ctx.channel.when('accurateAuthorizationStatus', 'granted');
+
+      final status = await ctx.health.accurateAuthorizationStatus(
+        types: [HealthDataType.WORKOUT, HealthDataType.ACTIVE_ENERGY_BURNED],
+      );
+
+      expect(status, HealthPermissionStatus.granted);
+      final call = ctx.channel.lastCallFor('accurateAuthorizationStatus');
+      expect(call, isNotNull);
+      final args = Map<String, dynamic>.from(call!.arguments as Map);
+      expect(
+        args['types'],
+        [
+          HealthDataType.WORKOUT.name,
+          HealthDataType.ACTIVE_ENERGY_BURNED.name,
+        ],
+      );
+    });
+
+    test('parses denied wire string', () async {
+      ctx.channel.when('accurateAuthorizationStatus', 'denied');
+
+      final status = await ctx.health.accurateAuthorizationStatus(
+        types: [HealthDataType.WORKOUT],
+      );
+
+      expect(status, HealthPermissionStatus.denied);
+    });
+
+    test('parses notDetermined wire string', () async {
+      ctx.channel.when('accurateAuthorizationStatus', 'notDetermined');
+
+      final status = await ctx.health.accurateAuthorizationStatus(
+        types: [HealthDataType.WORKOUT],
+      );
+
+      expect(status, HealthPermissionStatus.notDetermined);
+    });
+
+    test('unknown wire string collapses to notDetermined (fail-closed)', () async {
+      ctx.channel.when('accurateAuthorizationStatus', 'something-weird');
+
+      final status = await ctx.health.accurateAuthorizationStatus(
+        types: [HealthDataType.WORKOUT],
+      );
+
+      expect(status, HealthPermissionStatus.notDetermined);
+    });
+
+    test('null channel response collapses to notDetermined (fail-closed)', () async {
+      // Don't stub — harness returns null for unconfigured methods.
+      final status = await ctx.health.accurateAuthorizationStatus(
+        types: [HealthDataType.WORKOUT],
+      );
+
+      expect(status, HealthPermissionStatus.notDetermined);
+    });
+  });
+
   group('Availability', () {
     test('getHealthConnectSdkStatus maps native status', () async {
       ctx.channel.when('getHealthConnectSdkStatus', HealthConnectSdkStatus.sdkAvailable.nativeValue);
@@ -149,6 +217,35 @@ void main() {
       final authorized = await ctx.health.requestHealthDataInBackgroundAuthorization();
 
       expect(authorized, isTrue);
+    });
+  });
+
+  group('isHealthConnectPackageInstalled', () {
+    test('returns channel true on Android path', () async {
+      ctx.channel.when('isHealthConnectPackageInstalled', true);
+
+      final installed = await ctx.health.isHealthConnectPackageInstalled();
+
+      expect(installed, isTrue);
+      // On test host (macOS/Linux) Dart does NOT short-circuit, so the
+      // channel call is observed.
+      final call = ctx.channel.lastCallFor('isHealthConnectPackageInstalled');
+      expect(call, isNotNull);
+    });
+
+    test('returns channel false when package missing', () async {
+      ctx.channel.when('isHealthConnectPackageInstalled', false);
+
+      final installed = await ctx.health.isHealthConnectPackageInstalled();
+
+      expect(installed, isFalse);
+    });
+
+    test('null channel response coerces to false', () async {
+      // Don't stub — harness returns null.
+      final installed = await ctx.health.isHealthConnectPackageInstalled();
+
+      expect(installed, isFalse);
     });
   });
 }

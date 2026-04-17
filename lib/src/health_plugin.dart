@@ -132,6 +132,54 @@ class Health {
     });
   }
 
+  /// Returns the accurate, per-type WRITE authorisation status combining
+  /// every [HealthDataType] in [types] via worst-case aggregation.
+  ///
+  /// Aggregation rules:
+  ///   * any type is `denied` → [HealthPermissionStatus.denied]
+  ///   * any type is `notDetermined` (and none are `denied`) →
+  ///     [HealthPermissionStatus.notDetermined]
+  ///   * all types are granted → [HealthPermissionStatus.granted]
+  ///
+  /// This is the recommended check before attempting a write path: unlike
+  /// [hasPermissions] it reports the real per-type state and cannot return
+  /// `null` on iOS.
+  ///
+  /// Caveat: iOS intentionally does not expose READ authorisation state for
+  /// privacy reasons, so this method is only meaningful for write intent.
+  /// Android reuses the same Health Connect grant check as [hasPermissions].
+  Future<HealthPermissionStatus> accurateAuthorizationStatus({
+    required List<HealthDataType> types,
+  }) async {
+    if (types.isEmpty) {
+      throw ArgumentError('types must not be empty');
+    }
+    await _checkIfHealthConnectAvailableOnAndroid();
+    final wire = await _channel.invokeMethod<String>(
+      'accurateAuthorizationStatus',
+      {'types': types.map((type) => type.name).toList()},
+    );
+    return HealthPermissionStatus.fromWire(wire);
+  }
+
+  /// Returns `true` when the Google Health Connect provider package is
+  /// installed on the device.
+  ///
+  /// Distinguishes "Health Connect not installed" from "Health Connect
+  /// installed but needs an update" — a distinction [getHealthConnectSdkStatus]
+  /// collapses into a single
+  /// `HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired` value.
+  /// Use this in conjunction with [getHealthConnectSdkStatus] to route the
+  /// user either to an install prompt or an update prompt.
+  ///
+  /// On iOS this returns `true` unconditionally — there is no Health Connect
+  /// package to install.
+  Future<bool> isHealthConnectPackageInstalled() async {
+    if (Platform.isIOS) return true;
+    final installed = await _channel.invokeMethod<bool>('isHealthConnectPackageInstalled');
+    return installed == true;
+  }
+
   /// Revokes Google Health Connect permissions on Android of all types.
   ///
   /// NOTE: The app must be completely killed and restarted for the changes to take effect.
