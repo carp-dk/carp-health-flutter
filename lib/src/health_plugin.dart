@@ -1509,6 +1509,15 @@ class Health {
   ///  - [title] The title of the workout.
   ///    *ONLY FOR HEALTH CONNECT* Default value is the [activityType], e.g. "STRENGTH_TRAINING".
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
+  ///  - [syncIdentifier] *ONLY FOR IOS* Stable id written into `HKMetadataKeySyncIdentifier`. Re-writing a workout with the same [syncIdentifier] + [syncVersion] is a no-op (HealthKit upsert).
+  ///  - [syncVersion] *ONLY FOR IOS* Version paired with [syncIdentifier]. Must be non-null when [syncIdentifier] is non-null.
+  ///  - [clientRecordId] *ONLY FOR HEALTH CONNECT* Stable id used for upsert semantics via `Metadata.clientRecordId`.
+  ///  - [clientRecordVersion] *ONLY FOR HEALTH CONNECT* Version paired with [clientRecordId]. Same-or-lower version is a no-op.
+  ///  - [startZoneOffset] *ONLY FOR HEALTH CONNECT* Zone offset attached to both the workout session and linked records. Preserves historical local-day aggregation across timezone changes.
+  ///  - [endZoneOffset] *ONLY FOR HEALTH CONNECT* Zone offset at end of workout.
+  ///  - [deviceType] *ONLY FOR HEALTH CONNECT* Value from `androidx.health.connect.client.records.metadata.Device` type constants; required by Health Connect when [recordingMethod] is `active` or `automatic`.
+  ///  - [iosExtraMetadata] *ONLY FOR IOS* Arbitrary keys merged into the `HKWorkout` metadata dictionary (e.g. `HKMetadataKeyWorkoutBrandName`, app-owned keys for title/display).
+  ///  - [useActiveEnergy] *ONLY FOR HEALTH CONNECT* When true the calorie record is emitted as `ActiveCaloriesBurnedRecord` instead of `TotalCaloriesBurnedRecord`. Use this when [totalEnergyBurned] represents only the workout's contribution (excluding BMR).
   Future<bool> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
@@ -1519,10 +1528,31 @@ class Health {
     HealthDataUnit totalDistanceUnit = HealthDataUnit.METER,
     String? title,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
+    String? syncIdentifier,
+    int? syncVersion,
+    String? clientRecordId,
+    double? clientRecordVersion,
+    Duration? startZoneOffset,
+    Duration? endZoneOffset,
+    int? deviceType,
+    Map<String, Object>? iosExtraMetadata,
+    bool useActiveEnergy = false,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
+    }
+    if (syncIdentifier != null && syncVersion == null) {
+      throw ArgumentError('syncVersion is required when syncIdentifier is provided');
+    }
+    if (syncVersion != null && syncIdentifier == null) {
+      throw ArgumentError('syncIdentifier is required when syncVersion is provided');
+    }
+    if (clientRecordId != null && clientRecordVersion == null) {
+      throw ArgumentError('clientRecordVersion is required when clientRecordId is provided');
+    }
+    if (clientRecordVersion != null && clientRecordId == null) {
+      throw ArgumentError('clientRecordId is required when clientRecordVersion is provided');
     }
 
     // Check that value is on the current Platform
@@ -1541,6 +1571,15 @@ class Health {
       'totalDistanceUnit': totalDistanceUnit.name,
       'title': title,
       'recordingMethod': recordingMethod.toInt(),
+      'syncIdentifier': syncIdentifier,
+      'syncVersion': syncVersion,
+      'clientRecordId': clientRecordId,
+      'clientRecordVersion': clientRecordVersion,
+      'startZoneOffsetSeconds': startZoneOffset?.inSeconds,
+      'endZoneOffsetSeconds': endZoneOffset?.inSeconds,
+      'deviceType': deviceType,
+      'iosExtraMetadata': iosExtraMetadata,
+      'useActiveEnergy': useActiveEnergy,
     };
     return await _channel.invokeMethod('writeWorkoutData', args) == true;
   }

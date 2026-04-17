@@ -866,6 +866,26 @@ class HealthDataWriter {
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
         let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
 
+        // Build optional metadata dict. Populated only when at least one
+        // key is provided so existing callers still get `metadata: nil`
+        // behaviour byte-for-byte.
+        //
+        // Merge order is load-bearing: extras first so the explicit sync
+        // identifier + version always wins over any colliding key a caller
+        // accidentally pulls in through `iosExtraMetadata`.
+        var metadata: [String: Any] = [:]
+        if let extra = arguments["iosExtraMetadata"] as? [String: Any] {
+            for (key, value) in extra {
+                metadata[key] = value
+            }
+        }
+        if let syncIdentifier = arguments["syncIdentifier"] as? String,
+           let syncVersion = arguments["syncVersion"] as? Int {
+            metadata[HKMetadataKeySyncIdentifier] = syncIdentifier
+            metadata[HKMetadataKeySyncVersion] = syncVersion
+        }
+        let workoutMetadata: [String: Any]? = metadata.isEmpty ? nil : metadata
+
         let workout = HKWorkout(
             activityType: activityTypeValue,
             start: dateFrom,
@@ -873,7 +893,7 @@ class HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned ?? nil,
             totalDistance: totalDistance ?? nil,
-            metadata: nil
+            metadata: workoutMetadata
         )
 
         healthStore.save(
