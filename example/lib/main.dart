@@ -58,6 +58,8 @@ enum AppState {
   PERMISSIONS_NOT_REVOKED,
   CHANGES_READY,
   CHANGES_NOT_READY,
+  IDEMPOTENCY_DEMO_RUNNING,
+  IDEMPOTENCY_DEMO_RESULT,
 }
 
 class HealthAppState extends State<HealthApp> {
@@ -728,6 +730,91 @@ class HealthAppState extends State<HealthApp> {
     });
   }
 
+  /// Demonstrates the idempotent-write guarantees the fork adds to
+  /// `writeWorkoutData`. Writes the same workout twice with the same
+  /// `syncIdentifier` (iOS) and `clientRecordId` (Android), then queries
+  /// back and reports the count — expected to be exactly one record
+  /// regardless of how many times the button is tapped in a day.
+  ///
+  /// Use this as a hand-operated smoke test before pinning the fork in a
+  /// downstream app, and link a screen recording of it in the upstream PR
+  /// description to show the new keys actually dedup on real devices.
+  Future<void> idempotencyDemo() async {
+    const demoTitle = 'Magic Idempotency Demo';
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(minutes: 15));
+
+    // Day-bucketed ID — tapping the button 20 times today still collapses
+    // to a single record; tomorrow's tap produces a fresh one.
+    final sessionId =
+        'magic-demo-${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+
+    setState(() {
+      _state = AppState.IDEMPOTENCY_DEMO_RUNNING;
+      _idempotencyMessage = 'Running idempotency demo ($sessionId)...';
+    });
+    debugPrint('[idempotencyDemo] sessionId=$sessionId start=$start end=$now');
+
+    Future<bool> writeOnce() => health.writeWorkoutData(
+          activityType: HealthWorkoutActivityType.RUNNING,
+          start: start,
+          end: now,
+          title: demoTitle,
+          totalEnergyBurned: 150,
+          totalDistance: 1200,
+          recordingMethod: RecordingMethod.active,
+          syncIdentifier: sessionId,
+          syncVersion: 1,
+          clientRecordId: sessionId,
+          clientRecordVersion: 1,
+          startZoneOffset: now.timeZoneOffset,
+          endZoneOffset: now.timeZoneOffset,
+          useActiveEnergy: true,
+          iosExtraMetadata: const {
+            'fit.magic.demoMarker': 'idempotency',
+          },
+        );
+
+    String message;
+    try {
+      final first = await writeOnce();
+      debugPrint('[idempotencyDemo] first write returned $first');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      final second = await writeOnce();
+      debugPrint('[idempotencyDemo] second write returned $second');
+
+      // Requery — this proves the dedup actually happened at the platform
+      // layer, not just that `writeWorkoutData` returned true twice.
+      final workouts = await health.getHealthDataFromTypes(
+        types: const [HealthDataType.WORKOUT],
+        startTime: start.subtract(const Duration(hours: 1)),
+        endTime: now.add(const Duration(hours: 1)),
+      );
+      final matching = workouts.where((point) {
+        final value = point.value;
+        if (value is! WorkoutHealthValue) return false;
+        return value.workoutActivityType == HealthWorkoutActivityType.RUNNING;
+      }).length;
+      debugPrint('[idempotencyDemo] matching RUNNING workouts: $matching');
+
+      message = 'Wrote 2× (first=$first, second=$second)\n'
+          'found $matching matching workout(s) → expected 1\n'
+          'sessionId: $sessionId\n'
+          'Now open Health Connect to eyeball.';
+    } catch (e, stack) {
+      debugPrint('[idempotencyDemo] FAILED: $e\n$stack');
+      message = 'Idempotency demo failed: $e';
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _state = AppState.IDEMPOTENCY_DEMO_RESULT;
+      _idempotencyMessage = message;
+    });
+  }
+
   Future<bool> _ensureSkinTemperaturePermissions({
     required HealthDataAccess access,
   }) async {
@@ -1194,6 +1281,16 @@ class HealthAppState extends State<HealthApp> {
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
+                      TextButton(
+                        onPressed: idempotencyDemo,
+                        style: const ButtonStyle(
+                          backgroundColor: WidgetStatePropertyAll(Colors.green),
+                        ),
+                        child: const Text(
+                          "Test Idempotency",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
                       if (Platform.isIOS || Platform.isAndroid)
                         TextButton(
                           onPressed: writeWorkoutRoute,
@@ -1467,6 +1564,12 @@ class HealthAppState extends State<HealthApp> {
     'No status, click "Check Skin Temp Feature" to get the status.',
   );
 
+  String _idempotencyMessage = 'Tap "Test Idempotency" to run the demo.';
+  Widget get _contentIdempotencyDemo => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(_idempotencyMessage),
+      );
+
   final Widget _dataAdded = const Text('Data points inserted successfully.');
 
   final Widget _dataDeleted = const Text('Data points deleted successfully.');
@@ -1559,6 +1662,8 @@ class HealthAppState extends State<HealthApp> {
     AppState.PERMISSIONS_NOT_REVOKED => _permissionsNotRevoked,
     AppState.CHANGES_READY => _contentChangesReady,
     AppState.CHANGES_NOT_READY => _contentChangesNotReady,
+    AppState.IDEMPOTENCY_DEMO_RUNNING => _contentIdempotencyDemo,
+    AppState.IDEMPOTENCY_DEMO_RESULT => _contentIdempotencyDemo,
   };
 
   Widget _detailedBottomSheet({HealthDataPoint? healthPoint}) {
