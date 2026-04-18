@@ -362,9 +362,33 @@ class HealthDataWriter(
                 )
                 Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
-                result.success(false)
+                // Surface a typed FlutterError so Dart callers can classify
+                // failures (permission / platform unavailability / other)
+                // rather than collapsing everything into `success == false`.
+                result.error(
+                    workoutWriteErrorCode(e),
+                    e.message ?: e.javaClass.simpleName,
+                    mapOf(
+                        "exceptionClass" to e.javaClass.name,
+                    ),
+                )
             }
         }
+    }
+
+    /**
+     * Maps a workout-write exception to a stable `code` string that Dart
+     * callers switch on. `SECURITY_EXCEPTION` is the single permission
+     * signal emitted by Health Connect writes; IO / remote errors surface
+     * under their own codes so callers can distinguish transient failures
+     * from platform-unavailability. Anything unknown falls through to
+     * `WRITE_ERROR` so the signal is preserved.
+     */
+    private fun workoutWriteErrorCode(e: Exception): String = when (e) {
+        is SecurityException -> "SECURITY_EXCEPTION"
+        is java.io.IOException -> "IO_EXCEPTION"
+        is android.os.RemoteException -> "REMOTE_EXCEPTION"
+        else -> "WRITE_ERROR"
     }
 
     /**

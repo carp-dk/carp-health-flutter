@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 
@@ -361,6 +362,80 @@ void main() {
       );
 
       expect(success, isFalse);
+    });
+
+    test(
+        'structured native error (permission) propagates as '
+        'PlatformException the caller can classify', () async {
+      // Simulate the Android `result.error("SECURITY_EXCEPTION", ...)` or
+      // iOS `FlutterError(code: "HK_AUTHORIZATION_DENIED", ...)` path. The
+      // plugin no longer swallows native errors into `success == false`;
+      // callers receive a typed PlatformException they can switch on.
+      await ctx.channel.tearDown();
+      await ctx.channel.setUp(
+        responder: (call) async {
+          if (call.method == 'writeWorkoutData') {
+            throw PlatformException(
+              code: 'SECURITY_EXCEPTION',
+              message: 'WRITE_EXERCISE permission not granted',
+              details: {'exceptionClass': 'java.lang.SecurityException'},
+            );
+          }
+          return null;
+        },
+      );
+
+      expect(
+        () => ctx.health.writeWorkoutData(
+          activityType: HealthWorkoutActivityType.RUNNING,
+          start: HealthFixtures.start,
+          end: HealthFixtures.end,
+          syncIdentifier: 'session-42',
+          syncVersion: 1,
+        ),
+        throwsA(
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            'SECURITY_EXCEPTION',
+          ),
+        ),
+      );
+    });
+
+    test(
+        'structured native error (HealthKit authorization denied) '
+        'propagates as PlatformException', () async {
+      await ctx.channel.tearDown();
+      await ctx.channel.setUp(
+        responder: (call) async {
+          if (call.method == 'writeWorkoutData') {
+            throw PlatformException(
+              code: 'HK_AUTHORIZATION_DENIED',
+              message: 'Authorization denied by user',
+              details: {'domain': 'HKErrorDomain', 'nativeCode': 4},
+            );
+          }
+          return null;
+        },
+      );
+
+      expect(
+        () => ctx.health.writeWorkoutData(
+          activityType: HealthWorkoutActivityType.RUNNING,
+          start: HealthFixtures.start,
+          end: HealthFixtures.end,
+          syncIdentifier: 'session-42',
+          syncVersion: 1,
+        ),
+        throwsA(
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            'HK_AUTHORIZATION_DENIED',
+          ),
+        ),
+      );
     });
 
     test('all new params forwarded together', () async {
