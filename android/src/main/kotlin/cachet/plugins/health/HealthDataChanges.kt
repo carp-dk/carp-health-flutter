@@ -178,6 +178,8 @@ class HealthDataChanges(
         is TotalCaloriesBurnedRecord -> listOf(HealthConstants.TOTAL_CALORIES_BURNED)
         is MenstruationFlowRecord -> listOf(HealthConstants.MENSTRUATION_FLOW)
         is SpeedRecord -> listOf(HealthConstants.SPEED)
+        is PowerRecord -> listOf(HealthConstants.POWER)
+        is CyclingPedalingCadenceRecord -> listOf(HealthConstants.CYCLING_CADENCE)
         is ActivityIntensityRecord -> listOf(HealthConstants.ACTIVITY_INTENSITY)
         else -> emptyList()
     }

@@ -1,3 +1,15 @@
+## Unreleased
+
+* Add support for `HealthDataType.POWER` (cycling power in watts) and
+  `HealthDataType.CYCLING_CADENCE` (revolutions per minute).
+  * iOS 17+: reads `HKQuantityTypeIdentifier.cyclingPower` and
+    `cyclingCadence`. Older iOS versions silently skip registration.
+  * Health Connect: reads `PowerRecord` and
+    `CyclingPedalingCadenceRecord`.
+  * Adds `HealthDataUnit.WATT` and `HealthDataUnit.REVOLUTION_PER_MINUTE`.
+  * Unit tests in `test/unit/cycling_metrics_test.dart`; integration
+    test scaffolding in `example/integration_test/`.
+
 ## 13.3.1
 
 * iOS: Fix issues with app crashing on iOS 15

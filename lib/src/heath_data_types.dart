@@ -76,6 +76,17 @@ enum HealthDataType {
   DISTANCE_DELTA,
   WALKING_SPEED,
   SPEED,
+  /// Instantaneous cycling power in watts. Written by Apple Watch,
+  /// Wahoo ELEMNT, Garmin Edge, Zwift and other power-meter-aware
+  /// cycling apps.
+  /// * iOS 17+ (`HKQuantityTypeIdentifier.cyclingPower`)
+  /// * Health Connect (`PowerRecord`)
+  POWER,
+  /// Cycling cadence in revolutions per minute. Companion to [POWER];
+  /// most writer apps emit both together.
+  /// * iOS 17+ (`HKQuantityTypeIdentifier.cyclingCadence`)
+  /// * Health Connect (`CyclingPedalingCadenceRecord`)
+  CYCLING_CADENCE,
   MINDFULNESS,
   WATER,
   SLEEP_ASLEEP,
@@ -199,6 +210,13 @@ const List<HealthDataType> dataTypeKeysIOS = [
   HealthDataType.DISTANCE_SWIMMING,
   HealthDataType.DISTANCE_CYCLING,
   HealthDataType.WALKING_SPEED,
+  // iOS 17+ — runtime availability is gated in Swift. Listing
+  // unconditionally matches how WATER_TEMPERATURE (iOS 16+) is
+  // handled: the iOS plugin's `initializeIOS17Types` only registers
+  // the real HK types when the OS supports them, so older devices
+  // simply fail the `hasPermissions` check rather than crashing.
+  HealthDataType.POWER,
+  HealthDataType.CYCLING_CADENCE,
   HealthDataType.MINDFULNESS,
   HealthDataType.SLEEP_ASLEEP,
   HealthDataType.SLEEP_AWAKE,
@@ -247,6 +265,8 @@ const List<HealthDataType> dataTypeKeysAndroid = [
   HealthDataType.WEIGHT,
   HealthDataType.DISTANCE_DELTA,
   HealthDataType.SPEED,
+  HealthDataType.POWER,
+  HealthDataType.CYCLING_CADENCE,
   HealthDataType.SLEEP_ASLEEP,
   HealthDataType.SLEEP_AWAKE_IN_BED,
   HealthDataType.SLEEP_AWAKE,
@@ -347,6 +367,8 @@ const Map<HealthDataType, HealthDataUnit> dataTypeToUnit = {
   HealthDataType.DISTANCE_DELTA: HealthDataUnit.METER,
   HealthDataType.WALKING_SPEED: HealthDataUnit.METER_PER_SECOND,
   HealthDataType.SPEED: HealthDataUnit.METER_PER_SECOND,
+  HealthDataType.POWER: HealthDataUnit.WATT,
+  HealthDataType.CYCLING_CADENCE: HealthDataUnit.REVOLUTION_PER_MINUTE,
 
   HealthDataType.WATER: HealthDataUnit.LITER,
   HealthDataType.SLEEP_ASLEEP: HealthDataUnit.MINUTE,
@@ -480,6 +502,14 @@ enum HealthDataUnit {
   MILLIGRAM_PER_DECILITER,
   MILLIMOLES_PER_LITER,
   METER_PER_SECOND,
+  /// Watts — used by [HealthDataType.POWER].
+  WATT,
+  /// Revolutions per minute — used by [HealthDataType.CYCLING_CADENCE].
+  /// HealthKit expresses this as `count/min`; Health Connect's
+  /// `CyclingPedalingCadenceRecord.Sample.revolutionsPerMinute` is
+  /// the same unit, so the cross-platform value is numerically
+  /// identical.
+  REVOLUTION_PER_MINUTE,
   UNKNOWN_UNIT,
   NO_UNIT,
 }

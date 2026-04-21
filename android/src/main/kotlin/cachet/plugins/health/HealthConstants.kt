@@ -37,6 +37,12 @@ object HealthConstants {
     const val WEIGHT = "WEIGHT"
     const val TOTAL_CALORIES_BURNED = "TOTAL_CALORIES_BURNED"
     const val SPEED = "SPEED"
+    // Cycling-specific metrics from power meters. Both ride alongside
+    // HEART_RATE / SPEED in a typical outdoor cycling workout; writer
+    // apps (Wahoo Fitness, Garmin Connect, Zwift, Strava) emit them
+    // via PowerRecord / CyclingPedalingCadenceRecord.
+    const val POWER = "POWER"
+    const val CYCLING_CADENCE = "CYCLING_CADENCE"
     const val ACTIVITY_INTENSITY = "ACTIVITY_INTENSITY"
     const val SKIN_TEMPERATURE = "SKIN_TEMPERATURE"
 
@@ -106,6 +112,8 @@ object HealthConstants {
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord::class,
         MENSTRUATION_FLOW to MenstruationFlowRecord::class,
         SPEED to SpeedRecord::class,
+        POWER to PowerRecord::class,
+        CYCLING_CADENCE to CyclingPedalingCadenceRecord::class,
         ACTIVITY_INTENSITY to ActivityIntensityRecord::class,
         SKIN_TEMPERATURE to SkinTemperatureRecord::class,
     )

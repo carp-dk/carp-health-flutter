@@ -234,6 +234,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[HealthConstants.RESPIRATIONS_PER_MINUTE] = HKUnit(from: "count/min")
         unitDict[HealthConstants.MILLIGRAM_PER_DECILITER] = HKUnit(from: "mg/dL")
         unitDict[HealthConstants.METER_PER_SECOND] = HKUnit(from: "m/s")
+        unitDict[HealthConstants.WATT] = HKUnit.watt()
+        unitDict[HealthConstants.REVOLUTION_PER_MINUTE] = HKUnit(from: "count/min")
         unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit(from: "")
         unitDict[HealthConstants.NO_UNIT] = HKUnit(from: "")
 
@@ -310,6 +312,10 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
         if #available(iOS 16.0, *) {
             initializeIOS16Types()
+        }
+
+        if #available(iOS 17.0, *) {
+            initializeIOS17Types()
         }
 
         // Concatenate heart events, headache and health data types (both may be empty)
@@ -554,6 +560,21 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
         dataQuantityTypesDict[HealthConstants.UV_INDEX] = HKQuantityType.quantityType(forIdentifier: .uvExposure)!
         dataQuantityTypesDict[HealthConstants.SLEEP_WRIST_TEMPERATURE] = HKQuantityType.quantityType(forIdentifier: .appleSleepingWristTemperature)!
+    }
+
+    /// Initialize iOS 17 specific data types.
+    ///
+    /// Cycling power and cadence were added to HealthKit in iOS 17 —
+    /// Apple Watch Series 8+ records both when paired with a
+    /// compatible power meter, and third-party apps (Wahoo Fitness,
+    /// Zwift, Strava) write them directly.
+    @available(iOS 17.0, *)
+    private func initializeIOS17Types() {
+        dataTypesDict[HealthConstants.POWER] = HKQuantityType.quantityType(forIdentifier: .cyclingPower)!
+        dataTypesDict[HealthConstants.CYCLING_CADENCE] = HKQuantityType.quantityType(forIdentifier: .cyclingCadence)!
+
+        dataQuantityTypesDict[HealthConstants.POWER] = HKQuantityType.quantityType(forIdentifier: .cyclingPower)!
+        dataQuantityTypesDict[HealthConstants.CYCLING_CADENCE] = HKQuantityType.quantityType(forIdentifier: .cyclingCadence)!
     }
 
     /// Initialize workout activity types
