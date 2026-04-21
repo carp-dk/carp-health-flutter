@@ -20,6 +20,10 @@ dev_dependencies:
   flutter_lints: any
   flutter_test:
     sdk: flutter
+  # Device/simulator integration tests. Run with:
+  #   cd example && flutter test integration_test/
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true

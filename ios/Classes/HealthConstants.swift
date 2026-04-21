@@ -133,6 +133,11 @@ enum HealthConstants {
     static let DISTANCE_SWIMMING = "DISTANCE_SWIMMING"
     static let DISTANCE_CYCLING = "DISTANCE_CYCLING"
     static let WALKING_SPEED = "WALKING_SPEED"
+    // iOS 17+ cycling metrics — read as standard HKQuantityTypeIdentifier
+    // values. Runtime availability is checked in `initializeIOS17Types`
+    // so older devices skip registration rather than crash.
+    static let POWER = "POWER"
+    static let CYCLING_CADENCE = "CYCLING_CADENCE"
     static let FLIGHTS_CLIMBED = "FLIGHTS_CLIMBED"
     static let MINDFULNESS = "MINDFULNESS"
     static let SLEEP_ASLEEP = "SLEEP_ASLEEP"
@@ -208,6 +213,8 @@ enum HealthConstants {
     static let RESPIRATIONS_PER_MINUTE = "RESPIRATIONS_PER_MINUTE"
     static let MILLIGRAM_PER_DECILITER = "MILLIGRAM_PER_DECILITER"
     static let METER_PER_SECOND = "METER_PER_SECOND"
+    static let WATT = "WATT"
+    static let REVOLUTION_PER_MINUTE = "REVOLUTION_PER_MINUTE"
     static let UNKNOWN_UNIT = "UNKNOWN_UNIT"
     static let NO_UNIT = "NO_UNIT"
 }
