@@ -135,10 +135,15 @@ class HealthDataOperations(
      */
     fun revokePermissions(call: MethodCall, result: Result) {
         scope.launch {
-            Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
-            healthConnectClient.permissionController.revokeAllPermissions()
+            try {
+                Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
+                healthConnectClient.permissionController.revokeAllPermissions()
+                result.success(true)
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error revoking permissions: ${e.message}")
+                result.success(false)
+            }
         }
-        result.success(true)
     }
 
     /**
