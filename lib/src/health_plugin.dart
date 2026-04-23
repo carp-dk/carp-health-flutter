@@ -132,6 +132,54 @@ class Health {
     });
   }
 
+  /// Returns the accurate, per-type WRITE authorisation status combining
+  /// every [HealthDataType] in [types] via worst-case aggregation.
+  ///
+  /// Aggregation rules:
+  ///   * any type is `denied` → [HealthPermissionStatus.denied]
+  ///   * any type is `notDetermined` (and none are `denied`) →
+  ///     [HealthPermissionStatus.notDetermined]
+  ///   * all types are granted → [HealthPermissionStatus.granted]
+  ///
+  /// This is the recommended check before attempting a write path: unlike
+  /// [hasPermissions] it reports the real per-type state and cannot return
+  /// `null` on iOS.
+  ///
+  /// Caveat: iOS intentionally does not expose READ authorisation state for
+  /// privacy reasons, so this method is only meaningful for write intent.
+  /// Android reuses the same Health Connect grant check as [hasPermissions].
+  Future<HealthPermissionStatus> accurateAuthorizationStatus({
+    required List<HealthDataType> types,
+  }) async {
+    if (types.isEmpty) {
+      throw ArgumentError('types must not be empty');
+    }
+    await _checkIfHealthConnectAvailableOnAndroid();
+    final wire = await _channel.invokeMethod<String>(
+      'accurateAuthorizationStatus',
+      {'types': types.map((type) => type.name).toList()},
+    );
+    return HealthPermissionStatus.fromWire(wire);
+  }
+
+  /// Returns `true` when the Google Health Connect provider package is
+  /// installed on the device.
+  ///
+  /// Distinguishes "Health Connect not installed" from "Health Connect
+  /// installed but needs an update" — a distinction [getHealthConnectSdkStatus]
+  /// collapses into a single
+  /// `HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired` value.
+  /// Use this in conjunction with [getHealthConnectSdkStatus] to route the
+  /// user either to an install prompt or an update prompt.
+  ///
+  /// On iOS this returns `true` unconditionally — there is no Health Connect
+  /// package to install.
+  Future<bool> isHealthConnectPackageInstalled() async {
+    if (Platform.isIOS) return true;
+    final installed = await _channel.invokeMethod<bool>('isHealthConnectPackageInstalled');
+    return installed == true;
+  }
+
   /// Revokes Google Health Connect permissions on Android of all types.
   ///
   /// NOTE: The app must be completely killed and restarted for the changes to take effect.
@@ -1509,6 +1557,15 @@ class Health {
   ///  - [title] The title of the workout.
   ///    *ONLY FOR HEALTH CONNECT* Default value is the [activityType], e.g. "STRENGTH_TRAINING".
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
+  ///  - [syncIdentifier] *ONLY FOR IOS* Stable id written into `HKMetadataKeySyncIdentifier`. Re-writing a workout with the same [syncIdentifier] + [syncVersion] is a no-op (HealthKit upsert).
+  ///  - [syncVersion] *ONLY FOR IOS* Version paired with [syncIdentifier]. Must be non-null when [syncIdentifier] is non-null.
+  ///  - [clientRecordId] *ONLY FOR HEALTH CONNECT* Stable id used for upsert semantics via `Metadata.clientRecordId`.
+  ///  - [clientRecordVersion] *ONLY FOR HEALTH CONNECT* Version paired with [clientRecordId]. Same-or-lower version is a no-op.
+  ///  - [startZoneOffset] *ONLY FOR HEALTH CONNECT* Zone offset attached to both the workout session and linked records. Preserves historical local-day aggregation across timezone changes.
+  ///  - [endZoneOffset] *ONLY FOR HEALTH CONNECT* Zone offset at end of workout.
+  ///  - [deviceType] *ONLY FOR HEALTH CONNECT* Value from `androidx.health.connect.client.records.metadata.Device` type constants; required by Health Connect when [recordingMethod] is `active` or `automatic`.
+  ///  - [iosExtraMetadata] *ONLY FOR IOS* Arbitrary keys merged into the `HKWorkout` metadata dictionary (e.g. `HKMetadataKeyWorkoutBrandName`, app-owned keys for title/display).
+  ///  - [useActiveEnergy] *ONLY FOR HEALTH CONNECT* When true the calorie record is emitted as `ActiveCaloriesBurnedRecord` instead of `TotalCaloriesBurnedRecord`. Use this when [totalEnergyBurned] represents only the workout's contribution (excluding BMR).
   Future<bool> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
@@ -1519,10 +1576,31 @@ class Health {
     HealthDataUnit totalDistanceUnit = HealthDataUnit.METER,
     String? title,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
+    String? syncIdentifier,
+    int? syncVersion,
+    String? clientRecordId,
+    double? clientRecordVersion,
+    Duration? startZoneOffset,
+    Duration? endZoneOffset,
+    int? deviceType,
+    Map<String, Object>? iosExtraMetadata,
+    bool useActiveEnergy = false,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
+    }
+    if (syncIdentifier != null && syncVersion == null) {
+      throw ArgumentError('syncVersion is required when syncIdentifier is provided');
+    }
+    if (syncVersion != null && syncIdentifier == null) {
+      throw ArgumentError('syncIdentifier is required when syncVersion is provided');
+    }
+    if (clientRecordId != null && clientRecordVersion == null) {
+      throw ArgumentError('clientRecordVersion is required when clientRecordId is provided');
+    }
+    if (clientRecordVersion != null && clientRecordId == null) {
+      throw ArgumentError('clientRecordId is required when clientRecordVersion is provided');
     }
 
     // Check that value is on the current Platform
@@ -1541,6 +1619,15 @@ class Health {
       'totalDistanceUnit': totalDistanceUnit.name,
       'title': title,
       'recordingMethod': recordingMethod.toInt(),
+      'syncIdentifier': syncIdentifier,
+      'syncVersion': syncVersion,
+      'clientRecordId': clientRecordId,
+      'clientRecordVersion': clientRecordVersion,
+      'startZoneOffsetSeconds': startZoneOffset?.inSeconds,
+      'endZoneOffsetSeconds': endZoneOffset?.inSeconds,
+      'deviceType': deviceType,
+      'iosExtraMetadata': iosExtraMetadata,
+      'useActiveEnergy': useActiveEnergy,
     };
     return await _channel.invokeMethod('writeWorkoutData', args) == true;
   }

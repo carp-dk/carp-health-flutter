@@ -866,6 +866,26 @@ class HealthDataWriter {
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
         let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
 
+        // Build optional metadata dict. Populated only when at least one
+        // key is provided so existing callers still get `metadata: nil`
+        // behaviour byte-for-byte.
+        //
+        // Merge order is load-bearing: extras first so the explicit sync
+        // identifier + version always wins over any colliding key a caller
+        // accidentally pulls in through `iosExtraMetadata`.
+        var metadata: [String: Any] = [:]
+        if let extra = arguments["iosExtraMetadata"] as? [String: Any] {
+            for (key, value) in extra {
+                metadata[key] = value
+            }
+        }
+        if let syncIdentifier = arguments["syncIdentifier"] as? String,
+           let syncVersion = arguments["syncVersion"] as? Int {
+            metadata[HKMetadataKeySyncIdentifier] = syncIdentifier
+            metadata[HKMetadataKeySyncVersion] = syncVersion
+        }
+        let workoutMetadata: [String: Any]? = metadata.isEmpty ? nil : metadata
+
         let workout = HKWorkout(
             activityType: activityTypeValue,
             start: dateFrom,
@@ -873,19 +893,79 @@ class HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned ?? nil,
             totalDistance: totalDistance ?? nil,
-            metadata: nil
+            metadata: workoutMetadata
         )
 
         healthStore.save(
             workout,
             withCompletion: { success, error in
-                if let err = error {
-                    print("Error Saving Workout. Sample: \(err.localizedDescription)")
-                }
                 DispatchQueue.main.async {
-                    result(success)
+                    if let err = error as NSError? {
+                        // Surface HealthKit failures as typed FlutterErrors so
+                        // Dart callers can classify them (permission / platform
+                        // unavailability / other). `code` is the HKError.Code
+                        // enum raw value, optionally mapped to a readable name
+                        // for the common cases.
+                        let code = HealthDataWriter.workoutWriteErrorCode(for: err)
+                        result(
+                            FlutterError(
+                                code: code,
+                                message: err.localizedDescription,
+                                details: [
+                                    "domain": err.domain,
+                                    "nativeCode": err.code,
+                                ]
+                            )
+                        )
+                        return
+                    }
+                    // HealthKit convention: on success the completion block is
+                    // called with `success == true`. A `success == false` with
+                    // no `error` is unexpected; surface it as a structured
+                    // WRITE_UNKNOWN so callers don't lose the signal.
+                    if !success {
+                        result(
+                            FlutterError(
+                                code: "WRITE_UNKNOWN",
+                                message: "HealthStore.save returned false with no error",
+                                details: nil
+                            )
+                        )
+                        return
+                    }
+                    result(true)
                 }
             }
         )
+    }
+
+    /// Maps an `NSError` from `HKHealthStore.save` onto a stable string code
+    /// that Dart callers can switch on. The most common codes get readable
+    /// names; rare / future codes fall through to `HK_ERROR_<raw>` so we
+    /// never lose the signal. Only errors in `HKErrorDomain` get the
+    /// `HK_` prefix; other domains surface as `WRITE_ERROR` with the raw
+    /// code in `details`.
+    private static func workoutWriteErrorCode(for err: NSError) -> String {
+        guard err.domain == HKErrorDomain else {
+            return "WRITE_ERROR"
+        }
+        switch err.code {
+        case HKError.Code.errorHealthDataUnavailable.rawValue:
+            return "HK_DATA_UNAVAILABLE"
+        case HKError.Code.errorHealthDataRestricted.rawValue:
+            return "HK_DATA_RESTRICTED"
+        case HKError.Code.errorInvalidArgument.rawValue:
+            return "HK_INVALID_ARGUMENT"
+        case HKError.Code.errorAuthorizationDenied.rawValue:
+            return "HK_AUTHORIZATION_DENIED"
+        case HKError.Code.errorAuthorizationNotDetermined.rawValue:
+            return "HK_AUTHORIZATION_NOT_DETERMINED"
+        case HKError.Code.errorDatabaseInaccessible.rawValue:
+            return "HK_DATABASE_INACCESSIBLE"
+        case HKError.Code.errorUserCanceled.rawValue:
+            return "HK_USER_CANCELED"
+        default:
+            return "HK_ERROR_\(err.code)"
+        }
     }
 }

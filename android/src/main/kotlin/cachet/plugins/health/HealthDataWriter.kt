@@ -9,6 +9,7 @@ import androidx.health.connect.client.units.*
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import java.time.Instant
+import java.time.ZoneOffset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -23,6 +24,22 @@ class HealthDataWriter(
 ) {
     private val workoutRouteBuilders =
         mutableMapOf<String, MutableList<ExerciseRoute.Location>>()
+
+    // Returns null for out-of-range offsets (|offset| > 18h) instead of
+    // letting `ZoneOffset.ofTotalSeconds` throw DateTimeException. Callers
+    // treat "no offset" as the safe fallback rather than failing the whole
+    // workout write for a bad offset value.
+    private fun safeZoneOffset(totalSeconds: Int): ZoneOffset? {
+        return try {
+            ZoneOffset.ofTotalSeconds(totalSeconds)
+        } catch (e: java.time.DateTimeException) {
+            Log.w(
+                "FLUTTER_HEALTH::WARN",
+                "[Health Connect] Ignoring out-of-range zone offset: ${totalSeconds}s",
+            )
+            null
+        }
+    }
 
     // Maps incoming recordingMethod int -> Metadata factory method.
     // 0: unknown, 1: manual, 2: auto, 3: active (default unknown for others)
@@ -232,7 +249,39 @@ class HealthDataWriter(
         val totalDistance = call.argument<Int>("totalDistance")
         val recordingMethod = call.argument<Int>("recordingMethod")!!
         val deviceType: Int? = call.argument<Int>("deviceType")
-        val workoutMetadata = buildMetadata(recordingMethod = recordingMethod, deviceType = deviceType)
+        val clientRecordId: String? = call.argument<String>("clientRecordId")
+        val clientRecordVersion: Double? = call.argument<Double>("clientRecordVersion")
+        // `ZoneOffset.ofTotalSeconds` throws `DateTimeException` when the
+        // magnitude exceeds UTC±18h. Catch it up-front so an out-of-range
+        // caller value never surfaces as an uncaught exception.
+        val startZoneOffset: ZoneOffset? =
+            call.argument<Int>("startZoneOffsetSeconds")?.let { safeZoneOffset(it) }
+        val endZoneOffset: ZoneOffset? =
+            call.argument<Int>("endZoneOffsetSeconds")?.let { safeZoneOffset(it) }
+        val useActiveEnergy: Boolean = call.argument<Boolean>("useActiveEnergy") ?: false
+
+        // Metadata for the session itself — carries the idempotency keys.
+        val workoutMetadata = buildMetadata(
+            recordingMethod = recordingMethod,
+            clientRecordId = clientRecordId,
+            clientRecordVersion = clientRecordVersion?.toLong(),
+            deviceType = deviceType,
+        )
+        // Linked records (distance / calories) need distinct clientRecordIds
+        // or Health Connect rejects the batch as duplicate upserts. Derive
+        // stable suffixes so re-writes stay idempotent.
+        val distanceMetadata = buildMetadata(
+            recordingMethod = recordingMethod,
+            clientRecordId = clientRecordId?.let { "$it:distance" },
+            clientRecordVersion = clientRecordVersion?.toLong(),
+            deviceType = deviceType,
+        )
+        val energyMetadata = buildMetadata(
+            recordingMethod = recordingMethod,
+            clientRecordId = clientRecordId?.let { "$it:calories" },
+            clientRecordVersion = clientRecordVersion?.toLong(),
+            deviceType = deviceType,
+        )
 
         if (!HealthConstants.workoutTypeMap.containsKey(type)) {
             result.success(false)
@@ -251,9 +300,9 @@ class HealthDataWriter(
                 list.add(
                         ExerciseSessionRecord(
                                 startTime = startTime,
-                                startZoneOffset = null,
+                                startZoneOffset = startZoneOffset,
                                 endTime = endTime,
-                                endZoneOffset = null,
+                                endZoneOffset = endZoneOffset,
                                 exerciseType = workoutType,
                                 title = title,
                                 metadata = workoutMetadata,
@@ -265,26 +314,41 @@ class HealthDataWriter(
                     list.add(
                             DistanceRecord(
                                     startTime = startTime,
-                                    startZoneOffset = null,
+                                    startZoneOffset = startZoneOffset,
                                     endTime = endTime,
-                                    endZoneOffset = null,
+                                    endZoneOffset = endZoneOffset,
                                     distance = Length.meters(totalDistance.toDouble()),
-                                    metadata = workoutMetadata,
+                                    metadata = distanceMetadata,
                             ),
                     )
                 }
 
-                // Add energy burned record if provided
+                // Add energy burned record if provided. Default stays on the
+                // upstream TotalCaloriesBurnedRecord; callers that measure
+                // only the workout's active contribution (excluding BMR) can
+                // opt into ActiveCaloriesBurnedRecord via [useActiveEnergy].
                 if (totalEnergyBurned != null) {
+                    val energy = Energy.kilocalories(totalEnergyBurned.toDouble())
                     list.add(
-                            TotalCaloriesBurnedRecord(
-                                    startTime = startTime,
-                                    startZoneOffset = null,
-                                    endTime = endTime,
-                                    endZoneOffset = null,
-                                    energy = Energy.kilocalories(totalEnergyBurned.toDouble()),
-                                    metadata = workoutMetadata,
-                            ),
+                            if (useActiveEnergy) {
+                                ActiveCaloriesBurnedRecord(
+                                        startTime = startTime,
+                                        startZoneOffset = startZoneOffset,
+                                        endTime = endTime,
+                                        endZoneOffset = endZoneOffset,
+                                        energy = energy,
+                                        metadata = energyMetadata,
+                                )
+                            } else {
+                                TotalCaloriesBurnedRecord(
+                                        startTime = startTime,
+                                        startZoneOffset = startZoneOffset,
+                                        endTime = endTime,
+                                        endZoneOffset = endZoneOffset,
+                                        energy = energy,
+                                        metadata = energyMetadata,
+                                )
+                            },
                     )
                 }
 
@@ -298,9 +362,33 @@ class HealthDataWriter(
                 )
                 Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
-                result.success(false)
+                // Surface a typed FlutterError so Dart callers can classify
+                // failures (permission / platform unavailability / other)
+                // rather than collapsing everything into `success == false`.
+                result.error(
+                    workoutWriteErrorCode(e),
+                    e.message ?: e.javaClass.simpleName,
+                    mapOf(
+                        "exceptionClass" to e.javaClass.name,
+                    ),
+                )
             }
         }
+    }
+
+    /**
+     * Maps a workout-write exception to a stable `code` string that Dart
+     * callers switch on. `SECURITY_EXCEPTION` is the single permission
+     * signal emitted by Health Connect writes; IO / remote errors surface
+     * under their own codes so callers can distinguish transient failures
+     * from platform-unavailability. Anything unknown falls through to
+     * `WRITE_ERROR` so the signal is preserved.
+     */
+    private fun workoutWriteErrorCode(e: Exception): String = when (e) {
+        is SecurityException -> "SECURITY_EXCEPTION"
+        is java.io.IOException -> "IO_EXCEPTION"
+        is android.os.RemoteException -> "REMOTE_EXCEPTION"
+        else -> "WRITE_ERROR"
     }
 
     /**

@@ -104,6 +104,71 @@ class HealthDataOperations {
         }
     }
 
+    /// Returns the accurate, per-type WRITE authorisation status combined
+    /// via worst-case aggregation.
+    ///
+    /// HealthKit's `authorizationStatus(for:)` returns one of:
+    ///   * `.notDetermined` — user has not yet chosen
+    ///   * `.sharingDenied` — user denied (or HK hides READ intent)
+    ///   * `.sharingAuthorized` — user granted write access
+    ///
+    /// Aggregation rules (any denied → denied; any notDetermined → nd;
+    /// otherwise granted) match the Dart-side [HealthPermissionStatus]
+    /// semantics.
+    func accurateAuthorizationStatus(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        let arguments = call.arguments as? NSDictionary
+        guard var types = arguments?["types"] as? [String], !types.isEmpty
+        else {
+            throw PluginError(message: "Invalid Arguments - types missing or empty")
+        }
+
+        // Expand the NUTRITION composite to its underlying sample types so
+        // aggregation considers every HK type the plugin tracks for it.
+        if let nutritionIndex = types.firstIndex(of: HealthConstants.NUTRITION) {
+            types.remove(at: nutritionIndex)
+            types.append(contentsOf: nutritionList)
+        }
+
+        var sawNotDetermined = false
+
+        for type in types {
+            guard let sampleType = dataTypesDict[type] else {
+                // Unknown type → fail-closed as notDetermined.
+                sawNotDetermined = true
+                continue
+            }
+            let status = healthStore.authorizationStatus(for: sampleType)
+            switch status {
+            case .sharingDenied:
+                result("denied")
+                return
+            case .notDetermined:
+                sawNotDetermined = true
+            case .sharingAuthorized:
+                break
+            @unknown default:
+                sawNotDetermined = true
+            }
+
+            if let characteristicType = characteristicsTypesDict[type] {
+                let charStatus = healthStore.authorizationStatus(for: characteristicType)
+                switch charStatus {
+                case .sharingDenied:
+                    result("denied")
+                    return
+                case .notDetermined:
+                    sawNotDetermined = true
+                case .sharingAuthorized:
+                    break
+                @unknown default:
+                    sawNotDetermined = true
+                }
+            }
+        }
+
+        result(sawNotDetermined ? "notDetermined" : "granted")
+    }
+
     /// Request authorization for health data
     /// - Parameters:
     ///   - call: Flutter method call

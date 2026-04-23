@@ -65,6 +65,51 @@ class HealthDataOperations(
     }
 
     /**
+     * Returns the accurate WRITE authorisation status for every supplied
+     * type, combined via worst-case aggregation and encoded as one of the
+     * wire strings consumed by Dart's `HealthPermissionStatus.fromWire`.
+     *
+     * Health Connect only exposes a granted/not-granted boolean per
+     * permission, so Android can only return `'granted'` or `'denied'`
+     * (never `'notDetermined'`). Callers that need the three-valued status
+     * should treat the Dart-side `notDetermined` branch as iOS-specific.
+     *
+     * @param call Method call containing 'types' (list of data type strings)
+     * @param result Flutter result callback returning the wire string
+     */
+    fun accurateAuthorizationStatus(call: MethodCall, result: Result) {
+        val args = call.arguments as HashMap<*, *>
+        val types = (args["types"] as? ArrayList<*>)?.filterIsInstance<String>()
+            ?: run {
+                result.success("notDetermined")
+                return
+            }
+        if (types.isEmpty()) {
+            result.success("notDetermined")
+            return
+        }
+
+        // Every requested type is probed for WRITE access (index 1 == WRITE
+        // in the Dart HealthDataAccess enum).
+        val permList = preparePermissionsListInternal(
+            types,
+            List(types.size) { 1 },
+        )
+        if (permList == null) {
+            result.success("denied")
+            return
+        }
+
+        scope.launch {
+            val granted = healthConnectClient
+                .permissionController
+                .getGrantedPermissions()
+                .containsAll(permList)
+            result.success(if (granted) "granted" else "denied")
+        }
+    }
+
+    /**
      * Prepares a list of Health Connect permission strings for authorization requests. Converts
      * Flutter data types and permission levels into Health Connect permission format.
      *
@@ -90,10 +135,15 @@ class HealthDataOperations(
      */
     fun revokePermissions(call: MethodCall, result: Result) {
         scope.launch {
-            Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
-            healthConnectClient.permissionController.revokeAllPermissions()
+            try {
+                Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
+                healthConnectClient.permissionController.revokeAllPermissions()
+                result.success(true)
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error revoking permissions: ${e.message}")
+                result.success(false)
+            }
         }
-        result.success(true)
     }
 
     /**

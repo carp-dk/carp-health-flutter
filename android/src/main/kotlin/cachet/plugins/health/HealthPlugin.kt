@@ -131,6 +131,9 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
             // Permissions
             "hasPermissions" -> dataOperations.hasPermissions(call, result)
+            "accurateAuthorizationStatus" ->
+                    dataOperations.accurateAuthorizationStatus(call, result)
+            "isHealthConnectPackageInstalled" -> isHealthConnectPackageInstalled(result)
             "requestAuthorization" -> requestAuthorization(call, result)
             "revokePermissions" -> dataOperations.revokePermissions(call, result)
 
@@ -260,6 +263,30 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param call Method call from Flutter (unused)
      * @param result Flutter result callback
      */
+    /**
+     * Returns true when the Google Health Connect provider package is
+     * installed on-device. Lets callers distinguish "not installed" from
+     * "installed but needs update" — a distinction [getHealthConnectSdkStatus]
+     * collapses into a single provider-update-required value.
+     */
+    private fun isHealthConnectPackageInstalled(result: Result) {
+        val ctx = context
+        if (ctx == null) {
+            result.success(false)
+            return
+        }
+        val installed = try {
+            ctx.packageManager.getPackageInfo(
+                "com.google.android.apps.healthdata",
+                0,
+            )
+            true
+        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
+            false
+        }
+        result.success(installed)
+    }
+
     private fun installHealthConnect(call: MethodCall, result: Result) {
         val uriString =
                 "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding"

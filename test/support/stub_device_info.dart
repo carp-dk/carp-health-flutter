@@ -43,7 +43,6 @@ class StubDeviceInfoPlugin implements DeviceInfoPlugin {
           'type': 'stub-type',
           'isPhysicalDevice': true,
           'systemFeatures': <String>[],
-          'serialNumber': 'stub-serial',
           'isLowRamDevice': false,
         }),
       );
@@ -64,6 +63,7 @@ class StubDeviceInfoPlugin implements DeviceInfoPlugin {
           'physicalRamSize': 8192,
           'availableRamSize': 4096,
           'isiOSAppOnMac': false,
+          'isiOSAppOnVision': false,
           'utsname': {
             'sysname': 'stub-ios-sysname',
             'nodename': 'stub-ios-nodename',

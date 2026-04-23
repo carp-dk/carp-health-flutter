@@ -1112,6 +1112,42 @@ enum MenstrualFlow {
   }
 }
 
+/// Accurate, per-type authorisation status returned by
+/// [Health.accurateAuthorizationStatus].
+///
+/// Unlike [Health.hasPermissions] (which collapses iOS READ intent to `null`
+/// for privacy reasons and combines Android's per-type state into a single
+/// boolean), this enum tracks the three-valued status HealthKit and Health
+/// Connect actually expose for write intent.
+enum HealthPermissionStatus {
+  /// The user has not yet been asked (or the system has not yet recorded a
+  /// decision). Call [Health.requestAuthorization] to trigger the prompt.
+  notDetermined,
+
+  /// The user explicitly declined access, or the platform otherwise will not
+  /// grant it. Subsequent writes will fail until the user re-grants via
+  /// platform settings.
+  denied,
+
+  /// The requested access has been granted for every supplied type.
+  granted;
+
+  /// Parse a wire string (`'notDetermined' | 'denied' | 'granted'`) into the
+  /// enum. Unknown values collapse to [notDetermined] so stale platform
+  /// responses fail-closed.
+  static HealthPermissionStatus fromWire(String? wire) {
+    switch (wire) {
+      case 'granted':
+        return HealthPermissionStatus.granted;
+      case 'denied':
+        return HealthPermissionStatus.denied;
+      case 'notDetermined':
+      default:
+        return HealthPermissionStatus.notDetermined;
+    }
+  }
+}
+
 enum RecordingMethod {
   unknown,
   active,
