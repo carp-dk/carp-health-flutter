@@ -2,6 +2,46 @@ import HealthKit
 
 /// Utilities class containing helper methods for data manipulation
 class HealthUtilities {
+    /// Resolve a best-effort device identifier for a workout's *recording* device.
+    ///
+    /// HealthKit exposes device information from several places, and which one
+    /// is populated depends on which app wrote the workout:
+    ///
+    /// 1. `sourceRevision.productType` is the Apple hardware identifier of the
+    ///    device running the source app (e.g. `"Watch6,1"`, `"iPhone14,2"`).
+    ///    For Apple-native workouts this correctly distinguishes Apple Watch
+    ///    from iPhone. For third-party apps (Garmin, Strava, etc.) it is
+    ///    always the iPhone model running the companion app, which is not the
+    ///    actual recording device.
+    /// 2. `HKSample.device.name` is set by the writing app and describes the
+    ///    actual recording hardware. Third-party apps frequently populate this
+    ///    with the friendly device name (e.g. `"Garmin fēnix 7"`).
+    /// 3. `HKMetadataKeyDeviceName` is a standard metadata key that some apps
+    ///    use instead of `HKSample.device`.
+    ///
+    /// Strategy: prefer `productType` for Apple-native workouts; for everything
+    /// else fall back to the device name reported by the writing app, then to
+    /// metadata, and finally to `productType` as a last resort.
+    static func resolveWorkoutDeviceModel(_ workout: HKWorkout) -> String? {
+        let bundleId = workout.sourceRevision.source.bundleIdentifier.lowercased()
+        let isAppleSource = bundleId.hasPrefix("com.apple.")
+
+        if isAppleSource, let productType = workout.sourceRevision.productType {
+            return productType
+        }
+
+        if let deviceName = workout.device?.name, !deviceName.isEmpty {
+            return deviceName
+        }
+
+        if let metadataDeviceName = workout.metadata?[HKMetadataKeyDeviceName] as? String,
+           !metadataDeviceName.isEmpty {
+            return metadataDeviceName
+        }
+
+        return workout.sourceRevision.productType
+    }
+
     /// Sanitize metadata to make it Flutter-friendly
     /// - Parameter metadata: The metadata dictionary to sanitize
     /// - Returns: A dictionary with sanitized values

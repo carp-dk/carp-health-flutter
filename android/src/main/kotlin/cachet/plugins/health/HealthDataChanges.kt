@@ -200,6 +200,7 @@ class HealthDataChanges(
             "date_to" to record.endTime.toEpochMilli(),
             "source_id" to "",
             "source_name" to record.metadata.dataOrigin.packageName,
+            "device_model" to record.metadata.device?.model,
             "recording_method" to record.metadata.recordingMethod,
         )
     }

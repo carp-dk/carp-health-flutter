@@ -367,6 +367,7 @@ class HealthDataReader(
             "date_to" to endTimestamp,
             "source_id" to session.metadata.dataOrigin.packageName,
             "source_name" to session.metadata.dataOrigin.packageName,
+            "device_model" to session.metadata.device?.model,
             "recording_method" to session.metadata.recordingMethod,
             "metadata" to metadata,
         )
@@ -389,6 +390,7 @@ class HealthDataReader(
             "date_to" to session.endTime.toEpochMilli(),
             "source_id" to session.metadata.dataOrigin.packageName,
             "source_name" to session.metadata.dataOrigin.packageName,
+            "device_model" to session.metadata.device?.model,
             "recording_method" to session.metadata.recordingMethod,
             "metadata" to metadata,
         )
@@ -660,6 +662,7 @@ class HealthDataReader(
                     "date_to" to record.endTime.toEpochMilli(),
                     "source_id" to "",
                     "source_name" to record.metadata.dataOrigin.packageName,
+                    "device_model" to record.metadata.device?.model,
                 ),
             )
         }
