@@ -18,6 +18,7 @@ object HealthConstants {
     const val BASAL_ENERGY_BURNED = "BASAL_ENERGY_BURNED"
     const val BLOOD_GLUCOSE = "BLOOD_GLUCOSE"
     const val BLOOD_OXYGEN = "BLOOD_OXYGEN"
+    const val VO2_MAX = "VO2_MAX"
     const val BLOOD_PRESSURE_DIASTOLIC = "BLOOD_PRESSURE_DIASTOLIC"
     const val BLOOD_PRESSURE_SYSTOLIC = "BLOOD_PRESSURE_SYSTOLIC"
     const val BODY_FAT_PERCENTAGE = "BODY_FAT_PERCENTAGE"
@@ -84,6 +85,7 @@ object HealthConstants {
         BLOOD_PRESSURE_SYSTOLIC to BloodPressureRecord::class,
         BLOOD_PRESSURE_DIASTOLIC to BloodPressureRecord::class,
         BLOOD_OXYGEN to OxygenSaturationRecord::class,
+        VO2_MAX to Vo2MaxRecord::class,
         BLOOD_GLUCOSE to BloodGlucoseRecord::class,
         HEART_RATE_VARIABILITY_RMSSD to HeartRateVariabilityRmssdRecord::class,
         DISTANCE_DELTA to DistanceRecord::class,

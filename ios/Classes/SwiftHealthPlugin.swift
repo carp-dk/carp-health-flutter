@@ -234,6 +234,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[HealthConstants.RESPIRATIONS_PER_MINUTE] = HKUnit(from: "count/min")
         unitDict[HealthConstants.MILLIGRAM_PER_DECILITER] = HKUnit(from: "mg/dL")
         unitDict[HealthConstants.METER_PER_SECOND] = HKUnit(from: "m/s")
+        unitDict[HealthConstants.MILLILITER_PER_KILOGRAM_PER_MINUTE] = HKUnit(from: "ml/kg*min")
         unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit(from: "")
         unitDict[HealthConstants.NO_UNIT] = HKUnit(from: "")
 
@@ -327,6 +328,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataQuantityTypesDict[HealthConstants.BASAL_ENERGY_BURNED] = HKQuantityType.quantityType(forIdentifier: .basalEnergyBurned)!
         dataQuantityTypesDict[HealthConstants.BLOOD_GLUCOSE] = HKQuantityType.quantityType(forIdentifier: .bloodGlucose)!
         dataQuantityTypesDict[HealthConstants.BLOOD_OXYGEN] = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation)!
+        dataQuantityTypesDict[HealthConstants.VO2_MAX] = HKQuantityType.quantityType(forIdentifier: .vo2Max)!
         dataQuantityTypesDict[HealthConstants.BLOOD_PRESSURE_DIASTOLIC] = HKQuantityType.quantityType(forIdentifier: .bloodPressureDiastolic)!
         dataQuantityTypesDict[HealthConstants.BLOOD_PRESSURE_SYSTOLIC] = HKQuantityType.quantityType(forIdentifier: .bloodPressureSystolic)!
         dataQuantityTypesDict[HealthConstants.BODY_FAT_PERCENTAGE] = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage)!
@@ -406,6 +408,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataTypesDict[HealthConstants.BASAL_ENERGY_BURNED] = HKSampleType.quantityType(forIdentifier: .basalEnergyBurned)!
         dataTypesDict[HealthConstants.BLOOD_GLUCOSE] = HKSampleType.quantityType(forIdentifier: .bloodGlucose)!
         dataTypesDict[HealthConstants.BLOOD_OXYGEN] = HKSampleType.quantityType(forIdentifier: .oxygenSaturation)!
+        dataTypesDict[HealthConstants.VO2_MAX] = HKSampleType.quantityType(forIdentifier: .vo2Max)!
         dataTypesDict[HealthConstants.RESPIRATORY_RATE] = HKSampleType.quantityType(forIdentifier: .respiratoryRate)!
         dataTypesDict[HealthConstants.PERIPHERAL_PERFUSION_INDEX] = HKSampleType.quantityType(forIdentifier: .peripheralPerfusionIndex)!
 

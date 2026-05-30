@@ -165,6 +165,7 @@ class HealthDataChanges(
                 HealthConstants.BLOOD_PRESSURE_DIASTOLIC
             )
         is OxygenSaturationRecord -> listOf(HealthConstants.BLOOD_OXYGEN)
+        is Vo2MaxRecord -> listOf(HealthConstants.VO2_MAX)
         is BloodGlucoseRecord -> listOf(HealthConstants.BLOOD_GLUCOSE)
         is HeartRateVariabilityRmssdRecord -> listOf(HealthConstants.HEART_RATE_VARIABILITY_RMSSD)
         is DistanceRecord -> listOf(HealthConstants.DISTANCE_DELTA)
