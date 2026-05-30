@@ -71,7 +71,7 @@ class HealthDataConverter {
             }
             is BodyWaterMassRecord -> listOf(createInstantRecord(metadata, record.time, record.mass.inKilograms))
             is OxygenSaturationRecord -> listOf(createInstantRecord(metadata, record.time, record.percentage.value))
-            is Vo2MaxRecord -> listOf(createInstantRecord(metadata, record.time, record.vo2MillilitersPerMinutePerKilogram))
+            is Vo2MaxRecord -> listOf(createInstantRecord(metadata, record.time, record.vo2MillilitersPerMinuteKilogram))
             is BloodGlucoseRecord -> listOf(createInstantRecord(metadata, record.time, when (dataUnit) {
                                 "MILLIMOLES_PER_LITER" -> record.level.inMillimolesPerLiter
                                 else -> record.level.inMilligramsPerDeciliter
