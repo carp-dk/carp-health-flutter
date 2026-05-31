@@ -261,6 +261,13 @@ class HealthDataReader {
                         "totalEnergyBurnedUnit": "KILOCALORIE",
                         "totalDistance": sample.totalDistance?.doubleValue(for: HKUnit.meter()),
                         "totalDistanceUnit": "METER",
+                        "totalFlightsClimbed": sample.totalFlightsClimbed?.doubleValue(
+                            for: HKUnit.count()
+                        ),
+                        "totalSwimmingStrokeCount": sample.totalSwimmingStrokeCount?.doubleValue(
+                            for: HKUnit.count()
+                        ),
+                        "duration": sample.duration,
                         "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
@@ -550,6 +557,13 @@ class HealthDataReader {
                         "totalEnergyBurnedUnit": "KILOCALORIE",
                         "totalDistance": sample.totalDistance?.doubleValue(for: HKUnit.meter()),
                         "totalDistanceUnit": "METER",
+                        "totalFlightsClimbed": sample.totalFlightsClimbed?.doubleValue(
+                            for: HKUnit.count()
+                        ),
+                        "totalSwimmingStrokeCount": sample.totalSwimmingStrokeCount?.doubleValue(
+                            for: HKUnit.count()
+                        ),
+                        "duration": sample.duration,
                         "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
