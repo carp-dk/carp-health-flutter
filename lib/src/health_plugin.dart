@@ -404,6 +404,47 @@ class Health {
     return isAuthorized ?? false;
   }
 
+  /// Returns whether the app still needs to request authorization for the
+  /// given [types] (Apple's
+  /// [`getRequestStatusForAuthorization`](https://developer.apple.com/documentation/healthkit/hkhealthstore/2994346-getrequeststatusforauthorization)).
+  ///
+  /// Unlike [hasPermissions] — which always returns `null` for *read* types on
+  /// iOS — this reports whether the authorization sheet would still be shown
+  /// ([HealthAuthorizationRequestStatus.shouldRequest]) or not
+  /// ([HealthAuthorizationRequestStatus.unnecessary]). It does **not** reveal
+  /// whether read access was actually granted; HealthKit never exposes that.
+  /// This is therefore useful to decide whether to show a first-time request
+  /// flow versus guiding the user to the Health app to change an existing
+  /// decision.
+  ///
+  /// The optional [permissions] must, if provided, match the length of [types]
+  /// (see [HealthDataAccess]). When omitted, read access is assumed for all
+  /// types.
+  ///
+  /// iOS only. Returns `null` on Android (use [hasPermissions] there) and if
+  /// the status cannot be determined.
+  Future<HealthAuthorizationRequestStatus?> getRequestStatusForAuthorization(
+    List<HealthDataType> types, {
+    List<HealthDataAccess>? permissions,
+  }) async {
+    if (permissions != null && permissions.length != types.length) {
+      throw ArgumentError('The length of [types] must be same as that of [permissions].');
+    }
+
+    if (!Platform.isIOS) return null;
+
+    final mPermissions = permissions == null
+        ? List<int>.filled(types.length, HealthDataAccess.READ.index, growable: false)
+        : permissions.map((permission) => permission.index).toList();
+
+    final keys = types.map((e) => e.name).toList();
+    final value = await _channel.invokeMethod<String>('getRequestStatusForAuthorization', {
+      'types': keys,
+      'permissions': mPermissions,
+    });
+    return HealthAuthorizationRequestStatus.fromString(value);
+  }
+
   /// Obtains health and weight if BMI is requested on Android.
   void _handleBMI(List<HealthDataType> mTypes, List<int> mPermissions) {
     final index = mTypes.indexOf(HealthDataType.BODY_MASS_INDEX);
@@ -1241,10 +1282,7 @@ class Health {
   /// Fetch the next page of changes for a previously created token.
   ///
   /// Android only. Returns null on iOS or if an error occurs.
-  Future<HealthChangesResponse?> getChanges({
-    required String changesToken,
-    bool includeSelf = false,
-  }) async {
+  Future<HealthChangesResponse?> getChanges({required String changesToken, bool includeSelf = false}) async {
     if (Platform.isIOS) return null;
 
     await _checkIfHealthConnectAvailableOnAndroid();
