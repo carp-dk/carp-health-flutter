@@ -244,25 +244,25 @@ class HealthDataOperations {
 
         healthStore.getRequestStatusForAuthorization(toShare: typesToWrite, read: typesToRead) {
             status, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    result(FlutterError(code: "REQUEST_STATUS_ERROR",
+            let response: Any?
+            if let error = error {
+                response = FlutterError(code: "REQUEST_STATUS_ERROR",
                                         message: error.localizedDescription,
-                                        details: nil))
-                    return
-                }
-                let value: String
+                                        details: nil)
+            } else {
                 switch status {
                 case .unknown:
-                    value = "unknown"
+                    response = "unknown"
                 case .shouldRequest:
-                    value = "shouldRequest"
+                    response = "shouldRequest"
                 case .unnecessary:
-                    value = "unnecessary"
+                    response = "unnecessary"
                 @unknown default:
-                    value = "unknown"
+                    response = "unknown"
                 }
-                result(value)
+            }
+            Task { @MainActor in
+                result(response)
             }
         }
     }
