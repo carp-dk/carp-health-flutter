@@ -185,6 +185,88 @@ class HealthDataOperations {
         }
     }
 
+    /// Returns HealthKit's authorization *request* status for the given types.
+    ///
+    /// Mirrors `requestAuthorization`'s read/write set building, but calls
+    /// `getRequestStatusForAuthorization(toShare:read:)` instead of actually
+    /// requesting. The result is one of `"shouldRequest"`, `"unnecessary"` or
+    /// `"unknown"` — note this only reflects whether the authorization sheet
+    /// would be shown, not whether *read* access was granted (HealthKit never
+    /// exposes read-grant status).
+    func getRequestStatusForAuthorization(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        guard let arguments = call.arguments as? NSDictionary,
+              let types = arguments["types"] as? [String],
+              let permissions = arguments["permissions"] as? [Int],
+              permissions.count == types.count
+        else {
+            throw PluginError(message: "Invalid Arguments!")
+        }
+
+        var typesToRead = Set<HKObjectType>()
+        var typesToWrite = Set<HKSampleType>()
+
+        for (index, key) in types.enumerated() {
+            let access = permissions[index]
+
+            if key == HealthConstants.NUTRITION {
+                for nutritionType in nutritionList {
+                    guard let nutritionData = dataTypesDict[nutritionType] else { continue }
+                    switch access {
+                    case 0:
+                        typesToRead.insert(nutritionData)
+                    case 1:
+                        typesToWrite.insert(nutritionData)
+                    default:
+                        typesToRead.insert(nutritionData)
+                        typesToWrite.insert(nutritionData)
+                    }
+                }
+                continue
+            }
+
+            if let dataType = dataTypesDict[key] {
+                switch access {
+                case 0:
+                    typesToRead.insert(dataType)
+                case 1:
+                    typesToWrite.insert(dataType)
+                default:
+                    typesToRead.insert(dataType)
+                    typesToWrite.insert(dataType)
+                }
+            }
+
+            // Characteristic types are read-only.
+            if let characteristicsType = characteristicsTypesDict[key] {
+                typesToRead.insert(characteristicsType)
+            }
+        }
+
+        healthStore.getRequestStatusForAuthorization(toShare: typesToWrite, read: typesToRead) {
+            status, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    result(FlutterError(code: "REQUEST_STATUS_ERROR",
+                                        message: error.localizedDescription,
+                                        details: nil))
+                    return
+                }
+                let value: String
+                switch status {
+                case .unknown:
+                    value = "unknown"
+                case .shouldRequest:
+                    value = "shouldRequest"
+                case .unnecessary:
+                    value = "unnecessary"
+                @unknown default:
+                    value = "unknown"
+                }
+                result(value)
+            }
+        }
+    }
+
     /// Delete health data by date range
     /// - Parameters:
     ///   - call: Flutter method call

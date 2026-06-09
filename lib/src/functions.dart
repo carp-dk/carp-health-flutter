@@ -44,3 +44,35 @@ enum HealthConnectSdkStatus {
     );
   }
 }
+
+/// The status returned by [Health.getRequestStatusForAuthorization].
+///
+/// Mirrors Apple's
+/// [`HKAuthorizationRequestStatus`](https://developer.apple.com/documentation/healthkit/hkauthorizationrequeststatus).
+///
+/// This indicates whether the authorization sheet would still be shown for the
+/// requested types — it does **not** reveal whether *read* access was actually
+/// granted, which HealthKit never exposes to apps.
+enum HealthAuthorizationRequestStatus {
+  /// It is unknown whether the app should request authorization (e.g. an error
+  /// occurred while determining the status).
+  unknown,
+
+  /// The app should request authorization: at least one of the requested types
+  /// has not been presented to the user yet.
+  shouldRequest,
+
+  /// Requesting authorization is unnecessary: the user has already been
+  /// presented with the authorization sheet for all requested types.
+  unnecessary;
+
+  /// Maps the native string value (from the platform channel) to an enum value.
+  static HealthAuthorizationRequestStatus? fromString(String? value) {
+    return switch (value) {
+      'shouldRequest' => HealthAuthorizationRequestStatus.shouldRequest,
+      'unnecessary' => HealthAuthorizationRequestStatus.unnecessary,
+      'unknown' => HealthAuthorizationRequestStatus.unknown,
+      _ => null,
+    };
+  }
+}

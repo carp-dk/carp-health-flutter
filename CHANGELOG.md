@@ -1,3 +1,11 @@
+## Unreleased
+
+* iOS: Add `getRequestStatusForAuthorization` to expose HealthKit's
+  `HKAuthorizationRequestStatus`. Unlike `hasPermissions` (which always returns
+  `null` for read types on iOS), this reports whether the authorization sheet
+  would still be shown, letting apps distinguish a first-time request from a
+  previously-answered one. Returns `null` on Android.
+
 ## 13.3.1
 
 * iOS: Fix issues with app crashing on iOS 15
