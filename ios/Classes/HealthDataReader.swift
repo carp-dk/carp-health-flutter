@@ -216,6 +216,8 @@ class HealthDataReader {
                     categorySamples = categorySamples.filter { $0.value == 4 }
                 case HealthConstants.SLEEP_REM:
                     categorySamples = categorySamples.filter { $0.value == 5 }
+                case HealthConstants.SLEEP_UNKNOWN:
+                    categorySamples = categorySamples.filter { $0.value == 6 }
                 case HealthConstants.HEADACHE_UNSPECIFIED:
                     categorySamples = categorySamples.filter { $0.value == 0 }
                 case HealthConstants.HEADACHE_NOT_PRESENT:
@@ -505,6 +507,8 @@ class HealthDataReader {
                     categorySamples = categorySamples.filter { $0.value == 4 }
                 case HealthConstants.SLEEP_REM:
                     categorySamples = categorySamples.filter { $0.value == 5 }
+                case HealthConstants.SLEEP_UNKNOWN:
+                    categorySamples = categorySamples.filter { $0.value == 6 }
                 case HealthConstants.HEADACHE_UNSPECIFIED:
                     categorySamples = categorySamples.filter { $0.value == 0 }
                 case HealthConstants.HEADACHE_NOT_PRESENT:
