@@ -141,6 +141,7 @@ enum HealthConstants {
     static let SLEEP_IN_BED = "SLEEP_IN_BED"
     static let SLEEP_LIGHT = "SLEEP_LIGHT"
     static let SLEEP_REM = "SLEEP_REM"
+    static let SLEEP_UNKNOWN = "SLEEP_UNKNOWN"
 
     static let EXERCISE_TIME = "EXERCISE_TIME"
     static let WORKOUT = "WORKOUT"
