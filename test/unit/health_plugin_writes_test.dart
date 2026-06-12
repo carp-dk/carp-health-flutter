@@ -201,7 +201,9 @@ void main() {
         expect(args['value'], MenstrualFlow.medium.index);
         expect(args['isStartOfCycle'], isTrue);
       },
-      skip: Platform.isAndroid ? 'Android uses Health Connect value mapping' : null,
+      skip: Platform.isAndroid
+          ? 'Android uses Health Connect value mapping'
+          : null,
     );
   });
 
@@ -287,7 +289,9 @@ void main() {
         expect(args['units'], 3);
         expect(args['reason'], InsulinDeliveryReason.BOLUS.index);
       },
-      skip: Platform.isAndroid ? 'Insulin delivery unsupported on Android' : null,
+      skip: Platform.isAndroid
+          ? 'Insulin delivery unsupported on Android'
+          : null,
     );
   });
 
@@ -381,7 +385,9 @@ void main() {
       expect(call, isNotNull);
       final args = Map<String, dynamic>.from(call!.arguments as Map);
       final rawLocations = List<dynamic>.from(args['locations'] as List);
-      final locations = rawLocations.map((entry) => Map<String, dynamic>.from(entry as Map)).toList();
+      final locations = rawLocations
+          .map((entry) => Map<String, dynamic>.from(entry as Map))
+          .toList();
       expect(locations, hasLength(1));
       expect(locations.first['latitude'], 37.3349);
       expect(locations.first['horizontalAccuracy'], 5);
@@ -416,5 +422,66 @@ void main() {
       final args = Map<String, dynamic>.from(call!.arguments as Map);
       expect(args['builderId'], 'builder-1');
     });
+  });
+
+  group('writeWorkoutData', () {
+    test('returns the platform record IDs from the channel', () async {
+      ctx.channel.when('writeWorkoutData', [
+        'session-record-id',
+        'distance-record-id',
+        'energy-record-id',
+      ]);
+
+      final ids = await ctx.health.writeWorkoutData(
+        activityType: HealthWorkoutActivityType.BIKING,
+        start: DateTime(2026, 6, 1, 10),
+        end: DateTime(2026, 6, 1, 11),
+        totalDistance: 25000,
+        totalEnergyBurned: 600,
+      );
+
+      expect(ids, [
+        'session-record-id',
+        'distance-record-id',
+        'energy-record-id',
+      ]);
+
+      final call = ctx.channel.lastCallFor('writeWorkoutData');
+      expect(call, isNotNull);
+      final args = call!.arguments as Map;
+      expect(args['activityType'], 'BIKING');
+      expect(args['totalDistance'], 25000);
+      expect(args['totalEnergyBurned'], 600);
+    });
+
+    test(
+      'returns an empty list when the channel response is not a list',
+      () async {
+        ctx.channel.when('writeWorkoutData', true);
+
+        final ids = await ctx.health.writeWorkoutData(
+          activityType: HealthWorkoutActivityType.BIKING,
+          start: DateTime(2026, 6, 1, 10),
+          end: DateTime(2026, 6, 1, 11),
+        );
+
+        expect(ids, isEmpty);
+      },
+    );
+
+    test(
+      'first returned ID is usable as the finishWorkoutRoute workout UUID',
+      () async {
+        ctx.channel.when('writeWorkoutData', ['workout-uuid']);
+
+        final ids = await ctx.health.writeWorkoutData(
+          activityType: HealthWorkoutActivityType.BIKING,
+          start: DateTime(2026, 6, 1, 10),
+          end: DateTime(2026, 6, 1, 11),
+        );
+
+        expect(ids.first, 'workout-uuid');
+      },
+    );
   });
 }

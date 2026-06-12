@@ -555,14 +555,15 @@ class HealthAppState extends State<HealthApp> {
       startTime: earlier,
       endTime: now,
     );
-    success &= await health.writeWorkoutData(
+    success &= (await health.writeWorkoutData(
       activityType: HealthWorkoutActivityType.AMERICAN_FOOTBALL,
       title: "Random workout name that shows up in Health Connect",
       start: now.subtract(const Duration(minutes: 15)),
       end: now,
       totalDistance: 2430,
       totalEnergyBurned: 400,
-    );
+    ))
+        .isNotEmpty;
     success &= await health.writeBloodPressure(
       systolic: 90,
       diastolic: 80,

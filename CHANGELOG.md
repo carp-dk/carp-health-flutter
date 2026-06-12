@@ -1,3 +1,15 @@
+## NEXT (breaking)
+
+* BREAKING: `writeWorkoutData` now returns `Future<List<String>>` - the
+  platform record IDs of the inserted records (iOS: the `HKWorkout` UUID;
+  Health Connect: exercise session record ID first) - instead of
+  `Future<bool>`, and surfaces platform write failures as `PlatformException`
+  instead of `false`. The first returned ID is the `workoutUuid` that
+  `finishWorkoutRoute` requires; without it, workout routes (added in
+  13.3.0) could never be attached. Migration: replace `success =
+  await writeWorkoutData(...)` with `ids = await writeWorkoutData(...)`
+  and treat a non-empty list / absence of an exception as success.
+
 ## 13.3.1
 
 * iOS: Fix issues with app crashing on iOS 15

@@ -883,7 +883,22 @@ class HealthDataWriter {
                     print("Error Saving Workout. Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
-                    result(success)
+                    // Return the saved workout's UUID so callers can attach
+                    // a route to it via finishWorkoutRoute. Discarding it made
+                    // route attachment impossible: the route builder's
+                    // HKSampleQuery needs this UUID, which only the save
+                    // callback ever exposes.
+                    if success {
+                        result([workout.uuid.uuidString])
+                    } else {
+                        result(
+                            FlutterError(
+                                code: "WRITE_WORKOUT_FAILED",
+                                message: "HealthKit save returned false for workout.",
+                                details: nil
+                            )
+                        )
+                    }
                 }
             }
         )
