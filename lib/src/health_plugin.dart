@@ -1494,7 +1494,15 @@ class Health {
 
   /// Write workout data to Apple Health or Google Health Connect.
   ///
-  /// Returns true if the workout data was successfully added.
+  /// Returns the platform record IDs of the inserted records. On iOS this
+  /// is a single-element list with the HKWorkout UUID; on Health Connect
+  /// the exercise session record ID comes first, followed by the optional
+  /// distance and energy records. The first element is what
+  /// [finishWorkoutRoute] needs as its `workoutUuid`. Throws on platform
+  /// failure.
+  ///
+  /// Breaking change: previously returned `Future<bool>` and swallowed
+  /// platform errors as `false`.
   ///
   /// Parameters:
   ///  - [activityType] The type of activity performed.
@@ -1509,7 +1517,7 @@ class Health {
   ///  - [title] The title of the workout.
   ///    *ONLY FOR HEALTH CONNECT* Default value is the [activityType], e.g. "STRENGTH_TRAINING".
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
-  Future<bool> writeWorkoutData({
+  Future<List<String>> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
     required DateTime end,
@@ -1542,7 +1550,8 @@ class Health {
       'title': title,
       'recordingMethod': recordingMethod.toInt(),
     };
-    return await _channel.invokeMethod('writeWorkoutData', args) == true;
+    final response = await _channel.invokeMethod('writeWorkoutData', args);
+    return response is List ? response.cast<String>() : <String>[];
   }
 
   /// Start a new workout route recording session on iOS or Android.
