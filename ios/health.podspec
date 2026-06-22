@@ -12,9 +12,9 @@ Wrapper for Apple's HealthKit on iOS and Google's Health Connect on Android.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Copenhagen Research Platform at DTU' => 'support@carp.dk' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
-  s.public_header_files = 'Classes/**/*.h'
+  s.source_files = 'health/Sources/health/**/*'
   s.dependency 'Flutter'
+  s.frameworks = 'HealthKit'
 
   s.ios.deployment_target = '14.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'VALID_ARCHS[sdk=iphonesimulator*]' => 'x86_64' }

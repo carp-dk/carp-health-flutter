@@ -2,7 +2,13 @@ import Flutter
 import HealthKit
 import UIKit
 
-/// Main plugin class that coordinates health data operations
+/// Main plugin class that coordinates health data operations.
+///
+/// Exposed to the Objective-C runtime as `HealthPlugin` (the `pluginClass`
+/// declared in pubspec.yaml) via `@objc(HealthPlugin)`, so Flutter's
+/// GeneratedPluginRegistrant can find and register it under both Swift
+/// Package Manager and CocoaPods without a separate Objective-C shim.
+@objc(HealthPlugin)
 public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     // Health store and type dictionaries
     let healthStore = HKHealthStore()

@@ -1,3 +1,7 @@
+## Unreleased
+
+* iOS: Add Swift Package Manager (SPM) support alongside CocoaPods. Resolves the "plugin does not support Swift Package Manager" warning under Flutter 3.44+. Fixes [#480](https://github.com/carp-dk/carp-health-flutter/issues/480).
+
 ## 13.3.1
 
 * iOS: Fix issues with app crashing on iOS 15

@@ -126,3 +126,7 @@ app.*.symbols
 **/.cxx/
 .zed/settings.json
 android/bin
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
