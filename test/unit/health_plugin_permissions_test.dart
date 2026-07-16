@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 
@@ -43,6 +44,17 @@ void main() {
       expect(args['permissions'], [HealthDataAccess.READ.index, HealthDataAccess.READ.index]);
     });
 
+    test('hasPermissions returns false when Health Connect Binder dies', () async {
+      ctx.channel.failWith(
+        'hasPermissions',
+        PlatformException(code: 'health_connect_binder_died', message: 'Binder died'),
+      );
+
+      final result = await ctx.health.hasPermissions([HealthDataType.WEIGHT]);
+
+      expect(result, isFalse);
+    });
+
     test('requestAuthorization throws when permissions length mismatches types', () {
       expect(
         () => ctx.health.requestAuthorization(
@@ -77,6 +89,20 @@ void main() {
       final args = Map<String, dynamic>.from(call!.arguments as Map);
       expect(args['types'], [HealthDataType.STEPS.name]);
       expect(args['permissions'], [HealthDataAccess.READ.index]);
+    });
+
+    test('requestAuthorization returns false when service binding fails', () async {
+      ctx.channel.failWith(
+        'requestAuthorization',
+        PlatformException(code: 'health_connect_bind_failed', message: 'Binding to service failed'),
+      );
+
+      final result = await ctx.health.requestAuthorization(
+        [HealthDataType.WEIGHT],
+        permissions: [HealthDataAccess.READ_WRITE],
+      );
+
+      expect(result, isFalse);
     });
 
     test('revokePermissions calls channel', () async {

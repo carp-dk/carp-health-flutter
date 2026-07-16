@@ -22,7 +22,7 @@ class HealthFixtures {
       'source_id': sourceId,
       'source_name': sourceName,
       'recording_method': recordingMethod,
-      if (metadata != null) 'metadata': metadata,
+      'metadata': ?metadata,
     };
   }
 
@@ -52,7 +52,7 @@ class HealthFixtures {
       'source_id': sourceId,
       'source_name': sourceName,
       'recording_method': recordingMethod,
-      if (metadata != null) 'metadata': metadata,
+      'metadata': ?metadata,
     };
   }
 

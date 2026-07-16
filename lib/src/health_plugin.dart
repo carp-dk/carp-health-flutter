@@ -126,10 +126,15 @@ class Health {
       _handleWorkoutRoute(mTypes, mPermissions);
     }
 
-    return await _channel.invokeMethod('hasPermissions', {
-      "types": mTypes.map((type) => type.name).toList(),
-      "permissions": mPermissions,
-    });
+    try {
+      return await _channel.invokeMethod('hasPermissions', {
+        "types": mTypes.map((type) => type.name).toList(),
+        "permissions": mPermissions,
+      });
+    } on PlatformException catch (e) {
+      debugPrint('$runtimeType - Health Connect permission check failed: ${e.code}');
+      return false;
+    }
   }
 
   /// Revokes Google Health Connect permissions on Android of all types.
@@ -397,11 +402,16 @@ class Health {
     }
 
     List<String> keys = mTypes.map((e) => e.name).toList();
-    final bool? isAuthorized = await _channel.invokeMethod('requestAuthorization', {
-      'types': keys,
-      "permissions": mPermissions,
-    });
-    return isAuthorized ?? false;
+    try {
+      final bool? isAuthorized = await _channel.invokeMethod('requestAuthorization', {
+        'types': keys,
+        "permissions": mPermissions,
+      });
+      return isAuthorized ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('$runtimeType - Health Connect authorization failed: ${e.code}');
+      return false;
+    }
   }
 
   /// Obtains health and weight if BMI is requested on Android.
