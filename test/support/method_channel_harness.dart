@@ -10,6 +10,7 @@ class MethodChannelHarness {
   final MethodChannel channel;
   final List<MethodCall> calls = <MethodCall>[];
   final Map<String, Object?> cannedResponses = <String, Object?>{};
+  final Map<String, PlatformException> cannedErrors = <String, PlatformException>{};
   MethodCallResponder? _responder;
 
   Future<void> setUp({MethodCallResponder? responder}) async {
@@ -25,6 +26,9 @@ class MethodChannelHarness {
         if (cannedResponses.containsKey(call.method)) {
           return cannedResponses[call.method];
         }
+        if (cannedErrors.containsKey(call.method)) {
+          throw cannedErrors[call.method]!;
+        }
         return null;
       },
     );
@@ -34,11 +38,16 @@ class MethodChannelHarness {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
     calls.clear();
     cannedResponses.clear();
+    cannedErrors.clear();
     _responder = null;
   }
 
   void when(String method, Object? response) {
     cannedResponses[method] = response;
+  }
+
+  void failWith(String method, PlatformException exception) {
+    cannedErrors[method] = exception;
   }
 
   MethodCall? lastCallFor(String method) {

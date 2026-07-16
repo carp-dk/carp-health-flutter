@@ -54,13 +54,8 @@ class HealthDataOperations(
             return
         }
 
-        scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(permList),
-            )
+        scope.launchHealthConnectOperation("hasPermissions", result) {
+            healthConnectClient.permissionController.getGrantedPermissions().containsAll(permList)
         }
     }
 
@@ -89,11 +84,11 @@ class HealthDataOperations(
      * @param result Flutter result callback returning success status
      */
     fun revokePermissions(call: MethodCall, result: Result) {
-        scope.launch {
+        scope.launchHealthConnectOperation("revokePermissions", result) {
             Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
             healthConnectClient.permissionController.revokeAllPermissions()
+            true
         }
-        result.success(true)
     }
 
     /**
@@ -104,12 +99,10 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean availability status
      */
     fun isHealthDataHistoryAvailable(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
+        scope.launchHealthConnectOperation("isHealthDataHistoryAvailable", result) {
+            healthConnectClient.features.getFeatureStatus(
+                    HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
+            ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
         }
     }
 
@@ -121,13 +114,10 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean authorization status
      */
     fun isHealthDataHistoryAuthorized(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_HISTORY)),
-            )
+        scope.launchHealthConnectOperation("isHealthDataHistoryAuthorized", result) {
+            healthConnectClient.permissionController
+                    .getGrantedPermissions()
+                    .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_HISTORY))
         }
     }
 
@@ -139,12 +129,10 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean availability status
      */
     fun isHealthDataInBackgroundAvailable(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
+        scope.launchHealthConnectOperation("isHealthDataInBackgroundAvailable", result) {
+            healthConnectClient.features.getFeatureStatus(
+                    HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+            ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
         }
     }
 
@@ -156,13 +144,10 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean authorization status
      */
     fun isHealthDataInBackgroundAuthorized(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)),
-            )
+        scope.launchHealthConnectOperation("isHealthDataInBackgroundAuthorized", result) {
+            healthConnectClient.permissionController
+                    .getGrantedPermissions()
+                    .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND))
         }
     }
 
@@ -174,12 +159,10 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean availability status
      */
     fun isSkinTemperatureAvailable(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
+        scope.launchHealthConnectOperation("isSkinTemperatureAvailable", result) {
+            healthConnectClient.features.getFeatureStatus(
+                    HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE
+            ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
         }
     }
 

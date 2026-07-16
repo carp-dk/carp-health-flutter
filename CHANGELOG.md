@@ -1,3 +1,7 @@
+## Unreleased
+
+* Android: Prevent Health Connect Binder and service-binding failures from crashing the host app.
+
 ## 13.3.1
 
 * iOS: Fix issues with app crashing on iOS 15

@@ -62,17 +62,23 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     override fun onAttachedToEngine(
             @NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding
     ) {
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+            // Per-operation handlers complete their own Flutter result. This is the final safety
+            // net for any future coroutine added without an operation boundary.
+            Log.e("FLUTTER_HEALTH", "Unhandled Health Connect coroutine failure", exception)
+        }
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + exceptionHandler)
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
         channel?.setMethodCallHandler(this)
         context = flutterPluginBinding.applicationContext
         handler = Handler(context!!.mainLooper)
 
-        checkAvailability()
-        if (healthConnectAvailable) {
-            healthConnectClient =
-                    HealthConnectClient.getOrCreate(flutterPluginBinding.applicationContext)
-            initializeHelpers()
+        try {
+            initializeClientIfAvailable()
+        } catch (exception: Exception) {
+            healthConnectAvailable = false
+            healthConnectStatus = HealthConnectClient.SDK_UNAVAILABLE
+            Log.e("FLUTTER_HEALTH", "Health Connect initialization failed", exception)
         }
     }
 
@@ -83,9 +89,18 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param binding Plugin binding (unused in cleanup)
      */
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        failPendingAuthorization(
+                "health_connect_engine_detached",
+                "Flutter engine detached during Health Connect authorization",
+        )
         channel = null
         activity = null
-        scope.cancel()
+        healthConnectRequestPermissionsLauncher = null
+        if (this::scope.isInitialized) {
+            scope.cancel()
+        }
+        handler = null
+        context = null
     }
 
     override fun success(p0: Any?) {
@@ -117,18 +132,66 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param result Result callback to return data or status to Flutter
      */
     override fun onMethodCall(call: MethodCall, result: Result) {
-        when (call.method) {
-            // SDK and Installation
-            "installHealthConnect" -> installHealthConnect(call, result)
-            "getHealthConnectSdkStatus" -> {
-                checkAvailability()
-                if (healthConnectAvailable && !(this::dataOperations.isInitialized)) {
-                    healthConnectClient = HealthConnectClient.getOrCreate(context!!)
-                    initializeHelpers()
+        val guardedResult = GuardedResult(result, call.method)
+        try {
+            when (call.method) {
+                "installHealthConnect" -> installHealthConnect(call, guardedResult)
+                "getHealthConnectSdkStatus" -> {
+                    initializeClientIfAvailable()
+                    guardedResult.success(healthConnectStatus)
                 }
-                result.success(healthConnectStatus)
+                else -> {
+                    if (!isHealthConnectMethod(call.method)) {
+                        guardedResult.notImplemented()
+                        return
+                    }
+                    if (!ensureHealthConnectReady(guardedResult)) return
+                    dispatchHealthConnectCall(call, guardedResult)
+                }
+            }
+        } catch (exception: Exception) {
+            guardedResult.failHealthConnect(call.method, exception)
+        }
+    }
+
+    private fun isHealthConnectMethod(method: String): Boolean =
+            when (method) {
+                "hasPermissions",
+                "requestAuthorization",
+                "revokePermissions",
+                "isHealthDataHistoryAvailable",
+                "isHealthDataHistoryAuthorized",
+                "requestHealthDataHistoryAuthorization",
+                "isHealthDataInBackgroundAvailable",
+                "isHealthDataInBackgroundAuthorized",
+                "requestHealthDataInBackgroundAuthorization",
+                "isSkinTemperatureAvailable",
+                "getData",
+                "getDataByUUID",
+                "getIntervalData",
+                "getAggregateData",
+                "getTotalStepsInInterval",
+                "getChangesToken",
+                "getChanges",
+                "writeData",
+                "writeWorkoutData",
+                "writeBloodPressure",
+                "writeBloodOxygen",
+                "writeMenstruationFlow",
+                "writeMeal",
+                "writeActivityIntensity",
+                "startWorkoutRoute",
+                "insertWorkoutRouteData",
+                "finishWorkoutRoute",
+                "discardWorkoutRoute",
+                "delete",
+                "deleteByUUID",
+                "deleteByClientRecordId" -> true
+                else -> false
             }
 
+    private fun dispatchHealthConnectCall(call: MethodCall, result: Result) {
+        when (call.method) {
             // Permissions
             "hasPermissions" -> dataOperations.hasPermissions(call, result)
             "requestAuthorization" -> requestAuthorization(call, result)
@@ -173,8 +236,6 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             "insertWorkoutRouteData" -> dataWriter.insertWorkoutRouteData(call, result)
             "finishWorkoutRoute" -> dataWriter.finishWorkoutRoute(call, result)
             "discardWorkoutRoute" -> dataWriter.discardWorkoutRoute(call, result)
-            // TODO: Add support for multiple speed for iOS as well
-            // "writeMultipleSpeed" -> dataWriter.writeMultipleSpeedData(call, result)
 
             // Deleting data
             "delete" -> dataOperations.deleteData(call, result)
@@ -197,13 +258,25 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         binding.addActivityResultListener(this)
         activity = binding.activity
 
-        val requestPermissionActivityContract =
-                PermissionController.createRequestPermissionResultContract()
+        val componentActivity = activity as? ComponentActivity
+        if (componentActivity == null) {
+            Log.e("FLUTTER_HEALTH", "Permission requests require a ComponentActivity")
+            healthConnectRequestPermissionsLauncher = null
+            return
+        }
 
-        healthConnectRequestPermissionsLauncher =
-                (activity as ComponentActivity).registerForActivityResult(
-                        requestPermissionActivityContract
-                ) { granted -> onHealthConnectPermissionCallback(granted) }
+        try {
+            val requestPermissionActivityContract =
+                    PermissionController.createRequestPermissionResultContract()
+            healthConnectRequestPermissionsLauncher =
+                    componentActivity.registerForActivityResult(requestPermissionActivityContract) {
+                            granted ->
+                        onHealthConnectPermissionCallback(granted)
+                    }
+        } catch (exception: Exception) {
+            healthConnectRequestPermissionsLauncher = null
+            Log.e("FLUTTER_HEALTH", "Unable to register permission launcher", exception)
+        }
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
@@ -222,8 +295,12 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         if (channel == null) {
             return
         }
-        activity = null
+        failPendingAuthorization(
+                "health_connect_activity_detached",
+                "Activity detached during Health Connect authorization",
+        )
         healthConnectRequestPermissionsLauncher = null
+        activity = null
     }
 
     /**
@@ -231,8 +308,31 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * Connect is installed and accessible.
      */
     private fun checkAvailability() {
-        healthConnectStatus = HealthConnectClient.getSdkStatus(context!!)
+        val appContext = context ?: throw IllegalStateException("Plugin is detached from context")
+        healthConnectStatus = HealthConnectClient.getSdkStatus(appContext)
         healthConnectAvailable = healthConnectStatus == HealthConnectClient.SDK_AVAILABLE
+    }
+
+    private fun initializeClientIfAvailable() {
+        checkAvailability()
+        if (healthConnectAvailable && !this::dataOperations.isInitialized) {
+            val appContext = context ?: throw IllegalStateException("Plugin is detached from context")
+            healthConnectClient = HealthConnectClient.getOrCreate(appContext)
+            initializeHelpers()
+        }
+    }
+
+    private fun ensureHealthConnectReady(result: Result): Boolean {
+        initializeClientIfAvailable()
+        if (healthConnectAvailable && this::dataOperations.isInitialized) {
+            return true
+        }
+        result.error(
+                "health_connect_unavailable",
+                "Health Connect is not available",
+                mapOf("sdkStatus" to healthConnectStatus),
+        )
+        return false
     }
 
     /**
@@ -261,15 +361,16 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param result Flutter result callback
      */
     private fun installHealthConnect(call: MethodCall, result: Result) {
+        val appContext = context ?: throw IllegalStateException("Plugin is detached from context")
         val uriString =
                 "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding"
-        context!!.startActivity(
+        appContext.startActivity(
                 Intent(Intent.ACTION_VIEW).apply {
                     setPackage("com.android.vending")
                     data = android.net.Uri.parse(uriString)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     putExtra("overlay", true)
-                    putExtra("callerId", context!!.packageName)
+                    putExtra("callerId", appContext.packageName)
                 }
         )
         result.success(null)
@@ -282,22 +383,24 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param permissionGranted Set of permission strings that were granted
      */
     private fun onHealthConnectPermissionCallback(permissionGranted: Set<String>) {
-        if (!isReplySubmitted) {
+        val pendingResult = mResult
+        if (!isReplySubmitted && pendingResult != null) {
+            isReplySubmitted = true
+            mResult = null
             if (permissionGranted.isEmpty()) {
-                mResult?.success(false)
+                pendingResult.success(false)
                 Log.i(
                         "FLUTTER_HEALTH",
                         "Health Connect permissions were not granted! Make sure to declare the required permissions in the AndroidManifest.xml file."
                 )
             } else {
-                mResult?.success(true)
+                pendingResult.success(true)
                 Log.i(
                         "FLUTTER_HEALTH",
                         "${permissionGranted.size} Health Connect permissions were granted!"
                 )
                 Log.i("FLUTTER_HEALTH", "Permissions granted: $permissionGranted")
             }
-            isReplySubmitted = true
         }
     }
 
@@ -309,28 +412,12 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param result Flutter result callback for permission request outcome
      */
     private fun requestAuthorization(call: MethodCall, result: Result) {
-        if (context == null) {
-            result.success(false)
-            return
-        }
-
-        if (healthConnectRequestPermissionsLauncher == null) {
-            result.success(false)
-            Log.i("FLUTTER_HEALTH", "Permission launcher not found")
-            return
-        }
-
-        // Store the result to be called in onHealthConnectPermissionCallback
-        mResult = result
-        isReplySubmitted = false
-
         val permList = dataOperations.preparePermissionsList(call)
         if (permList == null) {
             result.success(false)
             return
         }
-
-        healthConnectRequestPermissionsLauncher!!.launch(permList.toSet())
+        launchPermissionRequest(permList.toSet(), result)
     }
 
     /**
@@ -341,16 +428,9 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param result Flutter result callback for permission request outcome
      */
     private fun requestHealthDataHistoryAuthorization(call: MethodCall, result: Result) {
-        if (context == null || healthConnectRequestPermissionsLauncher == null) {
-            result.success(false)
-            Log.i("FLUTTER_HEALTH", "Permission launcher not found")
-            return
-        }
-
-        mResult = result
-        isReplySubmitted = false
-        healthConnectRequestPermissionsLauncher!!.launch(
-                setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY)
+        launchPermissionRequest(
+                setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY),
+                result,
         )
     }
 
@@ -362,16 +442,46 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
      * @param result Flutter result callback for permission request outcome
      */
     private fun requestHealthDataInBackgroundAuthorization(call: MethodCall, result: Result) {
-        if (context == null || healthConnectRequestPermissionsLauncher == null) {
-            result.success(false)
-            Log.i("FLUTTER_HEALTH", "Permission launcher not found")
+        launchPermissionRequest(
+                setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND),
+                result,
+        )
+    }
+
+    private fun launchPermissionRequest(permissions: Set<String>, result: Result) {
+        val launcher = healthConnectRequestPermissionsLauncher
+        if (context == null || launcher == null) {
+            result.error(
+                    "health_connect_activity_unavailable",
+                    "Health Connect permission launcher is unavailable",
+                    null,
+            )
+            return
+        }
+        if (mResult != null && !isReplySubmitted) {
+            result.error(
+                    "health_connect_authorization_in_progress",
+                    "Another Health Connect authorization request is in progress",
+                    null,
+            )
             return
         }
 
         mResult = result
         isReplySubmitted = false
-        healthConnectRequestPermissionsLauncher!!.launch(
-                setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
-        )
+        try {
+            launcher.launch(permissions)
+        } catch (exception: Exception) {
+            mResult = null
+            isReplySubmitted = true
+            result.failHealthConnect("requestAuthorization", exception)
+        }
+    }
+
+    private fun failPendingAuthorization(errorCode: String, message: String) {
+        val pendingResult = mResult ?: return
+        mResult = null
+        isReplySubmitted = true
+        pendingResult.error(errorCode, message, null)
     }
 }

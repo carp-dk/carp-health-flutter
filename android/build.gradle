@@ -47,6 +47,9 @@ android {
     lintOptions {
         disable 'InvalidPackage'
     }
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
     namespace "cachet.plugins.health"
 }
 
@@ -57,5 +60,6 @@ dependencies {
 
     implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
     implementation "androidx.fragment:fragment-ktx:1.8.9"
+    testImplementation "junit:junit:4.13.2"
 
 }
