@@ -596,48 +596,76 @@ class HealthDataReader(
             val record = rec as ExerciseSessionRecord
             
             // Get distance data
-            val distanceRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
-                    ),
-                ),
-            )
+            // PATCH (see KUBIKOS_PATCH.md): each workout sub-query is individually
+            // guarded. Upstream runs these three reads unguarded, so a single
+            // missing READ permission raises a SecurityException that getData()
+            // catches and turns into an EMPTY workout result — silently dropping
+            // every session. Guarding each read lets an app request the minimum
+            // Health Connect scope (Google Play "Minimum Scope" policy) and enrich
+            // with null for any sub-type it did not request permission for.
             var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
+            try {
+                val distanceRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = DistanceRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
+                    ),
+                )
+                for (distanceRec in distanceRequest.records) {
+                    totalDistance += distanceRec.distance.inMeters
+                }
+            } catch (e: Exception) {
+                Log.w(
+                    "FLUTTER_HEALTH",
+                    "Workout distance enrichment skipped (permission not granted?): ${e.message}"
+                )
             }
 
-            // Get energy burned data
-            val energyBurnedRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
-                    ),
-                ),
-            )
+            // Get energy burned data (PATCH: guarded, see above)
             var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+            try {
+                val energyBurnedRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = TotalCaloriesBurnedRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
+                    ),
+                )
+                for (energyBurnedRec in energyBurnedRequest.records) {
+                    totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                }
+            } catch (e: Exception) {
+                Log.w(
+                    "FLUTTER_HEALTH",
+                    "Workout energy enrichment skipped (permission not granted?): ${e.message}"
+                )
             }
 
-            // Get steps data
-            val stepRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime
-                    ),
-                ),
-            )
+            // Get steps data (PATCH: guarded, see above)
             var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
+            try {
+                val stepRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = StepsRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime
+                        ),
+                    ),
+                )
+                for (stepRec in stepRequest.records) {
+                    totalSteps += stepRec.count
+                }
+            } catch (e: Exception) {
+                Log.w(
+                    "FLUTTER_HEALTH",
+                    "Workout steps enrichment skipped (permission not granted?): ${e.message}"
+                )
             }
 
             // Add final datapoint
