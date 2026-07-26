@@ -182,6 +182,22 @@ object HealthConstants {
     )
 
     /**
+     * Maps mindfulness session type strings to Health Connect MindfulnessSessionRecord types.
+     * Health Connect has no separate "other" type — MINDFULNESS_SESSION_TYPE_UNKNOWN is its
+     * documented catch-all for a session that fits none of the named categories.
+     *
+     * @return Map<String, Int> Session type strings to Health Connect mindfulness type constants
+     */
+    val mindfulnessSessionTypeMap = mapOf(
+        "UNKNOWN" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+        "MEDITATION" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MEDITATION,
+        "BREATHING" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_BREATHING,
+        "MUSIC" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MUSIC,
+        "MOVEMENT" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MOVEMENT,
+        "UNGUIDED" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNGUIDED,
+    )
+
+    /**
      * Maps workout/exercise type strings to Health Connect ExerciseSessionRecord types.
      * Comprehensive mapping of all supported exercise activities for workout tracking.
      * 

@@ -128,7 +128,7 @@ class HealthDataWriter(
      * automatic type conversion and validation.
      *
      * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'value',
-     * 'recordingMethod'
+     * 'recordingMethod', and for MINDFULNESS the optional 'mindfulnessSessionType' and 'title'
      * @param result Flutter result callback returning boolean success status
      */
     fun writeData(call: MethodCall, result: Result) {
@@ -140,6 +140,9 @@ class HealthDataWriter(
         val clientRecordVersion: Double? = call.argument<Double>("clientRecordVersion")
         val recordingMethod = call.argument<Int>("recordingMethod")!!
         val deviceType: Int? = call.argument<Int>("deviceType")
+        // Absent for every type but MINDFULNESS, and optional even there.
+        val mindfulnessSessionType = call.argument<String>("mindfulnessSessionType")
+        val title = call.argument<String>("title")
 
         Log.i(
                 "FLUTTER_HEALTH",
@@ -161,7 +164,16 @@ class HealthDataWriter(
             deviceType = deviceType,
         )
 
-        val record = createRecord(type, startTime, endTime, value, metadata)
+        val record =
+                createRecord(
+                        type,
+                        startTime,
+                        endTime,
+                        value,
+                        metadata,
+                        mindfulnessSessionType,
+                        title,
+                )
 
         if (record == null) {
             result.success(false)
@@ -592,7 +604,9 @@ class HealthDataWriter(
      * @param startTime Record start time in milliseconds
      * @param endTime Record end time in milliseconds
      * @param value Measured value to record
-     * @param recordingMethod How the data was recorded (manual, automatic, etc.)
+     * @param metadata Record metadata carrying the recording method and device attribution
+     * @param mindfulnessSessionType MINDFULNESS only — session type name, or null for unknown
+     * @param title MINDFULNESS only — user-visible session name, or null for none
      * @return Record? Properly configured Health Connect record, or null if type unsupported
      */
     private fun createRecord(
@@ -600,7 +614,9 @@ class HealthDataWriter(
             startTime: Long,
             endTime: Long,
             value: Double,
-            metadata: Metadata
+            metadata: Metadata,
+            mindfulnessSessionType: String? = null,
+            title: String? = null,
     ): Record? {
         return when (type) {
             BODY_FAT_PERCENTAGE ->
@@ -798,8 +814,9 @@ class HealthDataWriter(
                             metadata = metadata,
                     )
             // The span IS the data, exactly like the iOS `.mindfulSession` category
-            // sample, so `value` is unused. The generic write API carries no session
-            // subtype, hence the neutral UNKNOWN.
+            // sample, so `value` is unused. The session type and title are the two
+            // things Health Connect can say that HealthKit cannot; both are optional
+            // and default to an untyped, untitled session.
             MINDFULNESS ->
                     MindfulnessSessionRecord(
                             startTime = Instant.ofEpochMilli(startTime),
@@ -807,7 +824,11 @@ class HealthDataWriter(
                             startZoneOffset = null,
                             endZoneOffset = null,
                             mindfulnessSessionType =
-                                    MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+                                    HealthConstants.mindfulnessSessionTypeMap[
+                                            mindfulnessSessionType]
+                                            ?: MindfulnessSessionRecord
+                                                    .MINDFULNESS_SESSION_TYPE_UNKNOWN,
+                            title = title,
                             metadata = metadata,
                     )
             RESTING_HEART_RATE ->
