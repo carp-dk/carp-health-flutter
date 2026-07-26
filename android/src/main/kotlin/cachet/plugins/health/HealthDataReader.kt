@@ -55,6 +55,11 @@ class HealthDataReader(
             "Getting data for $dataType with unit $dataUnit between $startTime and $endTime, filtering by $recordingMethodsToFilter"
         )
 
+        if (isUnsupportedMindfulness(dataType)) {
+            result.success(healthConnectData)
+            return
+        }
+
         scope.launch {
             try {
                 val grantedPermissions =
@@ -407,7 +412,12 @@ class HealthDataReader(
         val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
         val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
         val healthConnectData = mutableListOf<Map<String, Any?>>()
-        
+
+        if (isUnsupportedMindfulness(dataType)) {
+            result.success(healthConnectData)
+            return
+        }
+
         scope.launch {
             try {
                 HealthConstants.mapToAggregateMetric[dataType]?.let { metricClassType ->
@@ -426,6 +436,12 @@ class HealthDataReader(
                             totalValue = totalValue.inKilocalories
                         } else if (totalValue is TemperatureDelta) {
                             totalValue = totalValue.inCelsius
+                        } else if (totalValue is Duration) {
+                            // A Duration cannot cross the method channel — encoding one
+                            // throws and takes the whole query down. Report minutes, the
+                            // unit every duration-aggregated type already declares in
+                            // `dataTypeToUnit`.
+                            totalValue = totalValue.toMinutes()
                         }
 
                         val packageNames = durationResult.result.dataOrigins
@@ -486,6 +502,21 @@ class HealthDataReader(
     }
 
     // --------- Private Methods ---------
+
+    /**
+     * Whether a query for [dataType] asks for mindfulness sessions on a device whose Health Connect
+     * does not know the record. Such a query would fail inside Health Connect, so callers answer
+     * with no data instead — the same shape as a query for a type that yielded no records.
+     *
+     * @param dataType Health data type string being requested
+     * @return Boolean True when the query must be skipped
+     */
+    private fun isUnsupportedMindfulness(dataType: String): Boolean {
+        if (dataType != HealthConstants.MINDFULNESS) return false
+        if (HealthFeatures.isMindfulnessSessionAvailable(healthConnectClient)) return false
+        Log.w("FLUTTER_HEALTH::ERROR", HealthFeatures.MINDFULNESS_UNSUPPORTED_MESSAGE)
+        return true
+    }
 
     /**
      * Retrieves aggregated step count using Health Connect's built-in aggregation.

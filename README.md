@@ -364,6 +364,38 @@ Furthermore, the plugin now exposes three new functions to help you check and re
 2. `isHealthDataInBackgroundAuthorized()`: Checks the current status of the Health Data in Background permission
 3. `requestHealthDataInBackgroundAuthorization()`: Requests the Health Data in Background permission.
 
+### Android: Mindfulness Sessions
+
+`HealthDataType.MINDFULNESS` maps to Health Connect's `MindfulnessSessionRecord`. Add the matching permissions to your `AndroidManifest.XML`:
+
+```XML
+<uses-permission android:name="android.permission.health.READ_MINDFULNESS"/>
+<uses-permission android:name="android.permission.health.WRITE_MINDFULNESS"/>
+```
+
+The record was added to Health Connect after its initial release, so it is only usable when the Health Connect version installed on the device supports it — which is independent of the plugin version. Check before use:
+
+```dart
+if (await health.isMindfulnessSessionAvailable()) { ... }
+```
+
+On a device without that support, requesting permissions returns false and reads return no data, rather than throwing. On iOS `isMindfulnessSessionAvailable()` always returns true.
+
+`writeHealthData` takes two optional extras for this type, both of which Health Connect stores and iOS ignores (HealthKit's `mindfulSession` sample has neither a subtype nor a title):
+
+```dart
+await health.writeHealthData(
+  value: 0, // ignored — the span is the data
+  type: HealthDataType.MINDFULNESS,
+  startTime: start,
+  endTime: end,
+  mindfulnessSessionType: MindfulnessSessionType.BREATHING,
+  title: 'Morning practice', // user-visible in Health Connect
+);
+```
+
+`MindfulnessSessionType` mirrors Health Connect's `MINDFULNESS_SESSION_TYPE_*` constants. Both arguments are optional and are only sent to the platform when supplied; an omitted session type is recorded as `UNKNOWN`, which is Health Connect's own catch-all for a session that fits none of the named categories. Passing either extra with any other data type throws an `ArgumentError`.
+
 ### Fetch single health data by UUID
 
 In order to retrieve a single record, it is required to provide `String uuid` and `HealthDataType type`.
@@ -431,7 +463,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | DISTANCE_WALKING_RUNNING     | METERS                  | yes              |                           |                                                                                                                                    |
 | FLIGHTS_CLIMBED              | COUNT                   | yes              | yes                       |                                                                                                                                    |
 | DISTANCE_DELTA               | METERS                  |                  | yes                       |                                                                                                                                    |
-| MINDFULNESS                  | MINUTES                 | yes              |                           |                                                                                                                                    |
+| MINDFULNESS                  | MINUTES                 | yes              | yes                       | on Android this is a MindfulnessSessionRecord; the span is the value, as with the iOS mindfulSession sample. Optional `mindfulnessSessionType` + `title` on write (Android only). Gated by the installed Health Connect version — see `isMindfulnessSessionAvailable()` |
 | SLEEP_ASLEEP                 | MINUTES                 | yes              | yes                       | on iOS, this refers to asleepUnspecified, and on Android this refers to STAGE_TYPE_SLEEPING (asleep but specific stage is unknown) |
 | SLEEP_AWAKE                  | MINUTES                 | yes              | yes                       |                                                                                                                                    |
 | SLEEP_AWAKE_IN_BED           | MINUTES                 |                  | yes                       |                                                                                                                                    |

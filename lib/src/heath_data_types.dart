@@ -256,6 +256,7 @@ const List<HealthDataType> dataTypeKeysAndroid = [
   HealthDataType.SLEEP_REM,
   HealthDataType.SLEEP_SESSION,
   HealthDataType.SLEEP_UNKNOWN,
+  HealthDataType.MINDFULNESS,
   HealthDataType.WATER,
   HealthDataType.WORKOUT,
   HealthDataType.WORKOUT_ROUTE,
@@ -482,6 +483,35 @@ enum HealthDataUnit {
   METER_PER_SECOND,
   UNKNOWN_UNIT,
   NO_UNIT,
+}
+
+/// The kind of session a [HealthDataType.MINDFULNESS] entry records.
+///
+/// Mirrors Health Connect's `MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_*`
+/// constants one-for-one.
+///
+/// **Android only.** HealthKit's `.mindfulSession` category has no subtype, so
+/// iOS ignores it and every mindfulness entry looks the same there.
+enum MindfulnessSessionType {
+  /// Any generic mindfulness session that does not fall into one of the
+  /// categories below. This is the default, and what Health Connect itself
+  /// documents as the catch-all — there is no separate "other" type.
+  UNKNOWN,
+
+  /// Meditation.
+  MEDITATION,
+
+  /// Guided breathing.
+  BREATHING,
+
+  /// Music / soundscapes.
+  MUSIC,
+
+  /// Stretches / movement.
+  MOVEMENT,
+
+  /// Unguided practice.
+  UNGUIDED,
 }
 
 /// List of [HealthWorkoutActivityType]s.

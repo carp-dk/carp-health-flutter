@@ -30,6 +30,7 @@ object HealthConstants {
     const val HEART_RATE_VARIABILITY_RMSSD = "HEART_RATE_VARIABILITY_RMSSD"
     const val HEIGHT = "HEIGHT"
     const val MENSTRUATION_FLOW = "MENSTRUATION_FLOW"
+    const val MINDFULNESS = "MINDFULNESS"
     const val RESPIRATORY_RATE = "RESPIRATORY_RATE"
     const val RESTING_HEART_RATE = "RESTING_HEART_RATE"
     const val STEPS = "STEPS"
@@ -97,6 +98,7 @@ object HealthConstants {
         SLEEP_OUT_OF_BED to SleepSessionRecord::class,
         SLEEP_SESSION to SleepSessionRecord::class,
         SLEEP_UNKNOWN to SleepSessionRecord::class,
+        MINDFULNESS to MindfulnessSessionRecord::class,
         WORKOUT to ExerciseSessionRecord::class,
         NUTRITION to NutritionRecord::class,
         RESTING_HEART_RATE to RestingHeartRateRecord::class,
@@ -128,6 +130,7 @@ object HealthConstants {
         SLEEP_ASLEEP to SleepSessionRecord.SLEEP_DURATION_TOTAL,
         SLEEP_AWAKE to SleepSessionRecord.SLEEP_DURATION_TOTAL,
         SLEEP_IN_BED to SleepSessionRecord.SLEEP_DURATION_TOTAL,
+        MINDFULNESS to MindfulnessSessionRecord.MINDFULNESS_DURATION_TOTAL,
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord.ENERGY_TOTAL,
         ACTIVITY_INTENSITY to ActivityIntensityRecord.INTENSITY_MINUTES_TOTAL,
         SKIN_TEMPERATURE to SkinTemperatureRecord.TEMPERATURE_DELTA_AVG,
@@ -176,6 +179,22 @@ object HealthConstants {
         MealType.MEAL_TYPE_DINNER to DINNER,
         MealType.MEAL_TYPE_SNACK to SNACK,
         MealType.MEAL_TYPE_UNKNOWN to MEAL_UNKNOWN,
+    )
+
+    /**
+     * Maps mindfulness session type strings to Health Connect MindfulnessSessionRecord types.
+     * Health Connect has no separate "other" type — MINDFULNESS_SESSION_TYPE_UNKNOWN is its
+     * documented catch-all for a session that fits none of the named categories.
+     *
+     * @return Map<String, Int> Session type strings to Health Connect mindfulness type constants
+     */
+    val mindfulnessSessionTypeMap = mapOf(
+        "UNKNOWN" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+        "MEDITATION" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MEDITATION,
+        "BREATHING" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_BREATHING,
+        "MUSIC" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MUSIC,
+        "MOVEMENT" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MOVEMENT,
+        "UNGUIDED" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNGUIDED,
     )
 
     /**

@@ -170,6 +170,7 @@ class HealthDataChanges(
         is DistanceRecord -> listOf(HealthConstants.DISTANCE_DELTA)
         is HydrationRecord -> listOf(HealthConstants.WATER)
         is SleepSessionRecord -> listOf(HealthConstants.SLEEP_SESSION)
+        is MindfulnessSessionRecord -> listOf(HealthConstants.MINDFULNESS)
         is NutritionRecord -> listOf(HealthConstants.NUTRITION)
         is RestingHeartRateRecord -> listOf(HealthConstants.RESTING_HEART_RATE)
         is BasalMetabolicRateRecord -> listOf(HealthConstants.BASAL_ENERGY_BURNED)

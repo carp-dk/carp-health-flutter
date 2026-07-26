@@ -1,3 +1,10 @@
+## 13.4.0
+
+* Android: Add support for `MindfulnessSessionRecord` (READ/WRITE/Aggregate) via the existing `MINDFULNESS` data type
+* Android: `writeHealthData` accepts optional `mindfulnessSessionType` (new `MindfulnessSessionType` enum) and `title` for `MINDFULNESS`; both are Android-only and ignored on iOS
+* Android: New `isMindfulnessSessionAvailable()` — the record is gated by the Health Connect version installed on the device
+* Android: Fix `Duration` aggregates returning nothing — `getHealthAggregateDataFromTypes` now reports them in minutes, which also repairs the `SLEEP_*` and `ACTIVITY_INTENSITY` aggregates
+
 ## 13.3.1
 
 * iOS: Fix issues with app crashing on iOS 15

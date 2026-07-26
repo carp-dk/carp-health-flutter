@@ -341,6 +341,31 @@ class Health {
     }
   }
 
+  /// Checks if [HealthDataType.MINDFULNESS] can be used on this device.
+  ///
+  /// On Android, mindfulness sessions were added to Health Connect after its
+  /// initial release, so the record type is only usable when the Health Connect
+  /// version installed on the device knows it. Reading, writing, or requesting
+  /// permissions for [HealthDataType.MINDFULNESS] without this check returns
+  /// false / no data on such a device.
+  ///
+  /// See this for more info: https://developer.android.com/reference/androidx/health/connect/client/HealthConnectFeatures#FEATURE_MINDFULNESS_SESSION()
+  ///
+  /// Returns true on iOS, where HealthKit always supports mindful sessions, and
+  /// false if Health Connect is unavailable or an error occurs.
+  Future<bool> isMindfulnessSessionAvailable() async {
+    if (Platform.isIOS) return true;
+    if (!(await isHealthConnectAvailable())) return false;
+
+    try {
+      final status = await _channel.invokeMethod<bool>('isMindfulnessSessionAvailable');
+      return status ?? false;
+    } catch (e) {
+      debugPrint('$runtimeType - Exception in isMindfulnessSessionAvailable(): $e');
+      return false;
+    }
+  }
+
   /// Requests permissions to access health data [types].
   ///
   /// Returns true if successful, false otherwise.
@@ -523,6 +548,17 @@ class Health {
   ///    only at a specific point in time (default).
   ///  * [recordingMethod] - the recording method of the data point, automatic by default.
   ///    (on iOS this must be manual or automatic)
+  ///  * [mindfulnessSessionType] - **[HealthDataType.MINDFULNESS] ONLY, Android
+  ///    only** the kind of mindfulness session this entry records. Omit it (or
+  ///    pass null) to leave the session untyped, which Health Connect records as
+  ///    [MindfulnessSessionType.UNKNOWN]. Ignored on iOS: HealthKit's
+  ///    `.mindfulSession` category has no subtype.
+  ///  * [title] - **[HealthDataType.MINDFULNESS] ONLY, Android only** a
+  ///    user-visible name for the session, shown in Health Connect. Ignored on
+  ///    iOS, where a mindfulness sample carries no title.
+  ///
+  /// Passing [mindfulnessSessionType] or [title] with any other [type] throws
+  /// an [ArgumentError] rather than dropping them silently.
   ///
   /// Values for Sleep and Headache are ignored and will be automatically assigned
   /// the default value.
@@ -535,6 +571,8 @@ class Health {
     double? clientRecordVersion,
     DateTime? endTime,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
+    MindfulnessSessionType? mindfulnessSessionType,
+    String? title,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     await _checkIfDataTypeAvailableOnDevice(type);
@@ -547,6 +585,9 @@ class Health {
     }
     if (type == HealthDataType.ACTIVITY_INTENSITY) {
       throw ArgumentError("Adding activity intensity data should be done using the writeActivityIntensity method.");
+    }
+    if (type != HealthDataType.MINDFULNESS && (mindfulnessSessionType != null || title != null)) {
+      throw ArgumentError("mindfulnessSessionType and title only apply to ${HealthDataType.MINDFULNESS}.");
     }
     // If not implemented on platform, throw an exception
     if (!isDataTypeAvailable(type)) {
@@ -594,6 +635,10 @@ class Health {
       'recordingMethod': recordingMethod.toInt(),
       'clientRecordId': clientRecordId,
       'clientRecordVersion': clientRecordVersion,
+      // Only sent when the caller actually supplied them, so a write that does
+      // not use them puts the same payload on the wire it always did.
+      'mindfulnessSessionType': ?mindfulnessSessionType?.name,
+      'title': ?title,
     };
     bool? success = await _channel.invokeMethod('writeData', args);
     return success ?? false;

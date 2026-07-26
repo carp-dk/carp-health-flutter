@@ -712,14 +712,19 @@ class HealthAppState extends State<HealthApp> {
       );
     }
 
-    if (Platform.isIOS) {
-      // Mindfulness value should be counted based on start and end time
+    // Mindfulness value should be counted based on start and end time.
+    // On Android the record only exists if the installed Health Connect
+    // supports it, and it can additionally carry a session type and a title -
+    // both of which iOS ignores.
+    if (await health.isMindfulnessSessionAvailable()) {
       success &= await health.writeHealthData(
         value: 10,
         type: HealthDataType.MINDFULNESS,
         startTime: earlier,
         endTime: now,
         recordingMethod: RecordingMethod.automatic,
+        mindfulnessSessionType: MindfulnessSessionType.BREATHING,
+        title: 'Morning practice',
       );
     }
 
