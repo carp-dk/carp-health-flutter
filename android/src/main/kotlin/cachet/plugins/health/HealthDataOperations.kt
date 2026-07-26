@@ -184,6 +184,18 @@ class HealthDataOperations(
     }
 
     /**
+     * Checks if mindfulness sessions are supported by the Health Connect installed on this device.
+     * The record type was added to Health Connect after its initial release, so an up-to-date app
+     * can still meet a Health Connect that does not know it.
+     *
+     * @param call Method call from Flutter (unused)
+     * @param result Flutter result callback returning boolean availability status
+     */
+    fun isMindfulnessSessionAvailable(call: MethodCall, result: Result) {
+        result.success(HealthFeatures.isMindfulnessSessionAvailable(healthConnectClient))
+    }
+
+    /**
      * Deletes all health records of a specified type within a given time range. Performs bulk
      * deletion based on data type and time window.
      *
@@ -338,6 +350,15 @@ class HealthDataOperations(
             }
             if (!HealthConstants.mapToType.containsKey(typeKey)) {
                 Log.w("FLUTTER_HEALTH::ERROR", "Datatype $typeKey not found in HC")
+                return null
+            }
+
+            // Asking for a permission this device's Health Connect does not define would fail
+            // inside the permission contract; refuse up front instead.
+            if (typeKey == HealthConstants.MINDFULNESS &&
+                            !HealthFeatures.isMindfulnessSessionAvailable(healthConnectClient)
+            ) {
+                Log.w("FLUTTER_HEALTH::ERROR", HealthFeatures.MINDFULNESS_UNSUPPORTED_MESSAGE)
                 return null
             }
 

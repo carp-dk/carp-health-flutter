@@ -341,6 +341,31 @@ class Health {
     }
   }
 
+  /// Checks if [HealthDataType.MINDFULNESS] can be used on this device.
+  ///
+  /// On Android, mindfulness sessions were added to Health Connect after its
+  /// initial release, so the record type is only usable when the Health Connect
+  /// version installed on the device knows it. Reading, writing, or requesting
+  /// permissions for [HealthDataType.MINDFULNESS] without this check returns
+  /// false / no data on such a device.
+  ///
+  /// See this for more info: https://developer.android.com/reference/androidx/health/connect/client/HealthConnectFeatures#FEATURE_MINDFULNESS_SESSION()
+  ///
+  /// Returns true on iOS, where HealthKit always supports mindful sessions, and
+  /// false if Health Connect is unavailable or an error occurs.
+  Future<bool> isMindfulnessSessionAvailable() async {
+    if (Platform.isIOS) return true;
+    if (!(await isHealthConnectAvailable())) return false;
+
+    try {
+      final status = await _channel.invokeMethod<bool>('isMindfulnessSessionAvailable');
+      return status ?? false;
+    } catch (e) {
+      debugPrint('$runtimeType - Exception in isMindfulnessSessionAvailable(): $e');
+      return false;
+    }
+  }
+
   /// Requests permissions to access health data [types].
   ///
   /// Returns true if successful, false otherwise.

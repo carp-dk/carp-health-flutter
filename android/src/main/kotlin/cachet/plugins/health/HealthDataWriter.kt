@@ -146,6 +146,14 @@ class HealthDataWriter(
                 "Writing data for $type between $startTime and $endTime, value: $value, recording method: $recordingMethod"
         )
 
+        if (type == MINDFULNESS &&
+                        !HealthFeatures.isMindfulnessSessionAvailable(healthConnectClient)
+        ) {
+            Log.w("FLUTTER_HEALTH::ERROR", HealthFeatures.MINDFULNESS_UNSUPPORTED_MESSAGE)
+            result.success(false)
+            return
+        }
+
         val metadata: Metadata = buildMetadata(
             recordingMethod = recordingMethod,
             clientRecordId = clientRecordId,

@@ -152,6 +152,10 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             "isSkinTemperatureAvailable" ->
                     dataOperations.isSkinTemperatureAvailable(call, result)
 
+            // Record types gated by the installed Health Connect version
+            "isMindfulnessSessionAvailable" ->
+                    dataOperations.isMindfulnessSessionAvailable(call, result)
+
             // Reading data
             "getData" -> dataReader.getData(call, result)
             "getDataByUUID" -> dataReader.getDataByUUID(call, result)
@@ -330,7 +334,18 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             return
         }
 
-        healthConnectRequestPermissionsLauncher!!.launch(permList.toSet())
+        try {
+            healthConnectRequestPermissionsLauncher!!.launch(permList.toSet())
+        } catch (e: Exception) {
+            // Health Connect can be updated, downgraded, or disabled between the
+            // availability checks that built this list and the launch itself, at which
+            // point the contract rejects a permission string it no longer resolves.
+            // Answer "not granted" instead of throwing out of the plugin.
+            Log.e("FLUTTER_HEALTH::ERROR", "Unable to launch the permission request")
+            Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+            isReplySubmitted = true
+            result.success(false)
+        }
     }
 
     /**
