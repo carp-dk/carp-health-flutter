@@ -126,6 +126,17 @@ class HealthDataConverter {
                 )
             )
             
+            // Reported in minutes, like the sleep session above and like the iOS
+            // `.mindfulSession` sample — the span is the value.
+            is MindfulnessSessionRecord -> listOf(
+                createIntervalRecord(
+                    metadata,
+                    record.startTime,
+                    record.endTime,
+                    ChronoUnit.MINUTES.between(record.startTime, record.endTime)
+                )
+            )
+
             is MenstruationFlowRecord -> listOf(
                 createInstantRecord(metadata, record.time, record.flow)
             )

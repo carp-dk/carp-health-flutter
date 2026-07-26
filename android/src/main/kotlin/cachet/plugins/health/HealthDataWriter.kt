@@ -789,6 +789,19 @@ class HealthDataWriter(
                             endZoneOffset = null,
                             metadata = metadata,
                     )
+            // The span IS the data, exactly like the iOS `.mindfulSession` category
+            // sample, so `value` is unused. The generic write API carries no session
+            // subtype, hence the neutral UNKNOWN.
+            MINDFULNESS ->
+                    MindfulnessSessionRecord(
+                            startTime = Instant.ofEpochMilli(startTime),
+                            endTime = Instant.ofEpochMilli(endTime),
+                            startZoneOffset = null,
+                            endZoneOffset = null,
+                            mindfulnessSessionType =
+                                    MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+                            metadata = metadata,
+                    )
             RESTING_HEART_RATE ->
                     RestingHeartRateRecord(
                             time = Instant.ofEpochMilli(startTime),
@@ -959,6 +972,9 @@ class HealthDataWriter(
         private const val SLEEP_AWAKE_IN_BED = "SLEEP_AWAKE_IN_BED"
         private const val SLEEP_UNKNOWN = "SLEEP_UNKNOWN"
         private const val SLEEP_SESSION = "SLEEP_SESSION"
+
+        // Mindfulness
+        private const val MINDFULNESS = "MINDFULNESS"
     }
 
     fun finishWorkoutRoute(call: MethodCall, result: Result) {

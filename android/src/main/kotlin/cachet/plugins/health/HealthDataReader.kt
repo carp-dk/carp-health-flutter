@@ -426,6 +426,12 @@ class HealthDataReader(
                             totalValue = totalValue.inKilocalories
                         } else if (totalValue is TemperatureDelta) {
                             totalValue = totalValue.inCelsius
+                        } else if (totalValue is Duration) {
+                            // A Duration cannot cross the method channel — encoding one
+                            // throws and takes the whole query down. Report minutes, the
+                            // unit every duration-aggregated type already declares in
+                            // `dataTypeToUnit`.
+                            totalValue = totalValue.toMinutes()
                         }
 
                         val packageNames = durationResult.result.dataOrigins
