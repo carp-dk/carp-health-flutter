@@ -298,17 +298,17 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         if (!isReplySubmitted) {
             if (permissionGranted.isEmpty()) {
                 mResult?.success(false)
-                Log.i(
+                Log.e(
                         "FLUTTER_HEALTH",
                         "Health Connect permissions were not granted! Make sure to declare the required permissions in the AndroidManifest.xml file."
                 )
             } else {
                 mResult?.success(true)
-                Log.i(
+                Log.e(
                         "FLUTTER_HEALTH",
                         "${permissionGranted.size} Health Connect permissions were granted!"
                 )
-                Log.i("FLUTTER_HEALTH", "Permissions granted: $permissionGranted")
+                Log.e("FLUTTER_HEALTH", "Permissions granted: $permissionGranted")
             }
             isReplySubmitted = true
         }
@@ -329,7 +329,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
         if (healthConnectRequestPermissionsLauncher == null) {
             result.success(false)
-            Log.("FLUTTER_HEALTH", "Permission launcher not found")
+            Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
@@ -356,7 +356,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     private fun requestHealthDataHistoryAuthorization(call: MethodCall, result: Result) {
         if (context == null || healthConnectRequestPermissionsLauncher == null) {
             result.success(false)
-            Log.("FLUTTER_HEALTH", "Permission launcher not found")
+            Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
@@ -377,7 +377,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     private fun requestHealthDataInBackgroundAuthorization(call: MethodCall, result: Result) {
         if (context == null || healthConnectRequestPermissionsLauncher == null) {
             result.success(false)
-            Log.("FLUTTER_HEALTH", "Permission launcher not found")
+            Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
