@@ -283,7 +283,7 @@ A `HealthDataPoint` object can be serialized to and from JSON using the `toJson(
   "source_name": "iPhone12.bardram.net",
   "recording_method": 2
 }
-```
+``` 
 
 ### Fetch health data
 
