@@ -266,6 +266,7 @@ const List<HealthDataType> dataTypeKeysAndroid = [
   HealthDataType.NUTRITION,
   HealthDataType.TOTAL_CALORIES_BURNED,
   HealthDataType.MENSTRUATION_FLOW,
+  HealthDataType.MINDFULNESS,
   HealthDataType.ACTIVITY_INTENSITY,
   HealthDataType.SKIN_TEMPERATURE,
 ];
