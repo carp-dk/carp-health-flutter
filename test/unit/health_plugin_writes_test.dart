@@ -94,6 +94,24 @@ void main() {
       expect(args['dataUnitKey'], HealthDataUnit.BEATS_PER_MINUTE.name);
       expect(args['recordingMethod'], RecordingMethod.manual.toInt());
     });
+
+    test('forwards client record metadata', () async {
+      ctx.channel.when('writeData', ['record-3']);
+
+      await ctx.health.writeHealthData(
+        value: 80,
+        type: HealthDataType.WEIGHT,
+        startTime: HealthFixtures.start,
+        endTime: HealthFixtures.end,
+        clientRecordId: 'client-1',
+        clientRecordVersion: 4,
+      );
+
+      final call = ctx.channel.lastCallFor('writeData');
+      final args = Map<String, dynamic>.from(call!.arguments as Map);
+      expect(args['clientRecordId'], 'client-1');
+      expect(args['clientRecordVersion'], 4);
+    });
   });
 
   group('writeActivityIntensity', () {
@@ -178,6 +196,21 @@ void main() {
       expect(args['calories'], 500);
       expect(args['carbs'], 60);
       expect(args['protein'], 20);
+    });
+
+    test('uses native thiamin payload key expected by Android decoder', () async {
+      ctx.channel.when('writeMeal', ['meal-record']);
+
+      await ctx.health.writeMeal(
+        mealType: MealType.DINNER,
+        startTime: HealthFixtures.start,
+        endTime: HealthFixtures.end,
+        b1Thiamin: 1.5,
+      );
+
+      final call = ctx.channel.lastCallFor('writeMeal');
+      final args = Map<String, dynamic>.from(call!.arguments as Map);
+      expect(args['b1_thiamin'], 1.5);
     });
   });
 

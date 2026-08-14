@@ -6,8 +6,7 @@ import androidx.health.connect.client.records.MealType
 import androidx.health.connect.client.records.ExerciseSessionRecord
 
 /**
- * Contains all data type mappings, health record classifications, and type conversions
- * used throughout the Health Connect integration.
+ * Health data keys and Health Connect type mappings.
  */
 object HealthConstants {
     // Channel name
@@ -66,10 +65,7 @@ object HealthConstants {
     const val WORKOUT_ROUTE = "WORKOUT_ROUTE"
 
     /**
-     * Maps Flutter health data type strings to their corresponding Health Connect Record classes.
-     * This mapping enables dynamic type resolution for reading and writing health data.
-     * 
-     * @return Map<String, KClass<out Record>> Mapping of type strings to Health Connect record classes
+     * Health Connect record class for each Flutter data type key.
      */
     val mapToType: Map<String, KClass<out Record>> = hashMapOf(
         BODY_FAT_PERCENTAGE to BodyFatRecord::class,
@@ -110,12 +106,9 @@ object HealthConstants {
         ACTIVITY_INTENSITY to ActivityIntensityRecord::class,
         SKIN_TEMPERATURE to SkinTemperatureRecord::class,
     )
-    
+
     /**
-     * Maps health data types to their corresponding aggregate metric types for batch operations.
-     * Used when requesting aggregated data over time periods.
-     * 
-     * @return Map<String, AggregateMetric> Mapping for aggregate data queries
+     * Aggregate metric for each Flutter data type key that supports aggregation.
      */
     val mapToAggregateMetric = hashMapOf(
         HEIGHT to HeightRecord.HEIGHT_AVG,
@@ -135,10 +128,7 @@ object HealthConstants {
     )
 
     /**
-     * Maps integer sleep stage values to their corresponding data type strings.
-     * Converts Health Connect sleep stage enumeration to Flutter-friendly string constants.
-     * 
-     * @return Map<Int, String> Sleep stage integer to type string mapping
+     * Flutter sleep data type key for each Health Connect sleep stage.
      */
     val mapSleepStageToType = hashMapOf(
         0 to SLEEP_UNKNOWN,
@@ -152,10 +142,7 @@ object HealthConstants {
     )
 
     /**
-     * Maps meal type strings to Health Connect MealType enumeration values.
-     * Enables conversion from Flutter meal type strings to Health Connect types.
-     * 
-     * @return Map<String, MealType> Meal type string to enum mapping
+     * Health Connect meal type for each Flutter meal type key.
      */
     val mapMealTypeToType = hashMapOf(
         BREAKFAST to MealType.MEAL_TYPE_BREAKFAST,
@@ -166,10 +153,7 @@ object HealthConstants {
     )
 
     /**
-     * Maps Health Connect MealType enumeration values back to Flutter string constants.
-     * Used for converting Health Connect meal types to Flutter-compatible format.
-     * 
-     * @return Map<MealType, String> Enum to string mapping for meal types
+     * Flutter meal type key for each Health Connect meal type.
      */
     val mapTypeToMealType = hashMapOf(
         MealType.MEAL_TYPE_BREAKFAST to BREAKFAST,
@@ -180,10 +164,7 @@ object HealthConstants {
     )
 
     /**
-     * Maps workout/exercise type strings to Health Connect ExerciseSessionRecord types.
-     * Comprehensive mapping of all supported exercise activities for workout tracking.
-     * 
-     * @return Map<String, Int> Workout type strings to Health Connect exercise type constants
+     * Health Connect exercise type for each Flutter workout type key.
      */
     val workoutTypeMap = mapOf(
         "AMERICAN_FOOTBALL" to ExerciseSessionRecord.EXERCISE_TYPE_FOOTBALL_AMERICAN,

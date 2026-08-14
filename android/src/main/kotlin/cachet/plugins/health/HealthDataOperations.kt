@@ -3,10 +3,8 @@ package cachet.plugins.health
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
-import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.permission.HealthPermission.Companion.PERMISSION_READ_HEALTH_DATA_HISTORY
 import androidx.health.connect.client.permission.HealthPermission.Companion.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
-import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.time.TimeRangeFilter
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
@@ -15,205 +13,90 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Handles Health Connect operational tasks including permissions, SDK status, and data deletion
- * operations. Manages the administrative aspects of Health Connect integration.
+ * Health Connect permission, feature, and deletion operations exposed to Flutter.
  */
 class HealthDataOperations(
-        private val healthConnectClient: HealthConnectClient,
-        private val scope: CoroutineScope,
-        private val healthConnectStatus: Int,
-        private val healthConnectAvailable: Boolean
+    private val healthConnectClient: HealthConnectClient,
+    private val scope: CoroutineScope,
+    private val healthConnectStatus: Int,
+    @Suppress("unused") private val healthConnectAvailable: Boolean,
 ) {
-
-    /**
-     * Retrieves the current Health Connect SDK availability status. Returns status codes indicating
-     * whether Health Connect is available, needs installation, etc.
-     *
-     * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback to return SDK status integer
-     */
+    /** Cached Health Connect SDK status for the Flutter channel. */
     fun getHealthConnectSdkStatus(call: MethodCall, result: Result) {
         result.success(healthConnectStatus)
     }
 
-    /**
-     * Checks if the application has been granted the requested health data permissions. Verifies
-     * permission status without triggering permission request dialogs.
-     *
-     * @param call Method call containing 'types' (data types) and 'permissions' (access levels)
-     * @param result Flutter result callback returning boolean permission status
-     */
+    /** Whether all Health Connect permissions requested by Flutter are granted. */
     fun hasPermissions(call: MethodCall, result: Result) {
-        val args = call.arguments as HashMap<*, *>
-        val types = (args["types"] as? ArrayList<*>)?.filterIsInstance<String>()!!
-        val permissions = (args["permissions"] as? ArrayList<*>)?.filterIsInstance<Int>()!!
-
-        val permList = preparePermissionsListInternal(types, permissions)
+        val permList = preparePermissionsList(call)
         if (permList == null) {
             result.success(false)
             return
         }
-
         scope.launch {
             result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(permList),
+                healthConnectClient.permissionController.getGrantedPermissions().containsAll(permList)
             )
         }
     }
 
-    /**
-     * Prepares a list of Health Connect permission strings for authorization requests. Converts
-     * Flutter data types and permission levels into Health Connect permission format.
-     *
-     * @param call Method call containing 'types' and 'permissions' arrays
-     * @return List<String>? List of permission strings, or null if invalid types provided
-     */
+    /** Health Connect permission strings requested by the Flutter method call. */
     fun preparePermissionsList(call: MethodCall): List<String>? {
-        Log.i("FLUTTER_HEALTH", "preparePermissionsList")
-        Log.i("FLUTTER_HEALTH", "call: $call")
         val args = call.arguments as HashMap<*, *>
-        val types = (args["types"] as? ArrayList<*>)?.filterIsInstance<String>()!!
-        val permissions = (args["permissions"] as? ArrayList<*>)?.filterIsInstance<Int>()!!
-
-        return preparePermissionsListInternal(types, permissions)
+        val types = (args["types"] as? ArrayList<*>)?.filterIsInstance<String>() ?: return null
+        val permissions = (args["permissions"] as? ArrayList<*>)?.filterIsInstance<Int>() ?: return null
+        return HealthPermissionMapper.prepare(types, permissions)
     }
 
-    /**
-     * Revokes all previously granted Health Connect permissions for this application. Completely
-     * removes app access to Health Connect data.
-     *
-     * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback returning success status
-     */
+    /** Revokes all Health Connect permissions granted to the app. */
     fun revokePermissions(call: MethodCall, result: Result) {
-        scope.launch {
-            Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
-            healthConnectClient.permissionController.revokeAllPermissions()
-        }
+        scope.launch { healthConnectClient.permissionController.revokeAllPermissions() }
         result.success(true)
     }
 
-    /**
-     * Checks if the health data history feature is available on the current device. History feature
-     * allows access to data from before the app was installed.
-     *
-     * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback returning boolean availability status
-     */
-    fun isHealthDataHistoryAvailable(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
-        }
+    /** Whether extended Health Connect history access is available on this device. */
+    fun isHealthDataHistoryAvailable(call: MethodCall, result: Result) =
+        featureAvailable(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY, result)
+
+    /** Whether extended Health Connect history access is currently granted. */
+    fun isHealthDataHistoryAuthorized(call: MethodCall, result: Result) =
+        permissionAuthorized(PERMISSION_READ_HEALTH_DATA_HISTORY, result)
+
+    /** Unsupported direct history authorization request result. */
+    fun requestHealthDataHistoryAuthorization(call: MethodCall, result: Result) {
+        result.success(false)
     }
 
-    /**
-     * Checks if the health data history permission has been granted. Verifies if app can access
-     * historical health data.
-     *
-     * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback returning boolean authorization status
-     */
-    fun isHealthDataHistoryAuthorized(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_HISTORY)),
-            )
-        }
+    /** Whether Health Connect background read access is available on this device. */
+    fun isHealthDataInBackgroundAvailable(call: MethodCall, result: Result) =
+        featureAvailable(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND, result)
+
+    /** Whether Health Connect background read access is currently granted. */
+    fun isHealthDataInBackgroundAuthorized(call: MethodCall, result: Result) =
+        permissionAuthorized(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND, result)
+
+    /** Unsupported direct background authorization request result. */
+    fun requestHealthDataInBackgroundAuthorization(call: MethodCall, result: Result) {
+        result.success(false)
     }
 
-    /**
-     * Checks if background health data reading feature is available on device. Background feature
-     * allows data access when app is not in foreground.
-     *
-     * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback returning boolean availability status
-     */
-    fun isHealthDataInBackgroundAvailable(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
-        }
-    }
+    /** Whether skin temperature records are available through Health Connect. */
+    fun isSkinTemperatureAvailable(call: MethodCall, result: Result) =
+        featureAvailable(HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE, result)
 
-    /**
-     * Checks if background health data reading permission has been granted. Verifies if app can
-     * access health data in background mode.
-     *
-     * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback returning boolean authorization status
-     */
-    fun isHealthDataInBackgroundAuthorized(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient
-                            .permissionController
-                            .getGrantedPermissions()
-                            .containsAll(listOf(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)),
-            )
-        }
-    }
-
-    /**
-     * Checks if Skin Temperature data is available on the current device.
-     * Availability is device-specific and exposed via Health Connect features.
-     *
-     * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback returning boolean availability status
-     */
-    fun isSkinTemperatureAvailable(call: MethodCall, result: Result) {
-        scope.launch {
-            result.success(
-                    healthConnectClient.features.getFeatureStatus(
-                            HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE
-                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
-            )
-        }
-    }
-
-    /**
-     * Deletes all health records of a specified type within a given time range. Performs bulk
-     * deletion based on data type and time window.
-     *
-     * @param call Method call containing 'dataTypeKey', 'startTime', and 'endTime'
-     * @param result Flutter result callback returning boolean success status
-     */
+    /** Deletes records of a Flutter data type within the requested time range. */
     fun deleteData(call: MethodCall, result: Result) {
         val type = call.argument<String>("dataTypeKey")!!
         val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
         val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
-
-        if (!HealthConstants.mapToType.containsKey(type)) {
-            Log.w("FLUTTER_HEALTH::ERROR", "Datatype $type not found in HC")
-            result.success(false)
-            return
-        }
-
-        val classType = HealthConstants.mapToType[type]!!
-
+        val classType = recordTypeOrNull(type, result) ?: return
         scope.launch {
             try {
                 healthConnectClient.deleteRecords(
-                        recordType = classType,
-                        timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                    recordType = classType,
+                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
                 )
                 result.success(true)
-                Log.i(
-                        "FLUTTER_HEALTH::SUCCESS",
-                        "Successfully deleted $type records between $startTime and $endTime"
-                )
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error deleting $type records: ${e.message}")
                 result.success(false)
@@ -221,150 +104,68 @@ class HealthDataOperations(
         }
     }
 
-    /**
-     * Deletes a specific health record by its unique identifier and data type. Allows precise
-     * deletion of individual health records.
-     *
-     * @param call Method call containing 'dataTypeKey' and 'uuid'
-     * @param result Flutter result callback returning boolean success status
-     */
+    /** Deletes one Health Connect record by UUID. */
     fun deleteByUUID(call: MethodCall, result: Result) {
         val arguments = call.arguments as? HashMap<*, *>
         val dataTypeKey = (arguments?.get("dataTypeKey") as? String)!!
-        val uuid = (arguments?.get("uuid") as? String)!!
-
-        if (!HealthConstants.mapToType.containsKey(dataTypeKey)) {
-            Log.w("FLUTTER_HEALTH::ERROR", "Datatype $dataTypeKey not found in HC")
-            result.success(false)
-            return
-        }
-
-        val classType = HealthConstants.mapToType[dataTypeKey]!!
-
+        val uuid = (arguments["uuid"] as? String)!!
+        val classType = recordTypeOrNull(dataTypeKey, result) ?: return
         scope.launch {
             try {
                 healthConnectClient.deleteRecords(
-                        recordType = classType,
-                        recordIdsList = listOf(uuid),
-                        clientRecordIdsList = emptyList()
+                    recordType = classType,
+                    recordIdsList = listOf(uuid),
+                    clientRecordIdsList = emptyList(),
                 )
                 result.success(true)
-                Log.i(
-                        "FLUTTER_HEALTH::SUCCESS",
-                        "[Health Connect] Record with UUID $uuid was successfully deleted!"
-                )
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error deleting record with UUID: $uuid")
-                Log.e("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
-                Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
                 result.success(false)
             }
         }
     }
 
-    /**
-     * Deletes a specific health record by its client record ID and data type. Allows precise
-     * deletion of individual health records using client-side IDs.
-     *
-     * @param call Method call containing 'dataTypeKey', 'recordId', and 'clientRecordId'
-     * @param result Flutter result callback returning boolean success status
-     */
+    /** Deletes Health Connect records by record ID or client record ID. */
     fun deleteByClientRecordId(call: MethodCall, result: Result) {
         val arguments = call.arguments as? HashMap<*, *>
         val dataTypeKey = (arguments?.get("dataTypeKey") as? String)!!
         val recordId = listOfNotNull(arguments["recordId"] as? String)
         val clientRecordId = listOfNotNull(arguments["clientRecordId"] as? String)
-        if (!HealthConstants.mapToType.containsKey(dataTypeKey)) {
-            Log.w("FLUTTER_HEALTH::ERROR", "Datatype $dataTypeKey not found in HC")
-            result.success(false)
-            return
-        }
-        val classType = HealthConstants.mapToType[dataTypeKey]!!
-
+        val classType = recordTypeOrNull(dataTypeKey, result) ?: return
         scope.launch {
             try {
-                healthConnectClient.deleteRecords(
-                        classType,
-                        recordId,
-                        clientRecordId
-                )
+                healthConnectClient.deleteRecords(classType, recordId, clientRecordId)
                 result.success(true)
             } catch (e: Exception) {
-                Log.e(
-                        "FLUTTER_HEALTH::ERROR",
-                        "Error deleting record with ClientRecordId: $clientRecordId"
-                )
-                Log.e("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
-                Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
+                Log.e("FLUTTER_HEALTH::ERROR", "Error deleting record with ClientRecordId: $clientRecordId")
                 result.success(false)
             }
         }
     }
 
-    /**
-     * Internal helper method to prepare Health Connect permission strings. Converts data type names
-     * and access levels into proper permission format.
-     *
-     * @param types List of health data type strings
-     * @param permissions List of permission level integers (0=read, 1=read+write)
-     * @return List<String>? Formatted permission strings, or null if invalid input
-     */
-    private fun preparePermissionsListInternal(
-            types: List<String>,
-            permissions: List<Int>
-    ): List<String>? {
-        val permList = mutableListOf<String>()
+    private fun featureAvailable(feature: Int, result: Result) {
+        scope.launch {
+            result.success(
+                healthConnectClient.features.getFeatureStatus(feature) ==
+                    HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+            )
+        }
+    }
 
-        for ((i, typeKey) in types.withIndex()) {
-            if (typeKey == HealthConstants.WORKOUT_ROUTE) {
-                val access = permissions[i]
-                val sessionRead =
-                    HealthPermission.getReadPermission(ExerciseSessionRecord::class)
-                val sessionWrite =
-                    HealthPermission.getWritePermission(ExerciseSessionRecord::class)
-                when (access) {
-                    0 -> permList.add(sessionRead)
-                    1 -> {
-                        permList.add(HealthPermission.PERMISSION_WRITE_EXERCISE_ROUTE)
-                        permList.add(sessionWrite)
-                    }
-                    else -> {
-                        permList.add(sessionRead)
-                        permList.add(sessionWrite)
-                        permList.add(HealthPermission.PERMISSION_WRITE_EXERCISE_ROUTE)
-                    }
-                }
-                continue
-            }
-            if (!HealthConstants.mapToType.containsKey(typeKey)) {
-                Log.w("FLUTTER_HEALTH::ERROR", "Datatype $typeKey not found in HC")
-                return null
-            }
+    private fun permissionAuthorized(permission: String, result: Result) {
+        scope.launch {
+            result.success(
+                healthConnectClient.permissionController.getGrantedPermissions()
+                    .containsAll(listOf(permission))
+            )
+        }
+    }
 
-            val access = permissions[i]
-            val dataType = HealthConstants.mapToType[typeKey]!!
-
-            if (access == 0) {
-                // Read permission only
-                permList.add(
-                        HealthPermission.getReadPermission(dataType),
-                )
-            } else if (access == 1) {
-                // Write permission only
-                permList.add(
-                        HealthPermission.getWritePermission(dataType),
-                )
-            } else {
-                // Read and write permissions
-                permList.addAll(
-                        listOf(
-                                HealthPermission.getReadPermission(dataType),
-                                HealthPermission.getWritePermission(dataType),
-                        ),
-                )
+    private fun recordTypeOrNull(type: String, result: Result) =
+        HealthConstants.mapToType[type].also {
+            if (it == null) {
+                Log.w("FLUTTER_HEALTH::ERROR", "Datatype $type not found in HC")
+                result.success(false)
             }
         }
-
-        return permList
-    }
 }

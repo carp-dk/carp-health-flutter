@@ -6,24 +6,25 @@ import androidx.health.connect.client.records.*
 import androidx.health.connect.client.records.metadata.Metadata
 
 /**
- * Converts Health Connect records to Flutter-compatible data structures.
- * Handles the transformation of strongly-typed Health Connect data into generic maps
- * that can be serialized and passed to the Flutter layer.
+ * Converts Health Connect records to Flutter-compatible data maps.
  */
 class HealthDataConverter {
-    
+
     /**
-     * Converts a Health Connect record to a list of Flutter-compatible maps.
-     * Handles various record types including instant records, interval records, and complex types.
-     * 
-     * @param record The Health Connect record to convert
-     * @param dataType The string identifier for the data type being converted
-     * @return List<Map<String, Any?>> List of converted records (some records may split into multiple entries)
-     * @throws IllegalArgumentException If the record type is not supported
+     * Flutter data maps for a Health Connect record.
+     *
+     * Some Health Connect records, such as heart rate samples, expand into multiple
+     * Flutter data points.
+     *
+     * @param record Health Connect record to convert.
+     * @param dataType Flutter data type key requested by Dart.
+     * @param dataUnit Optional Flutter unit key used for unit conversion.
+     * @return Converted Flutter data maps.
+     * @throws IllegalArgumentException When the record type is unsupported.
      */
     fun convertRecord(record: Any, dataType: String, dataUnit: String? = null): List<Map<String, Any?>> {
         val metadata = (record as Record).metadata
-        
+
         return when (record) {
             // Single-value instant records
             is WeightRecord -> listOf(createInstantRecord(metadata, record.time, when (dataUnit) {
@@ -78,7 +79,7 @@ class HealthDataConverter {
             is BasalMetabolicRateRecord -> listOf(createInstantRecord(metadata, record.time, record.basalMetabolicRate.inKilocaloriesPerDay))
             is RestingHeartRateRecord -> listOf(createInstantRecord(metadata, record.time, record.beatsPerMinute))
             is RespiratoryRateRecord -> listOf(createInstantRecord(metadata, record.time, record.rate))
-            
+
             // Interval records
             is StepsRecord -> listOf(createIntervalRecord(metadata, record.startTime, record.endTime, record.count))
             is ActiveCaloriesBurnedRecord -> listOf(createIntervalRecord(metadata, record.startTime, record.endTime, record.energy.inKilocalories))
@@ -96,19 +97,19 @@ class HealthDataConverter {
                     put("activityIntensityType", record.activityIntensityType)
                 }
             )
-            
+
             // Special cases
             is BloodPressureRecord -> listOf(
                 createInstantRecord(
-                    metadata, 
-                    record.time, 
-                    if (dataType == BLOOD_PRESSURE_DIASTOLIC) 
-                        record.diastolic.inMillimetersOfMercury 
-                    else 
+                    metadata,
+                    record.time,
+                    if (dataType == BLOOD_PRESSURE_DIASTOLIC)
+                        record.diastolic.inMillimetersOfMercury
+                    else
                         record.systolic.inMillimetersOfMercury
                 )
             )
-            
+
             is HeartRateRecord -> record.samples.map { sample ->
                 createInstantRecord(metadata, sample.time, sample.beatsPerMinute)
             }
@@ -116,7 +117,7 @@ class HealthDataConverter {
             is SpeedRecord -> record.samples.map { sample ->
                 createInstantRecord(metadata, sample.time, sample.speed.inMetersPerSecond)
             }
-            
+
             is SleepSessionRecord -> listOf(
                 createIntervalRecord(
                     metadata,
@@ -125,25 +126,19 @@ class HealthDataConverter {
                     ChronoUnit.MINUTES.between(record.startTime, record.endTime)
                 )
             )
-            
+
             is MenstruationFlowRecord -> listOf(
                 createInstantRecord(metadata, record.time, record.flow)
             )
-            
+
             is NutritionRecord -> listOf(createNutritionRecord(record, metadata))
-            
+
             else -> throw IllegalArgumentException("Health data type not supported")
         }
     }
 
     /**
-     * Creates a standardized instant record map for point-in-time health measurements.
-     * Used for data that represents a single moment measurement (weight, height, etc.).
-     * 
-     * @param metadata Record metadata containing source and recording information
-     * @param time The timestamp when the measurement was taken
-     * @param value The measured value
-     * @return Map<String, Any?> Standardized instant record structure
+     * Standard data map for a point-in-time health measurement.
      */
     private fun createInstantRecord(
         metadata: Metadata,
@@ -156,14 +151,7 @@ class HealthDataConverter {
     }
 
     /**
-     * Creates a standardized interval record map for time-range health measurements.
-     * Used for data that spans a time period (steps, distance, calories burned, etc.).
-     * 
-     * @param metadata Record metadata containing source and recording information
-     * @param startTime Beginning of the measurement period
-     * @param endTime End of the measurement period
-     * @param value The measured value over the time period
-     * @return Map<String, Any?> Standardized interval record structure
+     * Standard data map for a time-range health measurement.
      */
     private fun createIntervalRecord(
         metadata: Metadata,
@@ -177,11 +165,7 @@ class HealthDataConverter {
     }
 
     /**
-     * Creates the base record structure with common fields shared by all health records.
-     * Includes metadata like UUID, source information, and recording method.
-     * 
-     * @param metadata Record metadata from Health Connect
-     * @return MutableMap<String, Any?> Base record structure with common fields
+     * Common Flutter fields shared by all converted records.
      */
     private fun createBaseRecord(metadata: Metadata): MutableMap<String, Any?> = mutableMapOf(
         "uuid" to metadata.id,
@@ -191,13 +175,7 @@ class HealthDataConverter {
     )
 
     /**
-     * Creates a specialized nutrition record with comprehensive nutrient information.
-     * Handles the complex nutrition data structure with multiple nutrient fields,
-     * meal type classification, and optional food name.
-     * 
-     * @param record The NutritionRecord from Health Connect
-     * @param metadata Record metadata
-     * @return Map<String, Any?> Comprehensive nutrition record with all nutrient fields
+     * Nutrition data map with nutrient, meal type, and food name fields.
      */
     private fun createNutritionRecord(
         record: NutritionRecord,
@@ -209,7 +187,7 @@ class HealthDataConverter {
         0 // Placeholder value since nutrition doesn't have a single value
     ).toMutableMap().apply {
         remove("value") // Remove the placeholder
-        
+
         // Add all nutrition-specific fields
         putAll(mapOf(
             "calories" to record.energy?.inKilocalories,
@@ -260,14 +238,12 @@ class HealthDataConverter {
     }
 
     /**
-     * Converts a sleep stage to a Flutter-compatible map structure.
-     * Transforms individual sleep stage data including duration and stage type
-     * into a standardized format for Flutter consumption.
-     * 
-     * @param stage The sleep stage record from Health Connect
-     * @param dataType The specific sleep data type being requested
-     * @param metadata Parent sleep session metadata
-     * @return List<Map<String, Any>> Sleep stage data in Flutter format
+     * Flutter data maps for an individual sleep stage.
+     *
+     * @param stage Health Connect sleep stage record.
+     * @param dataType Flutter sleep data type key requested by Dart.
+     * @param metadata Parent sleep session metadata.
+     * @return Sleep stage data in Flutter format.
      */
     fun convertRecordStage(
         stage: SleepSessionRecord.Stage,

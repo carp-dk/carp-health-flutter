@@ -15,8 +15,10 @@ import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 /**
- * Handles Health Connect change token workflows (token creation + change polling).
- * Converts change records into Flutter-friendly maps for consumption on the Dart side.
+ * Health Connect change token workflow for Flutter clients.
+ *
+ * Creates change tokens, polls change pages, and converts changed records into
+ * Dart-friendly maps.
  */
 class HealthDataChanges(
     private val healthConnectClient: HealthConnectClient,
@@ -25,10 +27,10 @@ class HealthDataChanges(
     private val dataConverter: HealthDataConverter
 ) {
     /**
-     * Creates a changes token for the requested record types.
+     * Changes token for the requested Health Connect record types.
      *
-     * @param call Method call containing 'types' (list of dataTypeKey strings)
-     * @param result Flutter result callback returning a token string
+     * @param call Method call containing `types`, a list of data type keys.
+     * @param result Flutter callback receiving the token string, or `null` on failure.
      */
     fun getChangesToken(call: MethodCall, result: Result) {
         val args = call.arguments as? HashMap<*, *>
@@ -38,6 +40,7 @@ class HealthDataChanges(
             result.error(
                     "FLUTTER_HEALTH::ERROR",
                     "No data types provided",
+                    null,
             )
             return
         }
@@ -73,10 +76,10 @@ class HealthDataChanges(
     }
 
     /**
-     * Fetches the next page of changes for a previously created token.
+     * Next page of changes for a previously created token.
      *
-     * @param call Method call containing 'changesToken' and optional 'includeSelf'
-     * @param result Flutter result callback returning changes payload
+     * @param call Method call containing `changesToken` and optional `includeSelf`.
+     * @param result Flutter callback receiving the changes payload, or `null` on failure.
      */
     fun getChanges(call: MethodCall, result: Result) {
         val changesToken = call.argument<String>("changesToken")

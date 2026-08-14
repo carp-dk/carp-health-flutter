@@ -58,4 +58,35 @@ dependencies {
     implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
     implementation "androidx.fragment:fragment-ktx:1.8.9"
 
+    def flutterSdk = findProperty("flutter.sdk") ?: System.getenv("FLUTTER_ROOT") ?: System.getenv("FLUTTER_HOME")
+    def localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        def localProperties = new Properties()
+        localPropertiesFile.withInputStream { localProperties.load(it) }
+        def localFlutterSdk = localProperties.getProperty("flutter.sdk")
+        if (localFlutterSdk != null) {
+            flutterSdk = localFlutterSdk
+        }
+    }
+    if (flutterSdk == null) {
+        def examplePropertiesFile = rootProject.file("../example/android/local.properties")
+        if (examplePropertiesFile.exists()) {
+            def exampleProperties = new Properties()
+            examplePropertiesFile.withInputStream { exampleProperties.load(it) }
+            def exampleFlutterSdk = exampleProperties.getProperty("flutter.sdk")
+            if (exampleFlutterSdk != null) {
+                flutterSdk = exampleFlutterSdk
+            }
+        }
+    }
+    if (flutterSdk != null) {
+        def flutterJar = file("$flutterSdk/bin/cache/artifacts/engine/android-arm64/flutter.jar")
+        if (flutterJar.exists()) {
+            compileOnly files(flutterJar)
+            testImplementation files(flutterJar)
+        }
+    }
+
+    testImplementation "junit:junit:4.13.2"
+
 }
