@@ -10,8 +10,11 @@ import androidx.health.connect.client.units.*
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import java.time.Instant
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Handles writing health data to Health Connect. Manages data insertion for various health metrics,
@@ -20,7 +23,8 @@ import kotlinx.coroutines.launch
  */
 class HealthDataWriter(
         private val healthConnectClient: HealthConnectClient,
-        private val scope: CoroutineScope
+        private val scope: CoroutineScope,
+        private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) {
     private val workoutRouteBuilders =
         mutableMapOf<String, MutableList<ExerciseRoute.Location>>()
@@ -164,10 +168,14 @@ class HealthDataWriter(
         scope.launch {
             try {
                 healthConnectClient.insertRecords(listOf(record))
-                result.success(true)
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error writing $type: ${e.message}")
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }
@@ -352,8 +360,10 @@ class HealthDataWriter(
                 }
 
                 healthConnectClient.insertRecords(list)
-                result.success(true)
                 Log.i("FLUTTER_HEALTH::SUCCESS", "[Health Connect] Workout was successfully added!")
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.w(
                         "FLUTTER_HEALTH::ERROR",
@@ -361,7 +371,9 @@ class HealthDataWriter(
                 )
                 Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }
@@ -508,11 +520,13 @@ class HealthDataWriter(
                                 ),
                         ),
                 )
-                result.success(true)
                 Log.i(
                         "FLUTTER_HEALTH::SUCCESS",
                         "[Health Connect] Blood pressure was successfully added!",
                 )
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.w(
                         "FLUTTER_HEALTH::ERROR",
@@ -520,7 +534,9 @@ class HealthDataWriter(
                 )
                 Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }
@@ -673,8 +689,10 @@ class HealthDataWriter(
                         ),
                 )
                 healthConnectClient.insertRecords(list)
-                result.success(true)
                 Log.i("FLUTTER_HEALTH::SUCCESS", "[Health Connect] Meal was successfully added!")
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.w(
                         "FLUTTER_HEALTH::ERROR",
@@ -682,7 +700,9 @@ class HealthDataWriter(
                 )
                 Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }
@@ -732,14 +752,18 @@ class HealthDataWriter(
                         )
 
                 healthConnectClient.insertRecords(listOf(speedRecord))
-                result.success(true)
                 Log.i(
                         "FLUTTER_HEALTH::SUCCESS",
                         "Successfully wrote ${speedSamples.size} speed samples"
                 )
+                withContext(mainDispatcher) {
+                    result.success(true)
+                }
             } catch (e: Exception) {
                 Log.e("FLUTTER_HEALTH::ERROR", "Error writing speed data: ${e.message}")
-                result.success(false)
+                withContext(mainDispatcher) {
+                    result.success(false)
+                }
             }
         }
     }
