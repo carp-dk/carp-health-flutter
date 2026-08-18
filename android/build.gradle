@@ -21,8 +21,12 @@ rootProject.allprojects {
     }
 }
 
+def isAgp9OrAbove = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger() >= 9
+
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
+if (!isAgp9OrAbove) {
+    apply plugin: 'kotlin-android'
+}
 
 android {
     compileSdk 36
@@ -32,8 +36,10 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = '11'
+    if (!isAgp9OrAbove) {
+        kotlinOptions {
+            jvmTarget = '11'
+        }
     }
 
     sourceSets {
@@ -53,7 +59,6 @@ android {
 dependencies {
     def composeBom = platform('androidx.compose:compose-bom:2025.09.00')
     implementation(composeBom)
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.10"
 
     implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
     implementation "androidx.fragment:fragment-ktx:1.8.9"
