@@ -49,6 +49,8 @@ class HealthDataReader(
         val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
         val healthConnectData = mutableListOf<Map<String, Any?>>()
         val recordingMethodsToFilter = call.argument<List<Int>>("recordingMethodsToFilter")!!
+        // Absent or 0 means no limit.
+        val limit = call.argument<Int>("limit")?.takeIf { it > 0 }
 
         Log.i(
             "FLUTTER_HEALTH",
@@ -81,11 +83,21 @@ class HealthDataReader(
                 authorizedTypeMap[dataType]?.let { classType ->
                     val records = mutableListOf<Record>()
 
-                    // Set up the initial request to read health records
-                    var request = ReadRecordsRequest(
-                        recordType = classType,
-                        timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
-                    )
+                    // A limited read takes one page, newest first. Unlimited
+                    // reads pass neither argument and keep the SDK defaults.
+                    var request = if (limit == null) {
+                        ReadRecordsRequest(
+                            recordType = classType,
+                            timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                        )
+                    } else {
+                        ReadRecordsRequest(
+                            recordType = classType,
+                            timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                            ascendingOrder = false,
+                            pageSize = limit,
+                        )
+                    }
 
                     var response = healthConnectClient.readRecords(request)
                     var pageToken = response.pageToken
@@ -93,8 +105,8 @@ class HealthDataReader(
                     // Add the records from the initial response
                     records.addAll(response.records)
 
-                    // Continue making requests while there is a page token
-                    while (!pageToken.isNullOrEmpty()) {
+                    // A limited read is satisfied by the first page.
+                    while (limit == null && !pageToken.isNullOrEmpty()) {
                         request = ReadRecordsRequest(
                             recordType = classType,
                             timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
