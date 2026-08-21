@@ -16,6 +16,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.*
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -126,11 +127,23 @@ class HealthDataReader(
                 }
                 Handler(context.mainLooper).run { result.success(healthConnectData) }
             } catch (e: Exception) {
-                Log.i(
-                    "FLUTTER_HEALTH::ERROR",
-                    "Unable to return $dataType due to the following exception:"
-                )
-                Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+                // A malformed stored record throws while the page deserializes
+                // and readRecords cannot skip it, so this type returns empty.
+                // Message as of connect-client 1.2.0-alpha02.
+                if (e is IllegalArgumentException &&
+                    e.message?.contains("startTime must be before endTime") == true
+                ) {
+                    Log.w(
+                        "FLUTTER_HEALTH::ERROR",
+                        "Unable to return $dataType: malformed stored record"
+                    )
+                } else {
+                    Log.i(
+                        "FLUTTER_HEALTH::ERROR",
+                        "Unable to return $dataType due to the following exception:"
+                    )
+                    Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+                }
                 result.success(emptyList<Map<String, Any?>>()) // Return empty list instead of null
             }
         }
@@ -594,50 +607,86 @@ class HealthDataReader(
 
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
-            
-            // Get distance data
-            val distanceRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
-                    ),
-                ),
-            )
+
+            // Contain each enrichment read: one malformed record otherwise
+            // empties every workout in the batch.
+
             var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
+            try {
+                val distanceRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = DistanceRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
+                    ),
+                )
+                for (distanceRec in distanceRequest.records) {
+                    totalDistance += distanceRec.distance.inMeters
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(
+                    "FLUTTER_HEALTH::ERROR",
+                    "Distance read failed for workout ${record.metadata.id}: ${e.message}"
+                )
+                if (e !is IllegalArgumentException) {
+                    Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+                }
             }
 
-            // Get energy burned data
-            val energyBurnedRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
-                    ),
-                ),
-            )
             var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+            try {
+                val energyBurnedRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = TotalCaloriesBurnedRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
+                    ),
+                )
+                for (energyBurnedRec in energyBurnedRequest.records) {
+                    totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(
+                    "FLUTTER_HEALTH::ERROR",
+                    "Energy read failed for workout ${record.metadata.id}: ${e.message}"
+                )
+                if (e !is IllegalArgumentException) {
+                    Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+                }
             }
 
-            // Get steps data
-            val stepRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime
-                    ),
-                ),
-            )
             var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
+            try {
+                val stepRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = StepsRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
+                    ),
+                )
+                for (stepRec in stepRequest.records) {
+                    totalSteps += stepRec.count
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(
+                    "FLUTTER_HEALTH::ERROR",
+                    "Steps read failed for workout ${record.metadata.id}: ${e.message}"
+                )
+                if (e !is IllegalArgumentException) {
+                    Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+                }
             }
 
             // Add final datapoint
