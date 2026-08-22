@@ -1,3 +1,8 @@
+## Unreleased
+
+* Add an optional `limit` to `getHealthDataFromTypes()` - Fix [#279](https://github.com/carp-dk/carp-health-flutter/issues/279)
+* Fix the iOS device-info test stub so the unit suite runs on a fresh clone
+
 ## 13.3.2
 
 * Write data now returns UUID of records - PR [#448](https://github.com/carp-dk/carp-health-flutter/pull/448)

@@ -1240,13 +1240,37 @@ class Health {
   /// Fetch a list of health data points based on [types].
   /// You can also specify the [recordingMethodsToFilter] to filter the data points.
   /// If not specified, all data points will be included.
+  ///
+  /// [limit] caps how much is read per type, newest first. Null or 0 means no
+  /// limit; a negative [limit] throws [ArgumentError].
+  ///
+  /// What it bounds differs by platform. iOS limits SAMPLES, so [limit] is a
+  /// cap on returned points. Android limits Health Connect RECORDS, and some
+  /// record types expand to several points (a `HeartRateRecord` carries many
+  /// samples), so `limit: 1` on `HEART_RATE` can return more than one point.
+  /// For single-value types such as `WEIGHT` or `HEIGHT` the two coincide.
+  ///
+  /// Two further Android notes. `recordingMethodsToFilter` is applied AFTER
+  /// the limit, so a limited read can return fewer points than asked for when
+  /// the newest records are filtered out; iOS applies the filter in the query.
+  /// And a very large [limit] may exceed the platform's maximum page size and
+  /// be rejected, yielding an empty result - prefer a realistic value over a
+  /// large one used to mean "everything", and pass null for no limit.
+  ///
+  /// Unlimited reads are unaffected: no ordering or paging argument is sent,
+  /// so they keep the existing behaviour and ordering exactly.
   Future<List<HealthDataPoint>> getHealthDataFromTypes({
     required List<HealthDataType> types,
     Map<HealthDataType, HealthDataUnit>? preferredUnits,
     required DateTime startTime,
     required DateTime endTime,
     List<RecordingMethod> recordingMethodsToFilter = const [],
+    int? limit,
   }) async {
+    if (limit != null && limit < 0) {
+      throw ArgumentError.value(
+          limit, 'limit', 'must be null, 0 (no limit), or positive');
+    }
     await _checkIfHealthConnectAvailableOnAndroid();
     List<HealthDataPoint> dataPoints = [];
 
@@ -1257,6 +1281,7 @@ class Health {
         type,
         recordingMethodsToFilter,
         dataUnit: preferredUnits?[type],
+        limit: limit,
       );
       dataPoints.addAll(result);
     }
@@ -1377,6 +1402,7 @@ class Health {
     HealthDataType dataType,
     List<RecordingMethod> recordingMethodsToFilter, {
     HealthDataUnit? dataUnit,
+    int? limit,
   }) async {
     // Ask for device ID only once
     _deviceId ??= Platform.isAndroid
@@ -1393,7 +1419,7 @@ class Health {
     if (dataType == HealthDataType.BODY_MASS_INDEX && Platform.isAndroid) {
       return _computeAndroidBMI(startTime, endTime, recordingMethodsToFilter);
     }
-    return await _dataQuery(startTime, endTime, dataType, recordingMethodsToFilter, dataUnit: dataUnit);
+    return await _dataQuery(startTime, endTime, dataType, recordingMethodsToFilter, dataUnit: dataUnit, limit: limit);
   }
 
   /// Prepares an interval query, i.e. checks if the types are available, etc.
@@ -1449,6 +1475,7 @@ class Health {
     HealthDataType dataType,
     List<RecordingMethod> recordingMethodsToFilter, {
     HealthDataUnit? dataUnit,
+    int? limit,
   }) async {
     String? unit = dataUnit?.name ?? dataTypeToUnit[dataType]?.name;
     final args = <String, dynamic>{
@@ -1457,6 +1484,7 @@ class Health {
       'startTime': startTime.millisecondsSinceEpoch,
       'endTime': endTime.millisecondsSinceEpoch,
       'recordingMethodsToFilter': recordingMethodsToFilter.map((e) => e.toInt()).toList(),
+      if (limit != null && limit > 0) 'limit': limit,
     };
     final fetchedDataPoints = await _channel.invokeMethod('getData', args);
 

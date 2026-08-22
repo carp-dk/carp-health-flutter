@@ -41,6 +41,62 @@ void main() {
       expect(args['recordingMethodsToFilter'], [RecordingMethod.manual.toInt()]);
     });
 
+    test('getHealthDataFromTypes forwards limit when set', () async {
+      ctx.channel.when('getData', [HealthFixtures.numericPoint()]);
+
+      await ctx.health.getHealthDataFromTypes(
+        types: [HealthDataType.WEIGHT],
+        startTime: HealthFixtures.start,
+        endTime: HealthFixtures.end,
+        limit: 1,
+      );
+
+      final args = Map<String, dynamic>.from(
+          ctx.channel.lastCallFor('getData')!.arguments as Map);
+      expect(args['limit'], 1);
+    });
+
+    test('getHealthDataFromTypes omits limit when unset', () async {
+      ctx.channel.when('getData', [HealthFixtures.numericPoint()]);
+
+      await ctx.health.getHealthDataFromTypes(
+        types: [HealthDataType.WEIGHT],
+        startTime: HealthFixtures.start,
+        endTime: HealthFixtures.end,
+      );
+
+      final args = Map<String, dynamic>.from(
+          ctx.channel.lastCallFor('getData')!.arguments as Map);
+      expect(args.containsKey('limit'), isFalse);
+    });
+
+    test('getHealthDataFromTypes treats limit 0 as no limit', () async {
+      ctx.channel.when('getData', [HealthFixtures.numericPoint()]);
+
+      await ctx.health.getHealthDataFromTypes(
+        types: [HealthDataType.WEIGHT],
+        startTime: HealthFixtures.start,
+        endTime: HealthFixtures.end,
+        limit: 0,
+      );
+
+      final args = Map<String, dynamic>.from(
+          ctx.channel.lastCallFor('getData')!.arguments as Map);
+      expect(args.containsKey('limit'), isFalse);
+    });
+
+    test('getHealthDataFromTypes rejects a negative limit', () {
+      expect(
+        () => ctx.health.getHealthDataFromTypes(
+          types: [HealthDataType.WEIGHT],
+          startTime: HealthFixtures.start,
+          endTime: HealthFixtures.end,
+          limit: -1,
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('getHealthDataByUUID throws when UUID is empty', () {
       expect(
         () => ctx.health.getHealthDataByUUID(uuid: '', type: HealthDataType.HEART_RATE),

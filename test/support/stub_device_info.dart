@@ -58,6 +58,7 @@ class StubDeviceInfoPlugin implements DeviceInfoPlugin {
           'modelName': 'stub-ios-modelName',
           'localizedModel': 'stub-ios-localizedModel',
           'identifierForVendor': iosId,
+          'isiOSAppOnVision': false,
           'isPhysicalDevice': true,
           'freeDiskSize': 128000000000,
           'totalDiskSize': 256000000000,
