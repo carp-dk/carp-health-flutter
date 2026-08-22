@@ -1,3 +1,7 @@
+## Unreleased
+
+* Android: a malformed stored record no longer empties an entire workout read
+
 ## 13.3.2
 
 * Write data now returns UUID of records - PR [#448](https://github.com/carp-dk/carp-health-flutter/pull/448)
