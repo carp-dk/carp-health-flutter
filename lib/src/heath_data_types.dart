@@ -224,7 +224,6 @@ const List<HealthDataType> dataTypeKeysIOS = [
   HealthDataType.WATER_TEMPERATURE,
   HealthDataType.UNDERWATER_DEPTH,
   HealthDataType.UV_INDEX,
-  HealthDataType.TOTAL_CALORIES_BURNED,
   HealthDataType.SLEEP_WRIST_TEMPERATURE,
 ];
 
