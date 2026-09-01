@@ -1,3 +1,7 @@
+## Unreleased
+
+* Android: migrate to AGP 9 built-in Kotlin (stop applying `kotlin-android`). Requires Flutter 3.44+.
+
 ## 13.3.2
 
 * Write data now returns UUID of records - PR [#448](https://github.com/carp-dk/carp-health-flutter/pull/448)
