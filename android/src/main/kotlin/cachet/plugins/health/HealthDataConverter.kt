@@ -43,6 +43,32 @@ class HealthDataConverter {
                                 "KELVIN" -> record.temperature.inCelsius + 273.15
                                 else -> record.temperature.inCelsius
                             }))
+            is SkinTemperatureRecord -> {
+                val baselineCelsius = record.baseline?.inCelsius
+                val baselineValue = when (dataUnit) {
+                    "DEGREE_FAHRENHEIT" -> baselineCelsius?.let { (it * 9.0 / 5.0) + 32.0 }
+                    "KELVIN" -> baselineCelsius?.let { it + 273.15 }
+                    else -> baselineCelsius
+                }
+
+                record.deltas.map { skinDelta ->
+                    val deltaCelsius = skinDelta.delta.inCelsius
+                    val deltaValue = when (dataUnit) {
+                        "DEGREE_FAHRENHEIT" -> deltaCelsius * 9.0 / 5.0
+                        "KELVIN" -> deltaCelsius
+                        else -> deltaCelsius
+                    }
+
+                    createInstantRecord(metadata, skinDelta.time, deltaValue).toMutableMap().apply {
+                        put("temperature_delta", deltaValue)
+                        put("baseline", baselineValue)
+                        put("measurement_location", record.measurementLocation)
+                        if (baselineValue != null) {
+                            put("temperature", baselineValue + deltaValue)
+                        }
+                    }
+                }
+            }
             is BodyWaterMassRecord -> listOf(createInstantRecord(metadata, record.time, record.mass.inKilograms))
             is OxygenSaturationRecord -> listOf(createInstantRecord(metadata, record.time, record.percentage.value))
             is BloodGlucoseRecord -> listOf(createInstantRecord(metadata, record.time, when (dataUnit) {

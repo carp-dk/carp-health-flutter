@@ -1,6 +1,6 @@
+import CoreLocation
 import Flutter
 import HealthKit
-import CoreLocation
 
 /// Class responsible for reading health data from HealthKit
 class HealthDataReader {
@@ -40,14 +40,16 @@ class HealthDataReader {
     ///   - result: Flutter result callback
     func getData(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? NSDictionary,
-            let dataTypeKey = arguments["dataTypeKey"] as? String
+              let dataTypeKey = arguments["dataTypeKey"] as? String
         else {
             DispatchQueue.main.async {
                 result(
                     FlutterError(
                         code: "ARGUMENT_ERROR",
                         message: "Missing required dataTypeKey argument",
-                        details: nil))
+                        details: nil
+                    )
+                )
             }
             return
         }
@@ -58,7 +60,8 @@ class HealthDataReader {
         let limit = (arguments["limit"] as? Int) ?? HKObjectQueryNoLimit
         let recordingMethodsToFilter = (arguments["recordingMethodsToFilter"] as? [Int]) ?? []
         let includeManualEntry = !recordingMethodsToFilter.contains(
-            HealthConstants.RecordingMethod.manual.rawValue)
+            HealthConstants.RecordingMethod.manual.rawValue
+        )
 
         // convert from milliseconds to Date()
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
@@ -79,7 +82,7 @@ class HealthDataReader {
                     "source_id": sourceIdForCharacteristic,
                     "source_name": sourceNameForCharacteristic,
                     "recording_method": HealthConstants.RecordingMethod.manual.rawValue,
-                ]
+                ],
             ])
             return
         case HealthConstants.GENDER:
@@ -92,7 +95,7 @@ class HealthDataReader {
                     "source_id": sourceIdForCharacteristic,
                     "source_name": sourceNameForCharacteristic,
                     "recording_method": HealthConstants.RecordingMethod.manual.rawValue,
-                ]
+                ],
             ])
             return
         case HealthConstants.BLOOD_TYPE:
@@ -105,7 +108,7 @@ class HealthDataReader {
                     "source_id": sourceIdForCharacteristic,
                     "source_name": sourceNameForCharacteristic,
                     "recording_method": HealthConstants.RecordingMethod.manual.rawValue,
-                ]
+                ],
             ])
             return
         default:
@@ -118,38 +121,44 @@ class HealthDataReader {
                     FlutterError(
                         code: "INVALID_TYPE",
                         message: "Invalid dataTypeKey: \(dataTypeKey)",
-                        details: nil))
+                        details: nil
+                    )
+                )
             }
             return
         }
 
         var unit: HKUnit?
-        if let dataUnitKey = dataUnitKey {
+        if let dataUnitKey {
             unit = unitDict[dataUnitKey]
         }
 
         var predicate = HKQuery.predicateForSamples(
-            withStart: dateFrom, end: dateTo, options: .strictStartDate)
+            withStart: dateFrom, end: dateTo, options: .strictStartDate
+        )
         if !includeManualEntry {
             let manualPredicate = NSPredicate(
-                format: "metadata.%K != YES", HKMetadataKeyWasUserEntered)
+                format: "metadata.%K != YES", HKMetadataKeyWasUserEntered
+            )
             predicate = NSCompoundPredicate(
-                type: .and, subpredicates: [predicate, manualPredicate])
+                type: .and, subpredicates: [predicate, manualPredicate]
+            )
         }
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
         let query = HKSampleQuery(
             sampleType: dataType, predicate: predicate, limit: limit,
             sortDescriptors: [sortDescriptor]
-        ) { x, samplesOrNil, error in
-
+        ) { _, samplesOrNil, error in
             guard error == nil else {
                 DispatchQueue.main.async {
                     result(
                         FlutterError(
                             code: "HEALTH_ERROR",
                             message: "Error getting health data: \(error!.localizedDescription)",
-                            details: nil))
+                            details: nil
+                        )
+                    )
                 }
                 return
             }
@@ -175,7 +184,8 @@ class HealthDataReader {
                     return [
                         "uuid": "\(sample.uuid)",
                         "value": sample.quantity.doubleValue(
-                            for: unit ?? HKUnit.internationalUnit()),
+                            for: unit ?? HKUnit.internationalUnit()
+                        ),
                         "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
@@ -246,7 +256,8 @@ class HealthDataReader {
                             $0.value == sample.workoutActivityType
                         })?.key,
                         "totalEnergyBurned": sample.totalEnergyBurned?.doubleValue(
-                            for: HKUnit.kilocalorie()),
+                            for: HKUnit.kilocalorie()
+                        ),
                         "totalEnergyBurnedUnit": "KILOCALORIE",
                         "totalDistance": sample.totalDistance?.doubleValue(for: HKUnit.meter()),
                         "totalDistanceUnit": "METER",
@@ -279,10 +290,14 @@ class HealthDataReader {
                         frequencies.append(samplePoint.frequency.doubleValue(for: HKUnit.hertz()))
                         leftEarSensitivities.append(
                             samplePoint.leftEarSensitivity!.doubleValue(
-                                for: HKUnit.decibelHearingLevel()))
+                                for: HKUnit.decibelHearingLevel()
+                            )
+                        )
                         rightEarSensitivities.append(
                             samplePoint.rightEarSensitivity!.doubleValue(
-                                for: HKUnit.decibelHearingLevel()))
+                                for: HKUnit.decibelHearingLevel()
+                            )
+                        )
                     }
                     return [
                         "uuid": "\(sample.uuid)",
@@ -326,14 +341,15 @@ class HealthDataReader {
                                     {
                                         let unit =
                                             key == "calories"
-                                            ? HKUnit.kilocalorie()
-                                            : key == "water"
+                                                ? HKUnit.kilocalorie()
+                                                : key == "water"
                                                 ? HKUnit.literUnit(with: .milli) : HKUnit.gram()
                                         sampleDict[key] = quantitySample.quantity.doubleValue(
-                                            for: unit)
-            }
-        }
-    }
+                                            for: unit
+                                        )
+                                    }
+                                }
+                            }
                         }
                         foods.append(sampleDict as! [String: Any?])
                     }
@@ -351,7 +367,6 @@ class HealthDataReader {
                         result(nil)
                     }
                 }
-
             }
         }
 
@@ -363,25 +378,26 @@ class HealthDataReader {
     ///   - call: Flutter method call
     ///   - result: Flutter result callback
     func getDataByUUID(call: FlutterMethodCall, result: @escaping FlutterResult) {
-
         guard let arguments = call.arguments as? NSDictionary,
-            let uuidarg = arguments["uuid"] as? String,
-            let dataTypeKey = arguments["dataTypeKey"] as? String
+              let uuidarg = arguments["uuid"] as? String,
+              let dataTypeKey = arguments["dataTypeKey"] as? String
         else {
             DispatchQueue.main.async {
                 result(
                     FlutterError(
                         code: "HEALTH_ERROR",
                         message: "Invalid Arguments - UUID or DataTypeKey invalid",
-                        details: nil))
+                        details: nil
+                    )
+                )
             }
             return
         }
 
         let dataUnitKey = arguments["dataUnitKey"] as? String
         var unit: HKUnit?
-        if let dataUnitKey = dataUnitKey {
-            unit = unitDict[dataUnitKey]  // Ensure unitDict exists and contains the key
+        if let dataUnitKey {
+            unit = unitDict[dataUnitKey] // Ensure unitDict exists and contains the key
         }
 
         guard let dataType = dataTypesDict[dataTypeKey] else {
@@ -390,7 +406,9 @@ class HealthDataReader {
                     FlutterError(
                         code: "INVALID_TYPE",
                         message: "Invalid dataTypeKey: \(dataTypeKey)",
-                        details: nil))
+                        details: nil
+                    )
+                )
             }
             return
         }
@@ -412,16 +430,17 @@ class HealthDataReader {
             sortDescriptors: nil
         ) {
             [self]
-            x, samplesOrNil, error in
-
+            _, samplesOrNil, error in
             guard error == nil else {
                 DispatchQueue.main.async {
                     result(
                         FlutterError(
                             code: "HEALTH_ERROR",
                             message:
-                                "Error getting health data by UUID: \(error!.localizedDescription)",
-                            details: nil))
+                            "Error getting health data by UUID: \(error!.localizedDescription)",
+                            details: nil
+                        )
+                    )
                 }
                 return
             }
@@ -434,7 +453,7 @@ class HealthDataReader {
             }
 
             if dataTypeKey == HealthConstants.WORKOUT_ROUTE {
-                self.processWorkoutRouteSamples(
+                processWorkoutRouteSamples(
                     samples: samples,
                     includeManualEntry: true
                 ) { value in
@@ -454,7 +473,8 @@ class HealthDataReader {
                     return [
                         "uuid": "\(sample.uuid)",
                         "value": sample.quantity.doubleValue(
-                            for: unit ?? HKUnit.internationalUnit()),
+                            for: unit ?? HKUnit.internationalUnit()
+                        ),
                         "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
@@ -525,7 +545,8 @@ class HealthDataReader {
                             $0.value == sample.workoutActivityType
                         })?.key,
                         "totalEnergyBurned": sample.totalEnergyBurned?.doubleValue(
-                            for: HKUnit.kilocalorie()),
+                            for: HKUnit.kilocalorie()
+                        ),
                         "totalEnergyBurnedUnit": "KILOCALORIE",
                         "totalDistance": sample.totalDistance?.doubleValue(for: HKUnit.meter()),
                         "totalDistanceUnit": "METER",
@@ -558,10 +579,14 @@ class HealthDataReader {
                         frequencies.append(samplePoint.frequency.doubleValue(for: HKUnit.hertz()))
                         leftEarSensitivities.append(
                             samplePoint.leftEarSensitivity!.doubleValue(
-                                for: HKUnit.decibelHearingLevel()))
+                                for: HKUnit.decibelHearingLevel()
+                            )
+                        )
                         rightEarSensitivities.append(
                             samplePoint.rightEarSensitivity!.doubleValue(
-                                for: HKUnit.decibelHearingLevel()))
+                                for: HKUnit.decibelHearingLevel()
+                            )
+                        )
                     }
                     return [
                         "uuid": "\(sample.uuid)",
@@ -605,11 +630,12 @@ class HealthDataReader {
                                     {
                                         let unit =
                                             key == "calories"
-                                            ? HKUnit.kilocalorie()
-                                            : key == "water"
+                                                ? HKUnit.kilocalorie()
+                                                : key == "water"
                                                 ? HKUnit.literUnit(with: .milli) : HKUnit.gram()
                                         sampleDict[key] = quantitySample.quantity.doubleValue(
-                                            for: unit)
+                                            for: unit
+                                        )
                                     }
                                 }
                             }
@@ -623,7 +649,7 @@ class HealthDataReader {
                 }
             } else {
                 if #available(iOS 14.0, *), let ecgSamples = samples as? [HKElectrocardiogram] {
-                    self.fetchEcgMeasurements(ecgSamples) { ecgDictionaries in
+                    fetchEcgMeasurements(ecgSamples) { ecgDictionaries in
                         DispatchQueue.main.async {
                             if let dictionaries = ecgDictionaries as? [NSDictionary] {
                                 result(dictionaries.first)
@@ -657,7 +683,8 @@ class HealthDataReader {
         let intervalInSecond = (arguments?["interval"] as? Int) ?? 1
         let recordingMethodsToFilter = (arguments?["recordingMethodsToFilter"] as? [Int]) ?? []
         let includeManualEntry = !recordingMethodsToFilter.contains(
-            HealthConstants.RecordingMethod.manual.rawValue)
+            HealthConstants.RecordingMethod.manual.rawValue
+        )
 
         // interval in seconds
         var interval = DateComponents()
@@ -672,7 +699,9 @@ class HealthDataReader {
                     FlutterError(
                         code: "INVALID_TYPE",
                         message: "Invalid dataTypeKey for interval query: \(dataTypeKey)",
-                        details: nil))
+                        details: nil
+                    )
+                )
             }
             return
         }
@@ -680,9 +709,11 @@ class HealthDataReader {
         var predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: [])
         if !includeManualEntry {
             let manualPredicate = NSPredicate(
-                format: "metadata.%K != YES", HKMetadataKeyWasUserEntered)
+                format: "metadata.%K != YES", HKMetadataKeyWasUserEntered
+            )
             predicate = NSCompoundPredicate(
-                type: .and, subpredicates: [predicate, manualPredicate])
+                type: .and, subpredicates: [predicate, manualPredicate]
+            )
         }
 
         let statisticsOptions = statisticsOption(for: dataTypeKey)
@@ -696,24 +727,28 @@ class HealthDataReader {
         )
 
         query.initialResultsHandler = { [weak self] _, statisticCollectionOrNil, error in
-            guard let self = self else {
+            guard let self else {
                 DispatchQueue.main.async {
                     result(
                         FlutterError(
                             code: "INTERNAL_ERROR",
                             message: "Internal instance reference lost",
-                            details: nil))
+                            details: nil
+                        )
+                    )
                 }
                 return
             }
 
-            if let error = error {
+            if let error {
                 DispatchQueue.main.async {
                     result(
                         FlutterError(
                             code: "STATISTICS_ERROR",
                             message: "Error getting statistics: \(error.localizedDescription)",
-                            details: nil))
+                            details: nil
+                        )
+                    )
                 }
                 return
             }
@@ -728,8 +763,8 @@ class HealthDataReader {
             var dictionaries = [[String: Any]]()
             collection.enumerateStatistics(from: dateFrom, to: dateTo) {
                 [weak self] statisticData, _ in
-                guard let self = self else { return }
-                if let dataUnitKey = dataUnitKey, let unit = self.unitDict[dataUnitKey] {
+                guard let self else { return }
+                if let dataUnitKey, let unit = unitDict[dataUnitKey] {
                     var value: Double? = nil
                     switch statisticsOptions {
                     case .cumulativeSum:
@@ -743,7 +778,7 @@ class HealthDataReader {
                     default:
                         value = statisticData.sumQuantity()?.doubleValue(for: unit)
                     }
-                    if let value = value {
+                    if let value {
                         let dict = [
                             "value": value,
                             "date_from": Int(statisticData.startDate.timeIntervalSince1970 * 1000),
@@ -791,7 +826,8 @@ class HealthDataReader {
         let endTime = (arguments?["endTime"] as? NSNumber) ?? 0
         let recordingMethodsToFilter = (arguments?["recordingMethodsToFilter"] as? [Int]) ?? []
         let includeManualEntry = !recordingMethodsToFilter.contains(
-            HealthConstants.RecordingMethod.manual.rawValue)
+            HealthConstants.RecordingMethod.manual.rawValue
+        )
 
         // Convert dates from milliseconds to Date()
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
@@ -799,12 +835,15 @@ class HealthDataReader {
 
         let sampleType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
         var predicate = HKQuery.predicateForSamples(
-            withStart: dateFrom, end: dateTo, options: .strictStartDate)
+            withStart: dateFrom, end: dateTo, options: .strictStartDate
+        )
         if !includeManualEntry {
             let manualPredicate = NSPredicate(
-                format: "metadata.%K != YES", HKMetadataKeyWasUserEntered)
+                format: "metadata.%K != YES", HKMetadataKeyWasUserEntered
+            )
             predicate = NSCompoundPredicate(
-                type: .and, subpredicates: [predicate, manualPredicate])
+                type: .and, subpredicates: [predicate, manualPredicate]
+            )
         }
 
         let query = HKStatisticsCollectionQuery(
@@ -814,21 +853,23 @@ class HealthDataReader {
             anchorDate: dateFrom,
             intervalComponents: DateComponents(day: 1)
         )
-        query.initialResultsHandler = { query, results, error in
-            guard let results = results else {
+        query.initialResultsHandler = { _, results, error in
+            guard let results else {
                 let errorMessage = error?.localizedDescription ?? "Unknown error"
                 DispatchQueue.main.async {
                     result(
                         FlutterError(
                             code: "STEPS_ERROR",
                             message: "Error getting step count: \(errorMessage)",
-                            details: nil))
+                            details: nil
+                        )
+                    )
                 }
                 return
             }
 
             var totalSteps = 0.0
-            results.enumerateStatistics(from: dateFrom, to: dateTo) { statistics, stop in
+            results.enumerateStatistics(from: dateFrom, to: dateTo) { statistics, _ in
                 if let quantity = statistics.sumQuantity() {
                     let unit = HKUnit.count()
                     totalSteps += quantity.doubleValue(for: unit)
@@ -863,7 +904,8 @@ class HealthDataReader {
 
         for route in routeSamples {
             if !includeManualEntry,
-                route.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true {
+               route.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true
+            {
                 continue
             }
 
@@ -872,8 +914,7 @@ class HealthDataReader {
 
             let routeQuery = HKWorkoutRouteQuery(route: route) {
                 [weak self] _, locationsOrNil, done, error in
-
-                if let error = error {
+                if let error {
                     synchronizationQueue.async {
                         if capturedError == nil {
                             capturedError = error
@@ -908,7 +949,9 @@ class HealthDataReader {
                     FlutterError(
                         code: "ROUTE_ERROR",
                         message: "Error getting workout routes: \(error.localizedDescription)",
-                        details: nil))
+                        details: nil
+                    )
+                )
             } else {
                 completion(routeDictionaries)
             }
@@ -941,7 +984,7 @@ class HealthDataReader {
                     entry["speedAccuracy"] = location.speedAccuracy
                 }
             }
-            if location.course >= 0 && location.course <= 360 {
+            if location.course >= 0, location.course <= 360 {
                 entry["course"] = location.course
             }
             if #available(iOS 13.4, *) {
@@ -1043,7 +1086,7 @@ class HealthDataReader {
 
             let q = HKElectrocardiogramQuery(ecg) { _, res in
                 switch res {
-                case .measurement(let m):
+                case let .measurement(m):
                     if let v = m.quantity(for: .appleWatchSimilarToLeadI)?
                         .doubleValue(for: HKUnit.volt())
                     {
@@ -1059,7 +1102,8 @@ class HealthDataReader {
                         "averageHeartRate": ecg.averageHeartRate?
                             .doubleValue(
                                 for: HKUnit.count()
-                                    .unitDivided(by: HKUnit.minute())),
+                                    .unitDivided(by: HKUnit.minute())
+                            ),
                         "samplingFrequency": ecg.samplingFrequency?
                             .doubleValue(for: HKUnit.hertz()),
                         "classification": ecg.classification.rawValue,
@@ -1072,7 +1116,7 @@ class HealthDataReader {
                     dictionaries.append(dict)
                     lock.unlock()
                     group.leave()
-                case .error(let e):
+                case let .error(e):
                     print("ECG query error: \(e)")
                     group.leave()
                 @unknown default:
@@ -1080,7 +1124,7 @@ class HealthDataReader {
                     group.leave()
                 }
             }
-            self.healthStore.execute(q)
+            healthStore.execute(q)
         }
 
         group.notify(queue: .main) {

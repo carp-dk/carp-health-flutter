@@ -105,6 +105,7 @@ enum HealthDataType {
   MENSTRUATION_FLOW,
   WATER_TEMPERATURE,
   UNDERWATER_DEPTH,
+  SLEEP_WRIST_TEMPERATURE,
 
   // Heart Rate events (specific to Apple Watch)
   HIGH_HEART_RATE_EVENT,
@@ -116,6 +117,7 @@ enum HealthDataType {
   // Health Connect
   TOTAL_CALORIES_BURNED,
   ACTIVITY_INTENSITY,
+  SKIN_TEMPERATURE,
 }
 
 /// Access types for Health Data.
@@ -223,6 +225,7 @@ const List<HealthDataType> dataTypeKeysIOS = [
   HealthDataType.UNDERWATER_DEPTH,
   HealthDataType.UV_INDEX,
   HealthDataType.TOTAL_CALORIES_BURNED,
+  HealthDataType.SLEEP_WRIST_TEMPERATURE,
 ];
 
 /// List of data types available on Android
@@ -264,6 +267,7 @@ const List<HealthDataType> dataTypeKeysAndroid = [
   HealthDataType.TOTAL_CALORIES_BURNED,
   HealthDataType.MENSTRUATION_FLOW,
   HealthDataType.ACTIVITY_INTENSITY,
+  HealthDataType.SKIN_TEMPERATURE,
 ];
 
 /// Maps a [HealthDataType] to a [HealthDataUnit].
@@ -283,6 +287,7 @@ const Map<HealthDataType, HealthDataUnit> dataTypeToUnit = {
   HealthDataType.LEAN_BODY_MASS: HealthDataUnit.KILOGRAM,
   HealthDataType.BODY_MASS_INDEX: HealthDataUnit.NO_UNIT,
   HealthDataType.BODY_TEMPERATURE: HealthDataUnit.DEGREE_CELSIUS,
+  HealthDataType.SLEEP_WRIST_TEMPERATURE: HealthDataUnit.DEGREE_CELSIUS,
   HealthDataType.BODY_WATER_MASS: HealthDataUnit.KILOGRAM,
   HealthDataType.DIETARY_CARBS_CONSUMED: HealthDataUnit.GRAM,
   HealthDataType.DIETARY_CAFFEINE: HealthDataUnit.GRAM,
@@ -387,6 +392,7 @@ const Map<HealthDataType, HealthDataUnit> dataTypeToUnit = {
   // Health Connect
   HealthDataType.TOTAL_CALORIES_BURNED: HealthDataUnit.KILOCALORIE,
   HealthDataType.ACTIVITY_INTENSITY: HealthDataUnit.MINUTE,
+  HealthDataType.SKIN_TEMPERATURE: HealthDataUnit.DEGREE_CELSIUS,
 };
 
 // const PlatformTypeJsonValue = {

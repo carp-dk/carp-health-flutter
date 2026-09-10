@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.response.InsertRecordsResponse
 import androidx.health.connect.client.units.*
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
@@ -213,6 +214,68 @@ class HealthDataWriter(
         }
 
     /**
+     * Writes a single health data record to Health Connect. Supports most basic health metrics with
+     * automatic type conversion and validation.
+     *
+     * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'value',
+     * 'recordingMethod'
+     * @param result Flutter result callback returning string inserted record UUID or empty string on failure
+     */
+    fun writeDataUUID(call: MethodCall, result: Result) {
+        val type = call.argument<String>("dataTypeKey")!!
+        val startTime = call.argument<Long>("startTime")!!
+        val endTime = call.argument<Long>("endTime")!!
+        val value = call.argument<Double>("value")!!
+        val clientRecordId: String? = call.argument("clientRecordId")
+        val clientRecordVersion: Double? = call.argument<Double>("clientRecordVersion")
+        val recordingMethod = call.argument<Int>("recordingMethod")!!
+        val deviceType: Int? = call.argument<Int>("deviceType")
+
+        Log.i(
+                "FLUTTER_HEALTH",
+                "Writing data for $type between $startTime and $endTime, value: $value, recording method: $recordingMethod"
+        )
+
+        val metadata: Metadata = buildMetadata(
+            recordingMethod = recordingMethod,
+            clientRecordId = clientRecordId,
+            clientRecordVersion = clientRecordVersion?.toLong(),
+            deviceType = deviceType,
+        )
+
+        val record = createRecord(type, startTime, endTime, value, metadata)
+
+        if (record == null) {
+            result.success("")
+            return
+        }
+
+        scope.launch {
+            try {
+                // Insert records into Health Connect
+                val insertResponse: InsertRecordsResponse = healthConnectClient.insertRecords(listOf(record))
+
+                // Extract UUID from the first inserted record
+                val insertedUUID = insertResponse.recordIdsList.firstOrNull() ?: ""
+
+                if (insertedUUID.isEmpty()) {
+                    Log.e("FLUTTER_HEALTH::ERROR", "UUID is empty! No records were inserted.")
+                } else {
+                    Log.i(
+                        "FLUTTER_HEALTH::SUCCESS",
+                        "[Health Connect] Workout $insertedUUID was successfully added!"
+                    )
+                }
+
+                result.success(insertedUUID)
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error writing $type: ${e.message}")
+                result.success("")
+            }
+        }
+    }
+
+    /**
      * Writes a comprehensive workout session with optional distance and calorie data. Creates an
      * ExerciseSessionRecord with associated DistanceRecord and TotalCaloriesBurnedRecord if
      * supplementary data is provided.
@@ -299,6 +362,113 @@ class HealthDataWriter(
                 Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
                 Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
                 result.success(false)
+            }
+        }
+    }
+
+    /**
+     * Writes a comprehensive workout session with optional distance and calorie data. Creates an
+     * ExerciseSessionRecord with associated DistanceRecord and TotalCaloriesBurnedRecord if
+     * supplementary data is provided.
+     *
+     * @param call Method call containing workout details: 'activityType', 'startTime', 'endTime',
+     * ```
+     *             'totalEnergyBurned', 'totalDistance', 'recordingMethod', 'title'
+     * @param result
+     * ```
+     * Flutter result callback returning string inserted record UUID or empty string on failure
+     */
+    fun writeWorkoutDataUUID(call: MethodCall, result: Result) {
+        val type = call.argument<String>("activityType")!!
+        val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
+        val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
+        val totalEnergyBurned = call.argument<Int>("totalEnergyBurned")
+        val totalDistance = call.argument<Int>("totalDistance")
+        val recordingMethod = call.argument<Int>("recordingMethod")!!
+        val deviceType: Int? = call.argument<Int>("deviceType")
+        val workoutMetadata = buildMetadata(recordingMethod = recordingMethod, deviceType = deviceType)
+
+        if (!HealthConstants.workoutTypeMap.containsKey(type)) {
+            result.success("")
+            Log.w(
+                "FLUTTER_HEALTH::ERROR",
+                "[Health Connect] Workout type not supported"
+            )
+            return
+        }
+
+        val workoutType = HealthConstants.workoutTypeMap[type]!!
+        val title = call.argument<String>("title") ?: type
+
+        scope.launch {
+            try {
+                val list = mutableListOf<Record>()
+
+                // Add exercise session record
+                list.add(
+                        ExerciseSessionRecord(
+                                startTime = startTime,
+                                startZoneOffset = null,
+                                endTime = endTime,
+                                endZoneOffset = null,
+                                exerciseType = workoutType,
+                                title = title,
+                                metadata = workoutMetadata,
+                        ),
+                )
+
+                // Add distance record if provided
+                if (totalDistance != null) {
+                    list.add(
+                            DistanceRecord(
+                                    startTime = startTime,
+                                    startZoneOffset = null,
+                                    endTime = endTime,
+                                    endZoneOffset = null,
+                                    distance = Length.meters(totalDistance.toDouble()),
+                                    metadata = workoutMetadata,
+                            ),
+                    )
+                }
+
+                // Add energy burned record if provided
+                if (totalEnergyBurned != null) {
+                    list.add(
+                            TotalCaloriesBurnedRecord(
+                                    startTime = startTime,
+                                    startZoneOffset = null,
+                                    endTime = endTime,
+                                    endZoneOffset = null,
+                                    energy = Energy.kilocalories(totalEnergyBurned.toDouble()),
+                                    metadata = workoutMetadata,
+                            ),
+                    )
+                }
+
+                // Insert records into Health Connect
+                val insertResponse: InsertRecordsResponse = healthConnectClient.insertRecords(list)
+
+                // Extract UUID from the first inserted record
+                val insertedUUID = insertResponse.recordIdsList.firstOrNull() ?: ""
+
+                if (insertedUUID.isEmpty()) {
+                    Log.e("FLUTTER_HEALTH::ERROR", "UUID is empty! No records were inserted.")
+                }
+
+                Log.i(
+                    "FLUTTER_HEALTH::SUCCESS",
+                    "[Health Connect] Workout $insertedUUID was successfully added!"
+                )
+
+                result.success(insertedUUID)
+            } catch (e: Exception) {
+                Log.w(
+                        "FLUTTER_HEALTH::ERROR",
+                        "[Health Connect] There was an error adding the workout",
+                )
+                Log.w("FLUTTER_HEALTH::ERROR", e.message ?: "unknown error")
+                Log.w("FLUTTER_HEALTH::ERROR", e.stackTrace.toString())
+                result.success("")
             }
         }
     }
@@ -663,6 +833,22 @@ class HealthDataWriter(
                             zoneOffset = null,
                             metadata = metadata,
                     )
+            SKIN_TEMPERATURE ->
+                    SkinTemperatureRecord(
+                            startTime = Instant.ofEpochMilli(startTime),
+                            endTime = Instant.ofEpochMilli(endTime),
+                            startZoneOffset = null,
+                            endZoneOffset = null,
+                            baseline = Temperature.celsius(value),
+                            measurementLocation = SkinTemperatureRecord.MEASUREMENT_LOCATION_UNKNOWN,
+                            deltas = listOf(
+                                    SkinTemperatureRecord.Delta(
+                                            time = Instant.ofEpochMilli(startTime),
+                                            delta = TemperatureDelta.celsius(0.0),
+                                    )
+                            ),
+                            metadata = metadata,
+                    )
             BODY_WATER_MASS ->
                     BodyWaterMassRecord(
                             time = Instant.ofEpochMilli(startTime),
@@ -907,6 +1093,7 @@ class HealthDataWriter(
         private const val ACTIVE_ENERGY_BURNED = "ACTIVE_ENERGY_BURNED"
         private const val HEART_RATE = "HEART_RATE"
         private const val BODY_TEMPERATURE = "BODY_TEMPERATURE"
+        private const val SKIN_TEMPERATURE = "SKIN_TEMPERATURE"
         private const val BODY_WATER_MASS = "BODY_WATER_MASS"
         private const val BLOOD_OXYGEN = "BLOOD_OXYGEN"
         private const val BLOOD_GLUCOSE = "BLOOD_GLUCOSE"

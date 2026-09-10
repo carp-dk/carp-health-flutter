@@ -2,14 +2,14 @@ import HealthKit
 
 /// Constants used across the Health plugin
 enum HealthConstants {
-    // Recording methods
+    /// Recording methods
     enum RecordingMethod: Int {
-        case unknown = 0           // RECORDING_METHOD_UNKNOWN (not supported on iOS)
-        case active = 1            // RECORDING_METHOD_ACTIVELY_RECORDED (not supported on iOS)
-        case automatic = 2         // RECORDING_METHOD_AUTOMATICALLY_RECORDED
-        case manual = 3            // RECORDING_METHOD_MANUAL_ENTRY
+        case unknown = 0 // RECORDING_METHOD_UNKNOWN (not supported on iOS)
+        case active = 1 // RECORDING_METHOD_ACTIVELY_RECORDED (not supported on iOS)
+        case automatic = 2 // RECORDING_METHOD_AUTOMATICALLY_RECORDED
+        case manual = 3 // RECORDING_METHOD_MANUAL_ENTRY
     }
-    
+
     // Health Data Type Keys
     static let ACTIVE_ENERGY_BURNED = "ACTIVE_ENERGY_BURNED"
     static let ATRIAL_FIBRILLATION_BURDEN = "ATRIAL_FIBRILLATION_BURDEN"
@@ -26,7 +26,8 @@ enum HealthConstants {
     static let LEAN_BODY_MASS = "LEAN_BODY_MASS"
     static let BODY_MASS_INDEX = "BODY_MASS_INDEX"
     static let BODY_TEMPERATURE = "BODY_TEMPERATURE"
-    
+    static let SLEEP_WRIST_TEMPERATURE = "SLEEP_WRIST_TEMPERATURE"
+
     // Nutrition
     static let DIETARY_CARBS_CONSUMED = "DIETARY_CARBS_CONSUMED"
     static let DIETARY_ENERGY_CONSUMED = "DIETARY_ENERGY_CONSUMED"
@@ -67,7 +68,7 @@ enum HealthConstants {
     static let DIETARY_MANGANESE = "DIETARY_MANGANESE"
     static let DIETARY_MOLYBDENUM = "DIETARY_MOLYBDENUM"
     static let DIETARY_SELENIUM = "DIETARY_SELENIUM"
-    
+
     static let NUTRITION_KEYS: [String: HKQuantityTypeIdentifier] = [
         "calories": .dietaryEnergyConsumed,
         "protein": .dietaryProtein,
@@ -77,11 +78,11 @@ enum HealthConstants {
         "vitamin_a": .dietaryVitaminA,
         "b1_thiamine": .dietaryThiamin,
         "b2_riboflavin": .dietaryRiboflavin,
-        "b3_niacin" : .dietaryNiacin,
-        "b5_pantothenic_acid" : .dietaryPantothenicAcid,
-        "b6_pyridoxine" : .dietaryVitaminB6,
-        "b7_biotin" : .dietaryBiotin,
-        "b9_folate" : .dietaryFolate,
+        "b3_niacin": .dietaryNiacin,
+        "b5_pantothenic_acid": .dietaryPantothenicAcid,
+        "b6_pyridoxine": .dietaryVitaminB6,
+        "b7_biotin": .dietaryBiotin,
+        "b9_folate": .dietaryFolate,
         "b12_cobalamin": .dietaryVitaminB12,
         "vitamin_c": .dietaryVitaminC,
         "vitamin_d": .dietaryVitaminD,
@@ -111,7 +112,7 @@ enum HealthConstants {
         "water": .dietaryWater,
         "zinc": .dietaryZinc,
     ]
-    
+
     static let ELECTRODERMAL_ACTIVITY = "ELECTRODERMAL_ACTIVITY"
     static let FORCED_EXPIRATORY_VOLUME = "FORCED_EXPIRATORY_VOLUME"
     static let HEART_RATE = "HEART_RATE"
@@ -140,7 +141,7 @@ enum HealthConstants {
     static let SLEEP_IN_BED = "SLEEP_IN_BED"
     static let SLEEP_LIGHT = "SLEEP_LIGHT"
     static let SLEEP_REM = "SLEEP_REM"
-    
+
     static let EXERCISE_TIME = "EXERCISE_TIME"
     static let WORKOUT = "WORKOUT"
     static let WORKOUT_ROUTE = "WORKOUT_ROUTE"
@@ -158,7 +159,7 @@ enum HealthConstants {
     static let WATER_TEMPERATURE = "WATER_TEMPERATURE"
     static let UNDERWATER_DEPTH = "UNDERWATER_DEPTH"
     static let UV_INDEX = "UV_INDEX"
-    
+
     // Health Unit types
     static let GRAM = "GRAM"
     static let KILOGRAM = "KILOGRAM"

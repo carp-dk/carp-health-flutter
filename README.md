@@ -37,6 +37,8 @@ First, add the following 2 entries to the `Info.plist`:
 
 Then, open your Flutter project in Xcode by right clicking on the "ios" folder and selecting "Open in Xcode". Next, enable "HealthKit" by adding a capability inside the "Signing & Capabilities" tab of the Runner target's settings.
 
+The iOS side of the plugin requires **iOS 15.0 or later** and ships both as a Swift package (`ios/health`) and as a CocoaPods pod. Apps with [Swift Package Manager](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers) enabled (Flutter 3.44 or later) get the Swift package, everything else keeps using CocoaPods. No extra setup is needed in either case.
+
 ### Google Health Connect (Android)
 
 Health Connect requires the following lines in the `AndroidManifest.xml` file (see also the example app):
@@ -462,6 +464,8 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | INSULIN_DELIVERY             | INTERNATIONAL_UNIT      | yes              |                           |                                                                                                                                    |
 | MENSTRUATION_FLOW            | NO_UNIT                 | yes              | yes                       |                                                                                                                                    |
 | WATER_TEMPERATURE            | DEGREE_CELSIUS          | yes              |                           | Related to/Requires Apple Watch Ultra's Underwater Diving Workout                                                                  |
+| SLEEP_WRIST_TEMPERATURE      | DEGREE_CELSIUS          | yes              |                           | READ Only - `appleSleepingWristTemperature`                                                                                        |
+| SKIN_TEMPERATURE             | DEGREE_CELSIUS          |                  | yes                       | Must check health connect for availability                                                                                         |
 | UNDERWATER_DEPTH             | METER                   | yes              |                           | Related to/Requires Apple Watch Ultra's Underwater Diving Workout                                                                  |
 | UV_INDEX                     | COUNT                   | yes              |                           |                                                                                                                                    |
 | LEAN_BODY_MASS               | KILOGRAMS               | yes              | yes                       |                                                                                                                                    |

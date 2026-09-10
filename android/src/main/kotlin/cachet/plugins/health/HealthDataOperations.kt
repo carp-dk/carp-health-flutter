@@ -167,6 +167,23 @@ class HealthDataOperations(
     }
 
     /**
+     * Checks if Skin Temperature data is available on the current device.
+     * Availability is device-specific and exposed via Health Connect features.
+     *
+     * @param call Method call from Flutter (unused)
+     * @param result Flutter result callback returning boolean availability status
+     */
+    fun isSkinTemperatureAvailable(call: MethodCall, result: Result) {
+        scope.launch {
+            result.success(
+                    healthConnectClient.features.getFeatureStatus(
+                            HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE
+                    ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+            )
+        }
+    }
+
+    /**
      * Deletes all health records of a specified type within a given time range. Performs bulk
      * deletion based on data type and time window.
      *

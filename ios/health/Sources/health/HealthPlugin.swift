@@ -3,8 +3,7 @@ import HealthKit
 import UIKit
 
 /// Main plugin class that coordinates health data operations
-public class SwiftHealthPlugin: NSObject, FlutterPlugin {
-    
+public class HealthPlugin: NSObject, FlutterPlugin {
     // Health store and type dictionaries
     let healthStore = HKHealthStore()
     var healthDataTypes = [HKSampleType]()
@@ -19,52 +18,46 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     var workoutActivityTypeMap: [String: HKWorkoutActivityType] = [:]
     var characteristicsTypesDict: [String: HKCharacteristicType] = [:]
     var nutritionList: [String] = []
-    
-    // Service classes
-    private lazy var healthDataReader: HealthDataReader = {
-        return HealthDataReader(
-            healthStore: healthStore,
-            dataTypesDict: dataTypesDict,
-            dataQuantityTypesDict: dataQuantityTypesDict,
-            unitDict: unitDict,
-            workoutActivityTypeMap: workoutActivityTypeMap,
-            characteristicsTypesDict: characteristicsTypesDict
-        )
-    }()
-    
-    private lazy var healthDataWriter: HealthDataWriter = {
-        return HealthDataWriter(
-            healthStore: healthStore,
-            dataTypesDict: dataTypesDict,
-            unitDict: unitDict,
-            workoutActivityTypeMap: workoutActivityTypeMap
-        )
-    }()
-    
-    private lazy var healthDataOperations: HealthDataOperations = {
-        return HealthDataOperations(
-            healthStore: healthStore,
-            dataTypesDict: dataTypesDict,
-            characteristicsTypesDict: characteristicsTypesDict,
-            nutritionList: nutritionList
-        )
-    }()
-    
+
+    /// Service classes
+    private lazy var healthDataReader: HealthDataReader = .init(
+        healthStore: healthStore,
+        dataTypesDict: dataTypesDict,
+        dataQuantityTypesDict: dataQuantityTypesDict,
+        unitDict: unitDict,
+        workoutActivityTypeMap: workoutActivityTypeMap,
+        characteristicsTypesDict: characteristicsTypesDict
+    )
+
+    private lazy var healthDataWriter: HealthDataWriter = .init(
+        healthStore: healthStore,
+        dataTypesDict: dataTypesDict,
+        unitDict: unitDict,
+        workoutActivityTypeMap: workoutActivityTypeMap
+    )
+
+    private lazy var healthDataOperations: HealthDataOperations = .init(
+        healthStore: healthStore,
+        dataTypesDict: dataTypesDict,
+        characteristicsTypesDict: characteristicsTypesDict,
+        nutritionList: nutritionList
+    )
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
-            name: "flutter_health", binaryMessenger: registrar.messenger())
-        let instance = SwiftHealthPlugin()
+            name: "flutter_health", binaryMessenger: registrar.messenger()
+        )
+        let instance = HealthPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
-    
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        
         initializeTypes()
-        
+
         switch call.method {
         case "checkIfHealthDataAvailable":
             healthDataOperations.checkIfHealthDataAvailable(call: call, result: result)
-            
+
         case "requestAuthorization":
             do {
                 try healthDataOperations.requestAuthorization(call: call, result: result)
@@ -73,22 +66,31 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error requesting authorization: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "getData":
             healthDataReader.getData(call: call, result: result)
-            
+
         case "getDataByUUID":
             healthDataReader.getDataByUUID(call: call, result: result)
-            
+
         case "getIntervalData":
             healthDataReader.getIntervalData(call: call, result: result)
-            
+
         case "getTotalStepsInInterval":
             healthDataReader.getTotalStepsInInterval(call: call, result: result)
-            
+
         case "writeData":
             do {
                 try healthDataWriter.writeData(call: call, result: result)
+            } catch {
+                result(FlutterError(code: "WRITE_ERROR",
+                                    message: "Error writing data: \(error.localizedDescription)",
+                                    details: nil))
+            }
+
+        case "writeDataUUID":
+            do {
+                try healthDataWriter.writeDataUUID(call: call, result: result)
             } catch {
                 result(FlutterError(code: "WRITE_ERROR",
                                     message: "Error writing data: \(error.localizedDescription)",
@@ -103,7 +105,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error writing audiogram: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "writeBloodPressure":
             do {
                 try healthDataWriter.writeBloodPressure(call: call, result: result)
@@ -112,7 +114,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error writing blood pressure: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "writeMeal":
             do {
                 try healthDataWriter.writeMeal(call: call, result: result)
@@ -121,7 +123,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error writing meal: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "writeInsulinDelivery":
             do {
                 try healthDataWriter.writeInsulinDelivery(call: call, result: result)
@@ -130,7 +132,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error writing insulin delivery: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "writeWorkoutData":
             do {
                 try healthDataWriter.writeWorkoutData(call: call, result: result)
@@ -140,18 +142,28 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     details: nil))
             }
             
+        case "writeWorkoutDataUUID":
+            do {
+                try healthDataWriter.writeWorkoutDataUUID(call: call, result: result)
+            } catch {
+                result(FlutterError(code: "WRITE_ERROR",
+                                    message: "Error writing workout: \(error.localizedDescription)",
+                                    details: nil))
+            }
+            
+
         case "startWorkoutRoute":
             healthDataWriter.startWorkoutRoute(call: call, result: result)
-            
+
         case "insertWorkoutRouteData":
             healthDataWriter.insertWorkoutRouteData(call: call, result: result)
-            
+
         case "finishWorkoutRoute":
             healthDataWriter.finishWorkoutRoute(call: call, result: result)
-            
+
         case "discardWorkoutRoute":
             healthDataWriter.discardWorkoutRoute(call: call, result: result)
-            
+
         case "writeMenstruationFlow":
             do {
                 try healthDataWriter.writeMenstruationFlow(call: call, result: result)
@@ -160,7 +172,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error writing menstruation flow: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "hasPermissions":
             do {
                 try healthDataOperations.hasPermissions(call: call, result: result)
@@ -169,7 +181,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error checking permissions: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "delete":
             do {
                 healthDataOperations.delete(call: call, result: result)
@@ -178,7 +190,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error deleting data: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         case "deleteByUUID":
             do {
                 try healthDataOperations.deleteByUUID(call: call, result: result)
@@ -187,12 +199,12 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error deleting data by UUID: \(error.localizedDescription)",
                                     details: nil))
             }
-            
+
         default:
             result(FlutterMethodNotImplemented)
         }
     }
-    
+
     /// Initialize all the health data types, unit dictionaries, and other required data structures
     func initializeTypes() {
         // init units
@@ -237,16 +249,16 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[HealthConstants.INTERNATIONAL_UNIT] = HKUnit.internationalUnit()
         unitDict[HealthConstants.COUNT] = HKUnit.count()
         unitDict[HealthConstants.PERCENT] = HKUnit.percent()
-        unitDict[HealthConstants.BEATS_PER_MINUTE] = HKUnit.init(from: "count/min")
-        unitDict[HealthConstants.RESPIRATIONS_PER_MINUTE] = HKUnit.init(from: "count/min")
-        unitDict[HealthConstants.MILLIGRAM_PER_DECILITER] = HKUnit.init(from: "mg/dL")
-        unitDict[HealthConstants.METER_PER_SECOND] = HKUnit.init(from: "m/s")
-        unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit.init(from: "")
-        unitDict[HealthConstants.NO_UNIT] = HKUnit.init(from: "")
-        
+        unitDict[HealthConstants.BEATS_PER_MINUTE] = HKUnit(from: "count/min")
+        unitDict[HealthConstants.RESPIRATIONS_PER_MINUTE] = HKUnit(from: "count/min")
+        unitDict[HealthConstants.MILLIGRAM_PER_DECILITER] = HKUnit(from: "mg/dL")
+        unitDict[HealthConstants.METER_PER_SECOND] = HKUnit(from: "m/s")
+        unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit(from: "")
+        unitDict[HealthConstants.NO_UNIT] = HKUnit(from: "")
+
         // init workout activity types
         initializeWorkoutTypes()
-        
+
         nutritionList = [
             HealthConstants.DIETARY_ENERGY_CONSUMED,
             HealthConstants.DIETARY_CARBS_CONSUMED,
@@ -288,48 +300,48 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             HealthConstants.DIETARY_MOLYBDENUM,
             HealthConstants.DIETARY_SELENIUM,
         ]
-        
+
         // Set up iOS 11 specific types (ordinary health data quantity types)
         if #available(iOS 11.0, *) {
             initializeIOS11Types()
             healthDataQuantityTypes = Array(dataQuantityTypesDict.values)
         }
-        
+
         // Set up heart rate data types specific to the apple watch, requires iOS 12
         if #available(iOS 12.2, *) {
             initializeIOS12Types()
         }
-        
+
         // Set up iOS 13 specific types (ordinary health data types)
         if #available(iOS 13.0, *) {
             initializeIOS13Types()
             healthDataTypes = Array(dataTypesDict.values)
             characteristicsDataTypes = Array(characteristicsTypesDict.values)
         }
-        
+
         if #available(iOS 13.6, *) {
             initializeIOS13_6Types()
         }
-        
+
         if #available(iOS 14.0, *) {
             initializeIOS14Types()
         }
-        
+
         if #available(iOS 16.0, *) {
             initializeIOS16Types()
         }
-        
+
         // Concatenate heart events, headache and health data types (both may be empty)
         allDataTypes = Set(heartRateEventTypes + healthDataTypes)
         allDataTypes = allDataTypes.union(headacheType)
     }
-    
+
     /// Initialize iOS 11 specific data types
     @available(iOS 11.0, *)
     private func initializeIOS11Types() {
         dataTypesDict[HealthConstants.APPLE_STAND_HOUR] = HKSampleType.categoryType(forIdentifier: .appleStandHour)!
         dataTypesDict[HealthConstants.WORKOUT_ROUTE] = HKSeriesType.workoutRoute()
-        
+
         dataQuantityTypesDict[HealthConstants.ACTIVE_ENERGY_BURNED] = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
         dataQuantityTypesDict[HealthConstants.BASAL_ENERGY_BURNED] = HKQuantityType.quantityType(forIdentifier: .basalEnergyBurned)!
         dataQuantityTypesDict[HealthConstants.BLOOD_GLUCOSE] = HKQuantityType.quantityType(forIdentifier: .bloodGlucose)!
@@ -340,10 +352,10 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataQuantityTypesDict[HealthConstants.LEAN_BODY_MASS] = HKSampleType.quantityType(forIdentifier: .leanBodyMass)!
         dataQuantityTypesDict[HealthConstants.BODY_MASS_INDEX] = HKQuantityType.quantityType(forIdentifier: .bodyMassIndex)!
         dataQuantityTypesDict[HealthConstants.BODY_TEMPERATURE] = HKQuantityType.quantityType(forIdentifier: .bodyTemperature)!
-        
+
         // Initialize nutrition quantity types
         initializeNutritionQuantityTypes()
-        
+
         dataQuantityTypesDict[HealthConstants.ELECTRODERMAL_ACTIVITY] = HKQuantityType.quantityType(forIdentifier: .electrodermalActivity)!
         dataQuantityTypesDict[HealthConstants.FORCED_EXPIRATORY_VOLUME] = HKQuantityType.quantityType(forIdentifier: .forcedExpiratoryVolume1)!
         dataQuantityTypesDict[HealthConstants.HEART_RATE] = HKQuantityType.quantityType(forIdentifier: .heartRate)!
@@ -359,7 +371,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataQuantityTypesDict[HealthConstants.DISTANCE_CYCLING] = HKQuantityType.quantityType(forIdentifier: .distanceCycling)!
         dataQuantityTypesDict[HealthConstants.FLIGHTS_CLIMBED] = HKQuantityType.quantityType(forIdentifier: .flightsClimbed)!
     }
-    
+
     /// Initialize nutrition quantity types
     @available(iOS 11.0, *)
     private func initializeNutritionQuantityTypes() {
@@ -403,7 +415,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataQuantityTypesDict[HealthConstants.DIETARY_MOLYBDENUM] = HKSampleType.quantityType(forIdentifier: .dietaryMolybdenum)!
         dataQuantityTypesDict[HealthConstants.DIETARY_SELENIUM] = HKSampleType.quantityType(forIdentifier: .dietarySelenium)!
     }
-    
+
     /// Initialize iOS 13 specific data types
     @available(iOS 13.0, *)
     private func initializeIOS13Types() {
@@ -415,17 +427,17 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataTypesDict[HealthConstants.BLOOD_OXYGEN] = HKSampleType.quantityType(forIdentifier: .oxygenSaturation)!
         dataTypesDict[HealthConstants.RESPIRATORY_RATE] = HKSampleType.quantityType(forIdentifier: .respiratoryRate)!
         dataTypesDict[HealthConstants.PERIPHERAL_PERFUSION_INDEX] = HKSampleType.quantityType(forIdentifier: .peripheralPerfusionIndex)!
-        
+
         dataTypesDict[HealthConstants.BLOOD_PRESSURE_DIASTOLIC] = HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!
         dataTypesDict[HealthConstants.BLOOD_PRESSURE_SYSTOLIC] = HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!
         dataTypesDict[HealthConstants.BODY_FAT_PERCENTAGE] = HKSampleType.quantityType(forIdentifier: .bodyFatPercentage)!
         dataTypesDict[HealthConstants.LEAN_BODY_MASS] = HKSampleType.quantityType(forIdentifier: .leanBodyMass)!
         dataTypesDict[HealthConstants.BODY_MASS_INDEX] = HKSampleType.quantityType(forIdentifier: .bodyMassIndex)!
         dataTypesDict[HealthConstants.BODY_TEMPERATURE] = HKSampleType.quantityType(forIdentifier: .bodyTemperature)!
-        
+
         // Initialize nutrition types
         initializeNutritionTypes()
-        
+
         dataTypesDict[HealthConstants.ELECTRODERMAL_ACTIVITY] = HKSampleType.quantityType(forIdentifier: .electrodermalActivity)!
         dataTypesDict[HealthConstants.FORCED_EXPIRATORY_VOLUME] = HKSampleType.quantityType(forIdentifier: .forcedExpiratoryVolume1)!
         dataTypesDict[HealthConstants.HEART_RATE] = HKSampleType.quantityType(forIdentifier: .heartRate)!
@@ -449,16 +461,16 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataTypesDict[HealthConstants.SLEEP_REM] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
         dataTypesDict[HealthConstants.SLEEP_ASLEEP] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
         dataTypesDict[HealthConstants.MENSTRUATION_FLOW] = HKSampleType.categoryType(forIdentifier: .menstrualFlow)!
-        
+
         dataTypesDict[HealthConstants.EXERCISE_TIME] = HKSampleType.quantityType(forIdentifier: .appleExerciseTime)!
         dataTypesDict[HealthConstants.WORKOUT] = HKSampleType.workoutType()
         dataTypesDict[HealthConstants.NUTRITION] = HKSampleType.correlationType(forIdentifier: .food)!
-        
+
         characteristicsTypesDict[HealthConstants.BIRTH_DATE] = HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!
         characteristicsTypesDict[HealthConstants.GENDER] = HKObjectType.characteristicType(forIdentifier: .biologicalSex)!
         characteristicsTypesDict[HealthConstants.BLOOD_TYPE] = HKObjectType.characteristicType(forIdentifier: .bloodType)!
     }
-    
+
     /// Initialize nutrition types for iOS 13+
     @available(iOS 13.0, *)
     private func initializeNutritionTypes() {
@@ -502,21 +514,21 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataTypesDict[HealthConstants.DIETARY_MOLYBDENUM] = HKSampleType.quantityType(forIdentifier: .dietaryMolybdenum)!
         dataTypesDict[HealthConstants.DIETARY_SELENIUM] = HKSampleType.quantityType(forIdentifier: .dietarySelenium)!
     }
-    
+
     /// Initialize iOS 12 specific data types
     @available(iOS 12.2, *)
     private func initializeIOS12Types() {
         dataTypesDict[HealthConstants.HIGH_HEART_RATE_EVENT] = HKSampleType.categoryType(forIdentifier: .highHeartRateEvent)!
         dataTypesDict[HealthConstants.LOW_HEART_RATE_EVENT] = HKSampleType.categoryType(forIdentifier: .lowHeartRateEvent)!
         dataTypesDict[HealthConstants.IRREGULAR_HEART_RATE_EVENT] = HKSampleType.categoryType(forIdentifier: .irregularHeartRhythmEvent)!
-        
+
         heartRateEventTypes = Set([
             HKSampleType.categoryType(forIdentifier: .highHeartRateEvent)!,
             HKSampleType.categoryType(forIdentifier: .lowHeartRateEvent)!,
             HKSampleType.categoryType(forIdentifier: .irregularHeartRhythmEvent)!,
         ])
     }
-    
+
     /// Initialize iOS 13.6 specific data types
     @available(iOS 13.6, *)
     private func initializeIOS13_6Types() {
@@ -525,42 +537,44 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         dataTypesDict[HealthConstants.HEADACHE_MILD] = HKSampleType.categoryType(forIdentifier: .headache)!
         dataTypesDict[HealthConstants.HEADACHE_MODERATE] = HKSampleType.categoryType(forIdentifier: .headache)!
         dataTypesDict[HealthConstants.HEADACHE_SEVERE] = HKSampleType.categoryType(forIdentifier: .headache)!
-        
+
         headacheType = Set([
-            HKSampleType.categoryType(forIdentifier: .headache)!
+            HKSampleType.categoryType(forIdentifier: .headache)!,
         ])
     }
-    
+
     /// Initialize iOS 14 specific data types
     @available(iOS 14.0, *)
     private func initializeIOS14Types() {
         dataTypesDict[HealthConstants.ELECTROCARDIOGRAM] = HKSampleType.electrocardiogramType()
         dataTypesDict[HealthConstants.WALKING_SPEED] = HKSampleType.quantityType(forIdentifier: .walkingSpeed)
-        
+
         unitDict[HealthConstants.VOLT] = HKUnit.volt()
         unitDict[HealthConstants.INCHES_OF_MERCURY] = HKUnit.inchesOfMercury()
-        
+
         workoutActivityTypeMap["CARDIO_DANCE"] = HKWorkoutActivityType.cardioDance
         workoutActivityTypeMap["SOCIAL_DANCE"] = HKWorkoutActivityType.socialDance
         workoutActivityTypeMap["PICKLEBALL"] = HKWorkoutActivityType.pickleball
         workoutActivityTypeMap["COOLDOWN"] = HKWorkoutActivityType.cooldown
-        
+
         if #available(iOS 14.5, *) {
             dataTypesDict[HealthConstants.APPLE_MOVE_TIME] = HKSampleType.quantityType(forIdentifier: .appleMoveTime)!
         }
     }
-    
+
     /// Initialize iOS 16 specific data types
     @available(iOS 16.0, *)
     private func initializeIOS16Types() {
         dataTypesDict[HealthConstants.ATRIAL_FIBRILLATION_BURDEN] = HKQuantityType.quantityType(forIdentifier: .atrialFibrillationBurden)!
         dataTypesDict[HealthConstants.WATER_TEMPERATURE] = HKQuantityType.quantityType(forIdentifier: .waterTemperature)!
         dataTypesDict[HealthConstants.UNDERWATER_DEPTH] = HKQuantityType.quantityType(forIdentifier: .underwaterDepth)!
-        dataTypesDict[HealthConstants.UV_INDEX] = HKSampleType.quantityType(forIdentifier: .uvExposure)!
-        
+        dataTypesDict[HealthConstants.UV_INDEX] = HKQuantityType.quantityType(forIdentifier: .uvExposure)!
+        dataTypesDict[HealthConstants.SLEEP_WRIST_TEMPERATURE] = HKQuantityType.quantityType(forIdentifier: .appleSleepingWristTemperature)!
+
         dataQuantityTypesDict[HealthConstants.UV_INDEX] = HKQuantityType.quantityType(forIdentifier: .uvExposure)!
+        dataQuantityTypesDict[HealthConstants.SLEEP_WRIST_TEMPERATURE] = HKQuantityType.quantityType(forIdentifier: .appleSleepingWristTemperature)!
     }
-    
+
     /// Initialize workout activity types
     private func initializeWorkoutTypes() {
         workoutActivityTypeMap["ARCHERY"] = .archery
@@ -585,7 +599,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         workoutActivityTypeMap["FLEXIBILITY"] = .flexibility
         workoutActivityTypeMap["WALKING"] = .walking
         workoutActivityTypeMap["RUNNING"] = .running
-        workoutActivityTypeMap["RUNNING_TREADMILL"] = .running  // Supported due to combining with Android naming
+        workoutActivityTypeMap["RUNNING_TREADMILL"] = .running // Supported due to combining with Android naming
         workoutActivityTypeMap["WHEELCHAIR_WALK_PACE"] = .wheelchairWalkPace
         workoutActivityTypeMap["WHEELCHAIR_RUN_PACE"] = .wheelchairRunPace
         workoutActivityTypeMap["BIKING"] = .cycling
@@ -612,7 +626,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         workoutActivityTypeMap["TABLE_TENNIS"] = .tableTennis
         workoutActivityTypeMap["TENNIS"] = .tennis
         workoutActivityTypeMap["CLIMBING"] = .climbing
-        workoutActivityTypeMap["ROCK_CLIMBING"] = .climbing  // Supported due to combining with Android naming
+        workoutActivityTypeMap["ROCK_CLIMBING"] = .climbing // Supported due to combining with Android naming
         workoutActivityTypeMap["EQUESTRIAN_SPORTS"] = .equestrianSports
         workoutActivityTypeMap["FISHING"] = .fishing
         workoutActivityTypeMap["GOLF"] = .golf

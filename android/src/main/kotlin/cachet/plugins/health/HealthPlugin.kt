@@ -43,6 +43,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
     private lateinit var dataWriter: HealthDataWriter
     private lateinit var dataOperations: HealthDataOperations
     private lateinit var dataConverter: HealthDataConverter
+    private lateinit var dataChanges: HealthDataChanges
 
     // Health Connect availability
     private var healthConnectAvailable = false
@@ -148,6 +149,8 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                     dataOperations.isHealthDataInBackgroundAuthorized(call, result)
             "requestHealthDataInBackgroundAuthorization" ->
                     requestHealthDataInBackgroundAuthorization(call, result)
+            "isSkinTemperatureAvailable" ->
+                    dataOperations.isSkinTemperatureAvailable(call, result)
 
             // Reading data
             "getData" -> dataReader.getData(call, result)
@@ -155,10 +158,14 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             "getIntervalData" -> dataReader.getIntervalData(call, result)
             "getAggregateData" -> dataReader.getAggregateData(call, result)
             "getTotalStepsInInterval" -> dataReader.getTotalStepsInInterval(call, result)
+            "getChangesToken" -> dataChanges.getChangesToken(call, result)
+            "getChanges" -> dataChanges.getChanges(call, result)
 
             // Writing data
             "writeData" -> dataWriter.writeData(call, result)
+            "writeDataUUID" -> dataWriter.writeDataUUID(call, result)
             "writeWorkoutData" -> dataWriter.writeWorkoutData(call, result)
+            "writeWorkoutDataUUID" -> dataWriter.writeWorkoutDataUUID(call, result)
             "writeBloodPressure" -> dataWriter.writeBloodPressure(call, result)
             "writeBloodOxygen" -> dataWriter.writeBloodOxygen(call, result)
             "writeMenstruationFlow" -> dataWriter.writeMenstruationFlow(call, result)
@@ -245,6 +252,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                         healthConnectStatus,
                         healthConnectAvailable
                 )
+        dataChanges = HealthDataChanges(healthConnectClient, scope, context!!, dataConverter)
     }
 
     /**

@@ -69,6 +69,7 @@ const List<HealthDataType> dataTypesIOS = [
   HealthDataType.WATER_TEMPERATURE,
   HealthDataType.UNDERWATER_DEPTH,
   HealthDataType.UV_INDEX,
+  HealthDataType.SLEEP_WRIST_TEMPERATURE,
 ];
 
 /// Data types available on Android via the Google Health Connect API.
@@ -109,4 +110,5 @@ const List<HealthDataType> dataTypesAndroid = [
   HealthDataType.TOTAL_CALORIES_BURNED,
   HealthDataType.MENSTRUATION_FLOW,
   HealthDataType.ACTIVITY_INTENSITY,
+  HealthDataType.SKIN_TEMPERATURE,
 ];

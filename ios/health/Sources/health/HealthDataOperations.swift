@@ -29,7 +29,7 @@ class HealthDataOperations {
     /// - Parameters:
     ///   - call: Flutter method call
     ///   - result: Flutter result callback
-    func checkIfHealthDataAvailable(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    func checkIfHealthDataAvailable(call _: FlutterMethodCall, result: @escaping FlutterResult) {
         result(HKHealthStore.isHealthDataAvailable())
     }
 
@@ -40,8 +40,8 @@ class HealthDataOperations {
     func hasPermissions(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         let arguments = call.arguments as? NSDictionary
         guard var types = arguments?["types"] as? [String],
-            var permissions = arguments?["permissions"] as? [Int],
-            types.count == permissions.count
+              var permissions = arguments?["permissions"] as? [Int],
+              types.count == permissions.count
         else {
             throw PluginError(message: "Invalid Arguments!")
         }
@@ -71,7 +71,8 @@ class HealthDataOperations {
             }
             if let characteristicType = characteristicsTypesDict[type] {
                 let characteristicSuccess = hasPermission(
-                    type: characteristicType, access: permissions[index])
+                    type: characteristicType, access: permissions[index]
+                )
                 if characteristicSuccess == nil || characteristicSuccess == false {
                     result(characteristicSuccess)
                     return
@@ -91,11 +92,11 @@ class HealthDataOperations {
         if #available(iOS 13.0, *) {
             let status = healthStore.authorizationStatus(for: type)
             switch access {
-            case 0:  // READ
+            case 0: // READ
                 return nil
-            case 1:  // WRITE
-                return (status == HKAuthorizationStatus.sharingAuthorized)
-            default:  // READ_WRITE
+            case 1: // WRITE
+                return status == HKAuthorizationStatus.sharingAuthorized
+            default: // READ_WRITE
                 return nil
             }
         } else {
@@ -109,9 +110,9 @@ class HealthDataOperations {
     ///   - result: Flutter result callback
     func requestAuthorization(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let types = arguments["types"] as? [String],
-            let permissions = arguments["permissions"] as? [Int],
-            permissions.count == types.count
+              let types = arguments["types"] as? [String],
+              let permissions = arguments["permissions"] as? [Int],
+              permissions.count == types.count
         else {
             throw PluginError(message: "Invalid Arguments!")
         }
@@ -138,7 +139,6 @@ class HealthDataOperations {
                         typesToRead.insert(nutritionData)
                         typesToWrite.insert(nutritionData)
                     }
-
                 }
             } else {
                 let access = permissions[index]
@@ -162,29 +162,27 @@ class HealthDataOperations {
                     case 1:
                         throw PluginError(
                             message:
-                                "Cannot request write permission for characteristic type \(characteristicsType)"
+                            "Cannot request write permission for characteristic type \(characteristicsType)"
                         )
                     default:
                         typesToRead.insert(characteristicsType)
                     }
                 }
 
-                if dataTypesDict[key] == nil && characteristicsTypesDict[key] == nil {
+                if dataTypesDict[key] == nil, characteristicsTypesDict[key] == nil {
                     print(
                         "Warning: Health data type '\(key)' not found in dataTypesDict or characteristicsTypesDict"
                     )
                 }
-
             }
         }
 
         healthStore.requestAuthorization(toShare: typesToWrite, read: typesToRead) {
-            (success, error) in
+            success, _ in
             DispatchQueue.main.async {
                 result(success)
             }
         }
-
     }
 
     /// Delete health data by date range
@@ -193,7 +191,7 @@ class HealthDataOperations {
     ///   - result: Flutter result callback
     func delete(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? NSDictionary,
-            let dataTypeKey = arguments["dataTypeKey"] as? String
+              let dataTypeKey = arguments["dataTypeKey"] as? String
         else {
             print("Error: Missing dataTypeKey in arguments")
             result(false)
@@ -222,7 +220,8 @@ class HealthDataOperations {
         }
 
         let samplePredicate = HKQuery.predicateForSamples(
-            withStart: dateFrom, end: dateTo, options: .strictStartDate)
+            withStart: dateFrom, end: dateTo, options: .strictStartDate
+        )
         let ownerPredicate = HKQuery.predicateForObjects(from: HKSource.default())
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
@@ -233,10 +232,10 @@ class HealthDataOperations {
             ]),
             limit: HKObjectQueryNoLimit,
             sortDescriptors: [sortDescriptor]
-        ) { [weak self] x, samplesOrNil, error in
-            guard let self = self else { return }
+        ) { [weak self] _, samplesOrNil, error in
+            guard let self else { return }
 
-            guard let samplesOrNil = samplesOrNil, error == nil else {
+            guard let samplesOrNil, error == nil else {
                 print(
                     "Error querying \(dataType) samples: \(error?.localizedDescription ?? "Unknown error")"
                 )
@@ -256,7 +255,7 @@ class HealthDataOperations {
             }
 
             // Delete the retrieved objects from the HealthKit store
-            self.healthStore.delete(samplesOrNil) { (success, error) in
+            healthStore.delete(samplesOrNil) { success, error in
                 if let err = error {
                     print("Error deleting \(dataType) Sample: \(err.localizedDescription)")
                 }
@@ -275,8 +274,8 @@ class HealthDataOperations {
     ///   - result: Flutter result callback
     func deleteByUUID(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let uuidarg = arguments["uuid"] as? String,
-            let dataTypeKey = arguments["dataTypeKey"] as? String
+              let uuidarg = arguments["uuid"] as? String,
+              let dataTypeKey = arguments["dataTypeKey"] as? String
         else {
             throw PluginError(message: "Invalid Arguments - UUID or DataTypeKey invalid")
         }
@@ -298,8 +297,8 @@ class HealthDataOperations {
             predicate: predicate,
             limit: 1,
             sortDescriptors: nil
-        ) { [weak self] query, samplesOrNil, error in
-            guard let self = self else { return }
+        ) { [weak self] _, samplesOrNil, error in
+            guard let self else { return }
 
             guard let samples = samplesOrNil, !samples.isEmpty else {
                 DispatchQueue.main.async {
@@ -308,8 +307,8 @@ class HealthDataOperations {
                 return
             }
 
-            self.healthStore.delete(samples) { success, error in
-                if let error = error {
+            healthStore.delete(samples) { success, error in
+                if let error {
                     print("Error deleting sample with UUID \(uuid): \(error.localizedDescription)")
                 }
                 DispatchQueue.main.async {

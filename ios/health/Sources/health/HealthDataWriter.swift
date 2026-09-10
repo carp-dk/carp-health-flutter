@@ -1,6 +1,6 @@
+import CoreLocation
 import Flutter
 import HealthKit
-import CoreLocation
 
 /// Class responsible for writing health data to HealthKit
 class HealthDataWriter {
@@ -10,7 +10,8 @@ class HealthDataWriter {
     let workoutActivityTypeMap: [String: HKWorkoutActivityType]
     private var workoutRouteBuilders: [String: HKWorkoutRouteBuilder] = [:]
     private let workoutRouteBuildersQueue = DispatchQueue(
-        label: "com.carp.health.workoutRouteBuilders")
+        label: "com.carp.health.workoutRouteBuilders"
+    )
     private lazy var isoFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -31,9 +32,39 @@ class HealthDataWriter {
         self.unitDict = unitDict
         self.workoutActivityTypeMap = workoutActivityTypeMap
     }
-    
+
+    /// Returns a category value that is valid for the current iOS version.
+    /// Sleep "stages" (light/deep/rem) are iOS 16+ and need fallback on older versions.
+    private func resolvedCategoryValue(for type: String, rawValue: Int) -> Int {
+        switch type {
+        case HealthConstants.SLEEP_IN_BED:
+            return HKCategoryValueSleepAnalysis.inBed.rawValue
+        case HealthConstants.SLEEP_ASLEEP:
+            return HKCategoryValueSleepAnalysis.asleep.rawValue
+        case HealthConstants.SLEEP_AWAKE:
+            return HKCategoryValueSleepAnalysis.awake.rawValue
+        case HealthConstants.SLEEP_LIGHT:
+            if #available(iOS 16.0, *) {
+                return HKCategoryValueSleepAnalysis.asleepCore.rawValue
+            }
+            return HKCategoryValueSleepAnalysis.asleep.rawValue
+        case HealthConstants.SLEEP_DEEP:
+            if #available(iOS 16.0, *) {
+                return HKCategoryValueSleepAnalysis.asleepDeep.rawValue
+            }
+            return HKCategoryValueSleepAnalysis.asleep.rawValue
+        case HealthConstants.SLEEP_REM:
+            if #available(iOS 16.0, *) {
+                return HKCategoryValueSleepAnalysis.asleepREM.rawValue
+            }
+            return HKCategoryValueSleepAnalysis.asleep.rawValue
+        default:
+            return rawValue
+        }
+    }
+
     // MARK: - Workout Route Helpers
-    
+
     private func storeWorkoutRouteBuilder(
         _ builder: HKWorkoutRouteBuilder,
         for identifier: String
@@ -42,7 +73,7 @@ class HealthDataWriter {
             self.workoutRouteBuilders[identifier] = builder
         }
     }
-    
+
     private func workoutRouteBuilder(for identifier: String) -> HKWorkoutRouteBuilder? {
         var builder: HKWorkoutRouteBuilder?
         workoutRouteBuildersQueue.sync {
@@ -50,7 +81,7 @@ class HealthDataWriter {
         }
         return builder
     }
-    
+
     private func removeWorkoutRouteBuilder(for identifier: String) -> HKWorkoutRouteBuilder? {
         var builder: HKWorkoutRouteBuilder?
         workoutRouteBuildersQueue.sync {
@@ -58,7 +89,7 @@ class HealthDataWriter {
         }
         return builder
     }
-    
+
     private func parseTimestamp(_ value: Any) -> Date? {
         if let milliseconds = value as? NSNumber {
             return Date(timeIntervalSince1970: milliseconds.doubleValue / 1000.0)
@@ -74,7 +105,7 @@ class HealthDataWriter {
         }
         return nil
     }
-    
+
     private func doubleValue(from value: Any?) -> Double? {
         if let number = value as? NSNumber {
             return number.doubleValue
@@ -85,9 +116,9 @@ class HealthDataWriter {
         }
         return nil
     }
-    
+
     private func parseLocations(_ rawLocations: [NSDictionary]) throws -> [CLLocation] {
-        return try rawLocations.map { entry in
+        try rawLocations.map { entry in
             guard
                 let latitudeValue = doubleValue(from: entry["latitude"]),
                 let longitudeValue = doubleValue(from: entry["longitude"]),
@@ -95,14 +126,14 @@ class HealthDataWriter {
             else {
                 throw PluginError(message: "Invalid workout route location entry")
             }
-            
+
             let latitude = CLLocationDegrees(latitudeValue)
             let longitude = CLLocationDegrees(longitudeValue)
-            
+
             guard let timestamp = parseTimestamp(timestampValue) else {
                 throw PluginError(message: "Invalid workout route timestamp")
             }
-            
+
             let altitude = doubleValue(from: entry["altitude"]) ?? 0
             let horizontalAccuracy = doubleValue(from: entry["horizontalAccuracy"])
                 ?? kCLLocationAccuracyHundredMeters
@@ -112,9 +143,9 @@ class HealthDataWriter {
             let course = doubleValue(from: entry["course"]) ?? -1
             let speedAccuracyValue = doubleValue(from: entry["speedAccuracy"])
             let courseAccuracyValue = doubleValue(from: entry["courseAccuracy"])
-            
+
             if #available(iOS 13.4, *),
-                let speedAccuracyValue, let courseAccuracyValue
+               let speedAccuracyValue, let courseAccuracyValue
             {
                 return CLLocation(
                     coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
@@ -146,6 +177,342 @@ class HealthDataWriter {
     ///   - call: Flutter method call
     ///   - result: Flutter result callback
     func writeData(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        guard let arguments = call.arguments as? NSDictionary,
+              let value = (arguments["value"] as? Double),
+              let type = (arguments["dataTypeKey"] as? String),
+              let unit = (arguments["dataUnitKey"] as? String),
+              let startTime = (arguments["startTime"] as? NSNumber),
+              let endTime = (arguments["endTime"] as? NSNumber),
+              let recordingMethod = (arguments["recordingMethod"] as? Int)
+        else {
+            throw PluginError(message: "Invalid Arguments")
+        }
+
+        // Handle mindfulness sessions specifically
+        if type == HealthConstants.MINDFULNESS {
+            try writeMindfulness(call: call, result: result)
+            return
+        }
+
+        let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
+        let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
+
+        let isManualEntry = recordingMethod == HealthConstants.RecordingMethod.manual.rawValue
+        let metadata: [String: Any] = [
+            HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry),
+        ]
+
+        guard let sampleType = dataTypesDict[type] else {
+            print("Warning: Health data type '\(type)' not available on this iOS version.")
+            result(false)
+            return
+        }
+
+        let sample: HKObject
+
+        if let categoryType = sampleType as? HKCategoryType {
+            let safeValue = resolvedCategoryValue(for: type, rawValue: Int(value))
+            sample = HKCategorySample(
+                type: categoryType, value: safeValue, start: dateFrom,
+                end: dateTo, metadata: metadata
+            )
+        } else if let quantityType = sampleType as? HKQuantityType {
+            guard let hkUnit = unitDict[unit] else {
+                print("Warning: Health data unit '\(unit)' not available on this iOS version.")
+                result(false)
+                return
+            }
+
+            let quantity = HKQuantity(unit: hkUnit, doubleValue: value)
+            sample = HKQuantitySample(
+                type: quantityType, quantity: quantity, start: dateFrom,
+                end: dateTo, metadata: metadata
+            )
+        } else {
+            print("Warning: Unsupported HealthKit sample type for '\(type)'.")
+            result(false)
+            return
+        }
+
+        healthStore.save(
+            sample,
+            withCompletion: { success, error in
+                if let err = error {
+                    print("Error Saving \(type) Sample: \(err.localizedDescription)")
+                }
+                DispatchQueue.main.async {
+                    result(success)
+                }
+            }
+        )
+    }
+
+    /// Starts a new workout route builder session.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func startWorkoutRoute(call _: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        let identifier = UUID().uuidString
+        let builder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
+        storeWorkoutRouteBuilder(builder, for: identifier)
+        result(identifier)
+    }
+
+    /// Inserts a batch of workout route locations into an active builder.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func insertWorkoutRouteData(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        guard
+            let arguments = call.arguments as? NSDictionary,
+            let builderId = arguments["builderId"] as? String,
+            let rawLocations = arguments["locations"] as? [NSDictionary]
+        else {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: "Missing builderId or locations for route insertion",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        guard let builder = workoutRouteBuilder(for: builderId) else {
+            result(
+                FlutterError(
+                    code: "ROUTE_ERROR",
+                    message: "No active workout route builder for identifier \(builderId)",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        if rawLocations.isEmpty {
+            result(true)
+            return
+        }
+
+        let locations: [CLLocation]
+        do {
+            locations = try parseLocations(rawLocations)
+        } catch {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: error.localizedDescription,
+                    details: nil
+                )
+            )
+            return
+        }
+
+        builder.insertRouteData(locations) { success, error in
+            DispatchQueue.main.async {
+                if let error {
+                    result(
+                        FlutterError(
+                            code: "ROUTE_ERROR",
+                            message: "Error inserting workout route data: \(error.localizedDescription)",
+                            details: nil
+                        )
+                    )
+                } else {
+                    result(success)
+                }
+            }
+        }
+    }
+
+    /// Completes an active workout route builder and associates it with an existing workout.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func finishWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        guard
+            let arguments = call.arguments as? NSDictionary,
+            let builderId = arguments["builderId"] as? String,
+            let workoutUUIDString = arguments["workoutUUID"] as? String,
+            let workoutUUID = UUID(uuidString: workoutUUIDString)
+        else {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: "Missing builderId or workoutUUID for finishing route",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        guard let builder = workoutRouteBuilder(for: builderId) else {
+            result(
+                FlutterError(
+                    code: "ROUTE_ERROR",
+                    message: "No active workout route builder for identifier \(builderId)",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        let metadata = arguments["metadata"] as? [String: Any]
+        let predicate = HKQuery.predicateForObject(with: workoutUUID)
+        let workoutType = HKObjectType.workoutType()
+
+        let query = HKSampleQuery(
+            sampleType: workoutType,
+            predicate: predicate,
+            limit: 1,
+            sortDescriptors: nil
+        ) { [weak self] _, samplesOrNil, error in
+            guard let self else { return }
+
+            if let error {
+                DispatchQueue.main.async {
+                    result(
+                        FlutterError(
+                            code: "ROUTE_ERROR",
+                            message: "Error fetching workout for route: \(error.localizedDescription)",
+                            details: nil
+                        )
+                    )
+                }
+                return
+            }
+
+            guard let workout = (samplesOrNil?.first as? HKWorkout) else {
+                DispatchQueue.main.async {
+                    result(
+                        FlutterError(
+                            code: "ROUTE_ERROR",
+                            message: "Workout with UUID \(workoutUUIDString) not found",
+                            details: nil
+                        )
+                    )
+                }
+                return
+            }
+
+            var finalMetadata = metadata ?? [:]
+            finalMetadata["workout_uuid"] = workoutUUIDString
+
+            builder.finishRoute(with: workout, metadata: finalMetadata) {
+                [weak self] route, finishError in
+                guard let self else { return }
+                DispatchQueue.main.async {
+                    self.removeWorkoutRouteBuilder(for: builderId)
+                    if let finishError {
+                        result(
+                            FlutterError(
+                                code: "ROUTE_ERROR",
+                                message:
+                                "Error finishing workout route: \(finishError.localizedDescription)",
+                                details: nil
+                            )
+                        )
+                    } else if let route {
+                        result([
+                            "uuid": "\(route.uuid)",
+                            "startDate":
+                                Int(route.startDate.timeIntervalSince1970 * 1000),
+                            "endDate":
+                                Int(route.endDate.timeIntervalSince1970 * 1000),
+                        ])
+                    } else {
+                        result(
+                            FlutterError(
+                                code: "ROUTE_ERROR",
+                                message: "Workout route builder returned no route",
+                                details: nil
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        healthStore.execute(query)
+    }
+
+    /// Discards an active workout route builder session.
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func discardWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard #available(iOS 11.0, *) else {
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED_FEATURE",
+                    message: "Workout routes are only available on iOS 11.0 and above.",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        guard
+            let arguments = call.arguments as? NSDictionary,
+            let builderId = arguments["builderId"] as? String
+        else {
+            result(
+                FlutterError(
+                    code: "ARGUMENT_ERROR",
+                    message: "Missing builderId for discarding workout route",
+                    details: nil
+                )
+            )
+            return
+        }
+
+        guard let builder = removeWorkoutRouteBuilder(for: builderId) else {
+            result(false)
+            return
+        }
+
+        builder.discard()
+        result(true)
+    }
+
+    /// Writes general health data and return UUID on success, otherwise an empty string
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func writeDataUUID(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
             let value = (arguments["value"] as? Double),
             let type = (arguments["dataTypeKey"] as? String),
@@ -191,240 +558,19 @@ class HealthDataWriter {
                     print("Error Saving \(type) Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
-                    result(success)
+                    if success {
+                        // Return the UUID of the saved object
+                        if let savedSample = sample as? HKObject {
+                            print("Saved: \(savedSample.uuid.uuidString)")
+                            result(savedSample.uuid.uuidString) // Return UUID as String
+                        } else {
+                            result("")
+                        }
+                    }
+
+                    result("")
                 }
             })
-    }
-    
-    /// Starts a new workout route builder session.
-    /// - Parameters:
-    ///   - call: Flutter method call
-    ///   - result: Flutter result callback
-    func startWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard #available(iOS 11.0, *) else {
-            result(
-                FlutterError(
-                    code: "UNSUPPORTED_FEATURE",
-                    message: "Workout routes are only available on iOS 11.0 and above.",
-                    details: nil))
-            return
-        }
-        
-        let identifier = UUID().uuidString
-        let builder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
-        storeWorkoutRouteBuilder(builder, for: identifier)
-        result(identifier)
-    }
-    
-    /// Inserts a batch of workout route locations into an active builder.
-    /// - Parameters:
-    ///   - call: Flutter method call
-    ///   - result: Flutter result callback
-    func insertWorkoutRouteData(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard #available(iOS 11.0, *) else {
-            result(
-                FlutterError(
-                    code: "UNSUPPORTED_FEATURE",
-                    message: "Workout routes are only available on iOS 11.0 and above.",
-                    details: nil))
-            return
-        }
-        
-        guard
-            let arguments = call.arguments as? NSDictionary,
-            let builderId = arguments["builderId"] as? String,
-            let rawLocations = arguments["locations"] as? [NSDictionary]
-        else {
-            result(
-                FlutterError(
-                    code: "ARGUMENT_ERROR",
-                    message: "Missing builderId or locations for route insertion",
-                    details: nil))
-            return
-        }
-        
-        guard let builder = workoutRouteBuilder(for: builderId) else {
-            result(
-                FlutterError(
-                    code: "ROUTE_ERROR",
-                    message: "No active workout route builder for identifier \(builderId)",
-                    details: nil))
-            return
-        }
-        
-        if rawLocations.isEmpty {
-            result(true)
-            return
-        }
-        
-        let locations: [CLLocation]
-        do {
-            locations = try parseLocations(rawLocations)
-        } catch {
-            result(
-                FlutterError(
-                    code: "ARGUMENT_ERROR",
-                    message: error.localizedDescription,
-                    details: nil))
-            return
-        }
-        
-        builder.insertRouteData(locations) { success, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    result(
-                        FlutterError(
-                            code: "ROUTE_ERROR",
-                            message: "Error inserting workout route data: \(error.localizedDescription)",
-                            details: nil))
-                } else {
-                    result(success)
-                }
-            }
-        }
-    }
-    
-    /// Completes an active workout route builder and associates it with an existing workout.
-    /// - Parameters:
-    ///   - call: Flutter method call
-    ///   - result: Flutter result callback
-    func finishWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard #available(iOS 11.0, *) else {
-            result(
-                FlutterError(
-                    code: "UNSUPPORTED_FEATURE",
-                    message: "Workout routes are only available on iOS 11.0 and above.",
-                    details: nil))
-            return
-        }
-        
-        guard
-            let arguments = call.arguments as? NSDictionary,
-            let builderId = arguments["builderId"] as? String,
-            let workoutUUIDString = arguments["workoutUUID"] as? String,
-            let workoutUUID = UUID(uuidString: workoutUUIDString)
-        else {
-            result(
-                FlutterError(
-                    code: "ARGUMENT_ERROR",
-                    message: "Missing builderId or workoutUUID for finishing route",
-                    details: nil))
-            return
-        }
-        
-        guard let builder = workoutRouteBuilder(for: builderId) else {
-            result(
-                FlutterError(
-                    code: "ROUTE_ERROR",
-                    message: "No active workout route builder for identifier \(builderId)",
-                    details: nil))
-            return
-        }
-        
-        let metadata = arguments["metadata"] as? [String: Any]
-        let predicate = HKQuery.predicateForObject(with: workoutUUID)
-        let workoutType = HKObjectType.workoutType()
-        
-        let query = HKSampleQuery(
-            sampleType: workoutType,
-            predicate: predicate,
-            limit: 1,
-            sortDescriptors: nil
-        ) { [weak self] _, samplesOrNil, error in
-            guard let self = self else { return }
-            
-            if let error = error {
-                DispatchQueue.main.async {
-                    result(
-                        FlutterError(
-                            code: "ROUTE_ERROR",
-                            message: "Error fetching workout for route: \(error.localizedDescription)",
-                            details: nil))
-                }
-                return
-            }
-            
-            guard let workout = (samplesOrNil?.first as? HKWorkout) else {
-                DispatchQueue.main.async {
-                    result(
-                        FlutterError(
-                            code: "ROUTE_ERROR",
-                            message: "Workout with UUID \(workoutUUIDString) not found",
-                            details: nil))
-                }
-                return
-            }
-            
-            var finalMetadata = metadata ?? [:]
-            finalMetadata["workout_uuid"] = workoutUUIDString
-
-            builder.finishRoute(with: workout, metadata: finalMetadata) {
-                [weak self] route, finishError in
-                guard let self = self else { return }
-                DispatchQueue.main.async {
-                    self.removeWorkoutRouteBuilder(for: builderId)
-                    if let finishError = finishError {
-                        result(
-                            FlutterError(
-                                code: "ROUTE_ERROR",
-                                message:
-                                    "Error finishing workout route: \(finishError.localizedDescription)",
-                                details: nil))
-                    } else if let route = route {
-                        result([
-                            "uuid": "\(route.uuid)",
-                            "startDate":
-                                Int(route.startDate.timeIntervalSince1970 * 1000),
-                            "endDate":
-                                Int(route.endDate.timeIntervalSince1970 * 1000),
-                        ])
-                    } else {
-                        result(
-                            FlutterError(
-                                code: "ROUTE_ERROR",
-                                message: "Workout route builder returned no route",
-                                details: nil))
-                    }
-                }
-            }
-        }
-        
-        healthStore.execute(query)
-    }
-    
-    /// Discards an active workout route builder session.
-    /// - Parameters:
-    ///   - call: Flutter method call
-    ///   - result: Flutter result callback
-    func discardWorkoutRoute(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard #available(iOS 11.0, *) else {
-            result(
-                FlutterError(
-                    code: "UNSUPPORTED_FEATURE",
-                    message: "Workout routes are only available on iOS 11.0 and above.",
-                    details: nil))
-            return
-        }
-        
-        guard
-            let arguments = call.arguments as? NSDictionary,
-            let builderId = arguments["builderId"] as? String
-        else {
-            result(
-                FlutterError(
-                    code: "ARGUMENT_ERROR",
-                    message: "Missing builderId for discarding workout route",
-                    details: nil))
-            return
-        }
-        
-        guard let builder = removeWorkoutRouteBuilder(for: builderId) else {
-            result(false)
-            return
-        }
-        
-        builder.discard()
-        result(true)
     }
 
     /// Writes audiogram data
@@ -433,11 +579,11 @@ class HealthDataWriter {
     ///   - result: Flutter result callback
     func writeAudiogram(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let frequencies = (arguments["frequencies"] as? [Double]),
-            let leftEarSensitivities = (arguments["leftEarSensitivities"] as? [Double]),
-            let rightEarSensitivities = (arguments["rightEarSensitivities"] as? [Double]),
-            let startTime = (arguments["startTime"] as? NSNumber),
-            let endTime = (arguments["endTime"] as? NSNumber)
+              let frequencies = (arguments["frequencies"] as? [Double]),
+              let leftEarSensitivities = (arguments["leftEarSensitivities"] as? [Double]),
+              let rightEarSensitivities = (arguments["rightEarSensitivities"] as? [Double]),
+              let startTime = (arguments["startTime"] as? NSNumber),
+              let endTime = (arguments["endTime"] as? NSNumber)
         else {
             throw PluginError(message: "Invalid Arguments")
         }
@@ -447,20 +593,21 @@ class HealthDataWriter {
 
         var sensitivityPoints = [HKAudiogramSensitivityPoint]()
 
-        for index in 0...frequencies.count - 1 {
+        for index in 0 ... frequencies.count - 1 {
             let frequency = HKQuantity(unit: HKUnit.hertz(), doubleValue: frequencies[index])
             let dbUnit = HKUnit.decibelHearingLevel()
             let left = HKQuantity(unit: dbUnit, doubleValue: leftEarSensitivities[index])
             let right = HKQuantity(unit: dbUnit, doubleValue: rightEarSensitivities[index])
             let sensitivityPoint = try HKAudiogramSensitivityPoint(
-                frequency: frequency, leftEarSensitivity: left, rightEarSensitivity: right)
+                frequency: frequency, leftEarSensitivity: left, rightEarSensitivity: right
+            )
             sensitivityPoints.append(sensitivityPoint)
         }
 
         let audiogram: HKAudiogramSample
         let metadataReceived = (arguments["metadata"] as? [String: Any]?)
 
-        if (metadataReceived) != nil {
+        if metadataReceived != nil {
             guard let deviceName = metadataReceived?!["HKDeviceName"] as? String else { return }
             guard let externalUUID = metadataReceived?!["HKExternalUUID"] as? String else { return }
 
@@ -468,23 +615,26 @@ class HealthDataWriter {
                 sensitivityPoints: sensitivityPoints, start: dateFrom, end: dateTo,
                 metadata: [
                     HKMetadataKeyDeviceName: deviceName, HKMetadataKeyExternalUUID: externalUUID,
-                ])
+                ]
+            )
 
         } else {
             audiogram = HKAudiogramSample(
-                sensitivityPoints: sensitivityPoints, start: dateFrom, end: dateTo, metadata: nil)
+                sensitivityPoints: sensitivityPoints, start: dateFrom, end: dateTo, metadata: nil
+            )
         }
 
         healthStore.save(
             audiogram,
-            withCompletion: { (success, error) in
+            withCompletion: { success, error in
                 if let err = error {
                     print("Error Saving Audiogram. Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
                     result(success)
                 }
-            })
+            }
+        )
     }
 
     /// Writes blood pressure data
@@ -493,11 +643,11 @@ class HealthDataWriter {
     ///   - result: Flutter result callback
     func writeBloodPressure(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let systolic = (arguments["systolic"] as? Double),
-            let diastolic = (arguments["diastolic"] as? Double),
-            let startTime = (arguments["startTime"] as? NSNumber),
-            let endTime = (arguments["endTime"] as? NSNumber),
-            let recordingMethod = (arguments["recordingMethod"] as? Int)
+              let systolic = (arguments["systolic"] as? Double),
+              let diastolic = (arguments["diastolic"] as? Double),
+              let startTime = (arguments["startTime"] as? NSNumber),
+              let endTime = (arguments["endTime"] as? NSNumber),
+              let recordingMethod = (arguments["recordingMethod"] as? Int)
         else {
             throw PluginError(message: "Invalid Arguments")
         }
@@ -506,32 +656,36 @@ class HealthDataWriter {
 
         let isManualEntry = recordingMethod == HealthConstants.RecordingMethod.manual.rawValue
         let metadata = [
-            HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry)
+            HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry),
         ]
 
         let systolic_sample = HKQuantitySample(
             type: HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!,
             quantity: HKQuantity(unit: HKUnit.millimeterOfMercury(), doubleValue: systolic),
-            start: dateFrom, end: dateTo, metadata: metadata)
+            start: dateFrom, end: dateTo, metadata: metadata
+        )
         let diastolic_sample = HKQuantitySample(
             type: HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!,
             quantity: HKQuantity(unit: HKUnit.millimeterOfMercury(), doubleValue: diastolic),
-            start: dateFrom, end: dateTo, metadata: metadata)
+            start: dateFrom, end: dateTo, metadata: metadata
+        )
         let bpCorrelationType = HKCorrelationType.correlationType(forIdentifier: .bloodPressure)!
         let bpCorrelation = Set(arrayLiteral: systolic_sample, diastolic_sample)
         let blood_pressure_sample = HKCorrelation(
-            type: bpCorrelationType, start: dateFrom, end: dateTo, objects: bpCorrelation)
+            type: bpCorrelationType, start: dateFrom, end: dateTo, objects: bpCorrelation
+        )
 
         healthStore.save(
             [blood_pressure_sample],
-            withCompletion: { (success, error) in
+            withCompletion: { success, error in
                 if let err = error {
                     print("Error Saving Blood Pressure Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
                     result(success)
                 }
-            })
+            }
+        )
     }
 
     /// Writes meal nutrition data
@@ -540,11 +694,11 @@ class HealthDataWriter {
     ///   - result: Flutter result callback
     func writeMeal(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let name = (arguments["name"] as? String?),
-            let startTime = (arguments["start_time"] as? NSNumber),
-            let endTime = (arguments["end_time"] as? NSNumber),
-            let mealType = (arguments["meal_type"] as? String?),
-            let recordingMethod = arguments["recordingMethod"] as? Int
+              let name = (arguments["name"] as? String?),
+              let startTime = (arguments["start_time"] as? NSNumber),
+              let endTime = (arguments["end_time"] as? NSNumber),
+              let mealType = (arguments["meal_type"] as? String?),
+              let recordingMethod = arguments["recordingMethod"] as? Int
         else {
             throw PluginError(message: "Invalid Arguments")
         }
@@ -571,31 +725,35 @@ class HealthDataWriter {
             guard let unwrappedValue = value else { continue }
             let unit =
                 key == "calories"
-                ? HKUnit.kilocalorie()
-                : key == "water" ? HKUnit.literUnit(with: .milli) : HKUnit.gram()
+                    ? HKUnit.kilocalorie()
+                    : key == "water" ? HKUnit.literUnit(with: .milli) : HKUnit.gram()
             let nutritionSample = HKQuantitySample(
                 type: HKSampleType.quantityType(forIdentifier: identifier)!,
                 quantity: HKQuantity(unit: unit, doubleValue: unwrappedValue), start: dateFrom,
-                end: dateTo, metadata: metadata)
+                end: dateTo, metadata: metadata
+            )
             nutrition.insert(nutritionSample)
         }
 
         if #available(iOS 15.0, *) {
             let type = HKCorrelationType.correlationType(
-                forIdentifier: HKCorrelationTypeIdentifier.food)!
+                forIdentifier: HKCorrelationTypeIdentifier.food
+            )!
             let meal = HKCorrelation(
-                type: type, start: dateFrom, end: dateTo, objects: nutrition, metadata: metadata)
+                type: type, start: dateFrom, end: dateTo, objects: nutrition, metadata: metadata
+            )
 
             healthStore.save(
                 meal,
-                withCompletion: { (success, error) in
+                withCompletion: { success, error in
                     if let err = error {
                         print("Error Saving Meal Sample: \(err.localizedDescription)")
                     }
                     DispatchQueue.main.async {
                         result(success)
                     }
-                })
+                }
+            )
         } else {
             result(false)
         }
@@ -607,10 +765,10 @@ class HealthDataWriter {
     ///   - result: Flutter result callback
     func writeInsulinDelivery(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let units = (arguments["units"] as? Double),
-            let reason = (arguments["reason"] as? NSNumber),
-            let startTime = (arguments["startTime"] as? NSNumber),
-            let endTime = (arguments["endTime"] as? NSNumber)
+              let units = (arguments["units"] as? Double),
+              let reason = (arguments["reason"] as? NSNumber),
+              let startTime = (arguments["startTime"] as? NSNumber),
+              let endTime = (arguments["endTime"] as? NSNumber)
         else {
             throw PluginError(message: "Invalid Arguments")
         }
@@ -622,18 +780,20 @@ class HealthDataWriter {
         let metadata = [HKMetadataKeyInsulinDeliveryReason: reason]
 
         let insulin_sample = HKQuantitySample(
-            type: type, quantity: quantity, start: dateFrom, end: dateTo, metadata: metadata)
+            type: type, quantity: quantity, start: dateFrom, end: dateTo, metadata: metadata
+        )
 
         healthStore.save(
             insulin_sample,
-            withCompletion: { (success, error) in
+            withCompletion: { success, error in
                 if let err = error {
                     print("Error Saving Insulin Delivery Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
                     result(success)
                 }
-            })
+            }
+        )
     }
 
     /// Writes menstruation flow data
@@ -642,13 +802,14 @@ class HealthDataWriter {
     ///   - result: Flutter result callback
     func writeMenstruationFlow(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let flow = (arguments["value"] as? Int),
-            let endTime = (arguments["endTime"] as? NSNumber),
-            let isStartOfCycle = (arguments["isStartOfCycle"] as? NSNumber),
-            let recordingMethod = (arguments["recordingMethod"] as? Int)
+              let flow = (arguments["value"] as? Int),
+              let endTime = (arguments["endTime"] as? NSNumber),
+              let isStartOfCycle = (arguments["isStartOfCycle"] as? NSNumber),
+              let recordingMethod = (arguments["recordingMethod"] as? Int)
         else {
             throw PluginError(
-                message: "Invalid Arguments - value, startTime, endTime or isStartOfCycle invalid")
+                message: "Invalid Arguments - value, startTime, endTime or isStartOfCycle invalid"
+            )
         }
         guard let menstrualFlowType = HKCategoryValueMenstrualFlow(rawValue: flow) else {
             throw PluginError(message: "Invalid Menstrual Flow Type")
@@ -678,14 +839,15 @@ class HealthDataWriter {
 
         healthStore.save(
             sample,
-            withCompletion: { (success, error) in
+            withCompletion: { success, error in
                 if let err = error {
                     print("Error Saving Menstruation Flow Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
                     result(success)
                 }
-            })
+            }
+        )
     }
 
     /// Writes mindfulness session data
@@ -694,9 +856,9 @@ class HealthDataWriter {
     ///   - result: Flutter result callback
     func writeMindfulness(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-            let startTime = (arguments["startTime"] as? NSNumber),
-            let endTime = (arguments["endTime"] as? NSNumber),
-            let recordingMethod = (arguments["recordingMethod"] as? Int)
+              let startTime = (arguments["startTime"] as? NSNumber),
+              let endTime = (arguments["endTime"] as? NSNumber),
+              let recordingMethod = (arguments["recordingMethod"] as? Int)
         else {
             throw PluginError(message: "Invalid Arguments")
         }
@@ -706,7 +868,7 @@ class HealthDataWriter {
 
         let isManualEntry = recordingMethod == HealthConstants.RecordingMethod.manual.rawValue
         let metadata: [String: Any] = [
-            HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry)
+            HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry),
         ]
 
         guard let categoryType = HKSampleType.categoryType(forIdentifier: .mindfulSession) else {
@@ -724,14 +886,15 @@ class HealthDataWriter {
 
         healthStore.save(
             sample,
-            withCompletion: { (success, error) in
+            withCompletion: { success, error in
                 if let err = error {
                     print("Error Saving Mindfulness Session: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
                     result(success)
                 }
-            })
+            }
+        )
     }
 
     /// Writes workout data
@@ -739,6 +902,63 @@ class HealthDataWriter {
     ///   - call: Flutter method call
     ///   - result: Flutter result callback
     func writeWorkoutData(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        guard let arguments = call.arguments as? NSDictionary,
+              let activityType = (arguments["activityType"] as? String),
+              let startTime = (arguments["startTime"] as? NSNumber),
+              let endTime = (arguments["endTime"] as? NSNumber),
+              let activityTypeValue = workoutActivityTypeMap[activityType]
+        else {
+            throw PluginError(
+                message: "Invalid Arguments - activityType, startTime or endTime invalid"
+            )
+        }
+
+        var totalEnergyBurned: HKQuantity?
+        var totalDistance: HKQuantity? = nil
+
+        // Handle optional arguments
+        if let teb = (arguments["totalEnergyBurned"] as? Double) {
+            totalEnergyBurned = HKQuantity(
+                unit: unitDict[(arguments["totalEnergyBurnedUnit"] as! String)]!, doubleValue: teb
+            )
+        }
+        if let td = (arguments["totalDistance"] as? Double) {
+            totalDistance = HKQuantity(
+                unit: unitDict[(arguments["totalDistanceUnit"] as! String)]!, doubleValue: td
+            )
+        }
+
+        let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
+        let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
+
+        let workout = HKWorkout(
+            activityType: activityTypeValue,
+            start: dateFrom,
+            end: dateTo,
+            duration: dateTo.timeIntervalSince(dateFrom),
+            totalEnergyBurned: totalEnergyBurned ?? nil,
+            totalDistance: totalDistance ?? nil,
+            metadata: nil
+        )
+
+        healthStore.save(
+            workout,
+            withCompletion: { success, error in
+                if let err = error {
+                    print("Error Saving Workout. Sample: \(err.localizedDescription)")
+                }
+                DispatchQueue.main.async {
+                    result(success)
+                }
+            }
+        )
+    }
+
+    /// Writes workout data and return UUID on success, otherwise an empty string
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func writeWorkoutDataUUID(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
             let activityType = (arguments["activityType"] as? String),
             let startTime = (arguments["startTime"] as? NSNumber),
@@ -782,7 +1002,17 @@ class HealthDataWriter {
                     print("Error Saving Workout. Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
-                    result(success)
+                    if success {
+                        // Return the UUID of the saved object
+                        if let savedSample = workout as? HKWorkout {
+                            print("Saved: \(savedSample.uuid.uuidString)")
+                            result(savedSample.uuid.uuidString) // Return UUID as String
+                        } else {
+                            result("")
+                        }
+                    }
+
+                    result("")
                 }
             })
     }

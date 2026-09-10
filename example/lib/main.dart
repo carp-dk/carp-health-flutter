@@ -7,6 +7,26 @@ import 'package:health_example/util.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:carp_serializable/carp_serializable.dart';
 
+class _ChangesSummary {
+  final int beforeCount;
+  final int afterCount;
+  final int inserted;
+  final int updated;
+  final int removed;
+  final int appliedUpserts;
+  final int appliedDeletes;
+
+  const _ChangesSummary({
+    required this.beforeCount,
+    required this.afterCount,
+    required this.inserted,
+    required this.updated,
+    required this.removed,
+    required this.appliedUpserts,
+    required this.appliedDeletes,
+  });
+}
+
 // Global Health instance
 final health = Health();
 
@@ -31,10 +51,13 @@ enum AppState {
   DATA_NOT_ADDED,
   DATA_NOT_DELETED,
   STEPS_READY,
+  SKIN_TEMPERATURE_FEATURE_STATUS,
   HEALTH_CONNECT_STATUS,
   PERMISSIONS_REVOKING,
   PERMISSIONS_REVOKED,
   PERMISSIONS_NOT_REVOKED,
+  CHANGES_READY,
+  CHANGES_NOT_READY,
 }
 
 class HealthAppState extends State<HealthApp> {
@@ -42,13 +65,44 @@ class HealthAppState extends State<HealthApp> {
   AppState _state = AppState.DATA_NOT_FETCHED;
   int _nofSteps = 0;
   List<RecordingMethod> recordingMethodsToFilter = [];
+  String? _changesToken;
+  String? _previousChangesToken;
+  bool _changesTokenExpired = false;
+  bool _changesHasMore = false;
+  final List<HealthChange> _changes = [];
+  final List<HealthDataType> _changeTypes = const [
+    HealthDataType.STEPS,
+    HealthDataType.WORKOUT,
+  ];
+  final Map<String, HealthDataPoint> _syncedDataById = {};
+  int _lastBeforeCount = 0;
+  int _lastAfterCount = 0;
+  int _lastInserted = 0;
+  int _lastUpdated = 0;
+  int _lastRemoved = 0;
+  int _lastAppliedUpserts = 0;
+  int _lastAppliedDeletes = 0;
+  DateTime? _lastChangesAt;
 
   // All types available depending on platform (iOS ot Android).
-  List<HealthDataType> get types => (Platform.isAndroid)
-      ? dataTypesAndroid
-      : (Platform.isIOS)
-      ? dataTypesIOS
-      : [];
+  List<HealthDataType> get types {
+    if (Platform.isAndroid) return dataTypesAndroid;
+    if (!Platform.isIOS) return [];
+
+    final iosTypes = List<HealthDataType>.from(dataTypesIOS);
+    if (!_isIOS16OrNewer) {
+      iosTypes.removeWhere(
+        (type) => const {
+          HealthDataType.WATER_TEMPERATURE,
+          HealthDataType.UNDERWATER_DEPTH,
+          HealthDataType.UV_INDEX,
+          HealthDataType.SLEEP_WRIST_TEMPERATURE,
+        }.contains(type),
+      );
+    }
+
+    return iosTypes;
+  }
 
   // // Or specify specific types
   // static final types = [
@@ -87,6 +141,7 @@ class HealthAppState extends State<HealthApp> {
               HealthDataType.LOW_HEART_RATE_EVENT,
               HealthDataType.IRREGULAR_HEART_RATE_EVENT,
               HealthDataType.EXERCISE_TIME,
+              HealthDataType.SLEEP_WRIST_TEMPERATURE,
             ].contains(type)
             ? HealthDataAccess.READ
             : HealthDataAccess.READ_WRITE,
@@ -100,6 +155,13 @@ class HealthAppState extends State<HealthApp> {
     health.getHealthConnectSdkStatus();
 
     super.initState();
+  }
+
+  bool get _isIOS16OrNewer {
+    if (!Platform.isIOS) return false;
+    final match = RegExp(r'(\d+)').firstMatch(Platform.operatingSystemVersion);
+    final majorVersion = int.tryParse(match?.group(1) ?? '');
+    return (majorVersion ?? 0) >= 16;
   }
 
   /// Install Google Health Connect on this phone.
@@ -164,6 +226,137 @@ class HealthAppState extends State<HealthApp> {
       );
       _state = AppState.HEALTH_CONNECT_STATUS;
     });
+  }
+
+  /// Gets the Skin Temperature feature availability on Android.
+  Future<void> getSkinTemperatureFeatureStatus() async {
+    if (!Platform.isAndroid) {
+      setState(() {
+        _contentSkinTemperatureFeatureStatus = const Text(
+          'Skin Temperature feature is Android only.',
+        );
+        _state = AppState.SKIN_TEMPERATURE_FEATURE_STATUS;
+      });
+      return;
+    }
+
+    final available = await health.isSkinTemperatureAvailable();
+    setState(() {
+      _contentSkinTemperatureFeatureStatus = Text(
+        'Skin Temperature Feature: ${available ? "AVAILABLE" : "NOT AVAILABLE"}',
+      );
+      _state = AppState.SKIN_TEMPERATURE_FEATURE_STATUS;
+    });
+  }
+
+  /// Create a change token for Health Connect incremental sync.
+  Future<void> createChangesToken() async {
+    if (!Platform.isAndroid) {
+      setState(() => _state = AppState.CHANGES_NOT_READY);
+      return;
+    }
+
+    try {
+      final token = await health.getChangesToken(types: _changeTypes);
+      setState(() {
+        _changesToken = token;
+        _changesTokenExpired = false;
+        _changesHasMore = false;
+        _changes.clear();
+        _state = token == null ? AppState.CHANGES_NOT_READY : AppState.CHANGES_READY;
+      });
+    } catch (error) {
+      debugPrint("Exception in createChangesToken: $error");
+      setState(() => _state = AppState.CHANGES_NOT_READY);
+    }
+  }
+
+  /// Fetch the next page of changes using the current token.
+  Future<void> fetchChanges() async {
+    if (!Platform.isAndroid) {
+      setState(() => _state = AppState.CHANGES_NOT_READY);
+      return;
+    }
+
+    final token = _changesToken;
+    if (token == null || token.isEmpty) {
+      setState(() => _state = AppState.CHANGES_NOT_READY);
+      return;
+    }
+
+    try {
+      final response = await health.getChanges(changesToken: token);
+      if (response == null) {
+        setState(() => _state = AppState.CHANGES_NOT_READY);
+        return;
+      }
+
+      final summary = _applyChanges(response.changes);
+
+      setState(() {
+        _previousChangesToken = token;
+        _changesToken = response.nextChangesToken;
+        _changesTokenExpired = response.changesTokenExpired;
+        _changesHasMore = response.hasMore;
+        _changes.addAll(response.changes);
+        _lastBeforeCount = summary.beforeCount;
+        _lastAfterCount = summary.afterCount;
+        _lastInserted = summary.inserted;
+        _lastUpdated = summary.updated;
+        _lastRemoved = summary.removed;
+        _lastAppliedUpserts = summary.appliedUpserts;
+        _lastAppliedDeletes = summary.appliedDeletes;
+        _lastChangesAt = DateTime.now();
+        _state = AppState.CHANGES_READY;
+      });
+    } catch (error) {
+      debugPrint("Exception in fetchChanges: $error");
+      setState(() => _state = AppState.CHANGES_NOT_READY);
+    }
+  }
+
+  _ChangesSummary _applyChanges(List<HealthChange> changes) {
+    final beforeCount = _syncedDataById.length;
+    int inserted = 0;
+    int updated = 0;
+    int removed = 0;
+    int appliedUpserts = 0;
+    int appliedDeletes = 0;
+
+    for (final change in changes) {
+      if (change.type == HealthChangeType.delete) {
+        appliedDeletes += 1;
+        final recordId = change.recordId;
+        if (recordId != null && _syncedDataById.remove(recordId) != null) {
+          removed += 1;
+        }
+        continue;
+      }
+
+      appliedUpserts += 1;
+      final dataPoint = change.dataPoint;
+      if (dataPoint == null || dataPoint.uuid.isEmpty) {
+        continue;
+      }
+
+      final existing = _syncedDataById[dataPoint.uuid];
+      _syncedDataById[dataPoint.uuid] = dataPoint;
+      if (existing == null) {
+        inserted += 1;
+      } else if (existing != dataPoint) {
+        updated += 1;
+      }
+    }
+
+    return _ChangesSummary(
+      beforeCount: beforeCount,
+      afterCount: _syncedDataById.length,
+      inserted: inserted,
+      updated: updated,
+      removed: removed,
+      appliedUpserts: appliedUpserts,
+      appliedDeletes: appliedDeletes,
+    );
   }
 
   /// Fetch data points from the health plugin and show them in the app.
@@ -235,6 +428,45 @@ class HealthAppState extends State<HealthApp> {
     } catch (error) {
       debugPrint("Exception in getHealthDataByUUID: $error");
     }
+  }
+
+  // Add single steps data (health data)
+  Future<void> addSingleHealthData() async {
+    final now = DateTime.now();
+    final earlier = now.subtract(const Duration(minutes: 20));
+
+    final uuid = await health.writeHealthDataUUID(
+      value: 2130,
+      type: HealthDataType.STEPS,
+      startTime: earlier,
+      endTime: now,
+      recordingMethod: RecordingMethod.manual,
+    );
+
+    bool success = uuid != null;
+    setState(() {
+      _state = success ? AppState.DATA_ADDED : AppState.DATA_NOT_ADDED;
+    });
+  }
+
+  // Add single running data (workout data)
+  Future<void> addSingleWorkoutData() async {
+    final now = DateTime.now();
+    final earlier = now.subtract(const Duration(minutes: 20));
+
+    final uuid = await health.writeWorkoutDataUUID(
+      activityType: HealthWorkoutActivityType.RUNNING,
+      title: "New RUNNING activity",
+      start: earlier,
+      end: now,
+      totalDistance: 2430,
+      totalEnergyBurned: 400,
+    );
+
+    bool success = uuid != null;
+    setState(() {
+      _state = success ? AppState.DATA_ADDED : AppState.DATA_NOT_ADDED;
+    });
   }
 
   /// Add some random health data.
@@ -314,12 +546,6 @@ class HealthAppState extends State<HealthApp> {
     // different types of sleep
     success &= await health.writeHealthData(
       value: 0.0,
-      type: HealthDataType.SLEEP_REM,
-      startTime: earlier,
-      endTime: now,
-    );
-    success &= await health.writeHealthData(
-      value: 0.0,
       type: HealthDataType.SLEEP_ASLEEP,
       startTime: earlier,
       endTime: now,
@@ -330,12 +556,22 @@ class HealthAppState extends State<HealthApp> {
       startTime: earlier,
       endTime: now,
     );
-    success &= await health.writeHealthData(
-      value: 0.0,
-      type: HealthDataType.SLEEP_DEEP,
-      startTime: earlier,
-      endTime: now,
-    );
+    if (_isIOS16OrNewer || Platform.isAndroid) {
+      success &= await health.writeHealthData(
+        value: 0.0,
+        type: HealthDataType.SLEEP_REM,
+        startTime: earlier,
+        endTime: now,
+      );
+      success &= await health.writeHealthData(
+        value: 0.0,
+        type: HealthDataType.SLEEP_DEEP,
+        startTime: earlier,
+        endTime: now,
+      );
+    } else if (Platform.isIOS) {
+      debugPrint('Skipping SLEEP_REM and SLEEP_DEEP writes on iOS < 16.');
+    }
     success &= await health.writeHealthData(
       value: 22,
       type: HealthDataType.LEAN_BODY_MASS,
@@ -447,6 +683,8 @@ class HealthAppState extends State<HealthApp> {
       endTime: now,
     );
 
+    writeSkinTemperatureSample();
+
     if (Platform.isIOS) {
       success &= await health.writeInsulinDelivery(
         5,
@@ -481,11 +719,10 @@ class HealthAppState extends State<HealthApp> {
         startTime: earlier,
         endTime: now,
       );
-
     }
 
-    // Available on iOS or iOS 16.0+ only
-    if (Platform.isIOS) {
+    // Available on iOS 16.0+ only
+    if (_isIOS16OrNewer) {
       success &= await health.writeHealthData(
         value: 22,
         type: HealthDataType.WATER_TEMPERATURE,
@@ -508,8 +745,14 @@ class HealthAppState extends State<HealthApp> {
         endTime: now,
         recordingMethod: RecordingMethod.manual,
       );
+    } else if (Platform.isIOS) {
+      debugPrint(
+        'Skipping WATER_TEMPERATURE, UNDERWATER_DEPTH, and UV_INDEX writes on iOS < 16.',
+      );
+    }
 
-       // Mindfulness value should be counted based on start and end time
+    if (Platform.isIOS) {
+      // Mindfulness value should be counted based on start and end time
       success &= await health.writeHealthData(
         value: 10,
         type: HealthDataType.MINDFULNESS,
@@ -522,6 +765,64 @@ class HealthAppState extends State<HealthApp> {
     setState(() {
       _state = success ? AppState.DATA_ADDED : AppState.DATA_NOT_ADDED;
     });
+  }
+
+  Future<bool> _ensureSkinTemperaturePermissions({
+    required HealthDataAccess access,
+  }) async {
+    if (!Platform.isAndroid) return false;
+
+    final available = await health.isSkinTemperatureAvailable();
+    if (!available) {
+      setState(() {
+        _contentSkinTemperatureFeatureStatus = const Text(
+          'Skin Temperature Feature: NOT AVAILABLE',
+        );
+        _state = AppState.SKIN_TEMPERATURE_FEATURE_STATUS;
+      });
+      return false;
+    }
+
+    bool? hasPermissions = await health.hasPermissions(
+      [HealthDataType.SKIN_TEMPERATURE],
+      permissions: [access],
+    );
+
+    if (hasPermissions != true) {
+      hasPermissions = await health.requestAuthorization(
+        [HealthDataType.SKIN_TEMPERATURE],
+        permissions: [access],
+      );
+    }
+
+    return hasPermissions == true;
+  }
+
+  /// Write a sample skin temperature record (Android only).
+  Future<void> writeSkinTemperatureSample() async {
+    if (!Platform.isAndroid) {
+      setState(() => _state = AppState.DATA_NOT_ADDED);
+      return;
+    }
+
+    final authorized = await _ensureSkinTemperaturePermissions(
+      access: HealthDataAccess.READ_WRITE,
+    );
+    if (!authorized) {
+      setState(() => _state = AppState.DATA_NOT_ADDED);
+      return;
+    }
+
+    final now = DateTime.now();
+    final earlier = now.subtract(const Duration(minutes: 20));
+    await health.writeHealthData(
+      value: 33.6,
+      type: HealthDataType.SKIN_TEMPERATURE,
+      startTime: earlier,
+      endTime: now,
+      recordingMethod: RecordingMethod.manual,
+    );
+
   }
 
   /// Writes a sample workout route and associates it with a workout.
@@ -875,6 +1176,17 @@ class HealthAppState extends State<HealthApp> {
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
+                      if (Platform.isAndroid)
+                        TextButton(
+                          onPressed: getSkinTemperatureFeatureStatus,
+                          style: const ButtonStyle(
+                            backgroundColor: WidgetStatePropertyAll(Colors.blue),
+                          ),
+                          child: const Text(
+                            "Check Skin Temp Feature",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                       TextButton(
                         onPressed: fetchData,
                         style: const ButtonStyle(
@@ -885,17 +1197,60 @@ class HealthAppState extends State<HealthApp> {
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
+                      if (Platform.isAndroid)
+                        TextButton(
+                          onPressed: createChangesToken,
+                          style: const ButtonStyle(
+                            backgroundColor: WidgetStatePropertyAll(
+                              Colors.blue,
+                            ),
+                          ),
+                          child: const Text(
+                            "Create Changes Token",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      if (Platform.isAndroid)
+                        TextButton(
+                          onPressed: fetchChanges,
+                          style: const ButtonStyle(
+                            backgroundColor: WidgetStatePropertyAll(
+                              Colors.blue,
+                            ),
+                          ),
+                          child: const Text(
+                            "Get Changes",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                       TextButton(
                         onPressed: addData,
                         style: const ButtonStyle(
-                          backgroundColor: WidgetStatePropertyAll(Colors.blue),
-                        ),
-                        child: const Text(
-                          "Add Data",
-                          style: TextStyle(color: Colors.white),
-                        ),
+                            backgroundColor:
+                                WidgetStatePropertyAll(Colors.blue)),
+                        child: const Text("Add Data",
+                            style: TextStyle(color: Colors.white))),
+                    TextButton(
+                      onPressed: addSingleHealthData,
+                      style: const ButtonStyle(
+                        backgroundColor: WidgetStatePropertyAll(Colors.blue),
                       ),
-                      if (Platform.isIOS || Platform.isAndroid)
+                      child: const Text(
+                        "Add Steps Data",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: addSingleWorkoutData,
+                      style: const ButtonStyle(
+                        backgroundColor: WidgetStatePropertyAll(Colors.blue),
+                      ),
+                      child: const Text(
+                        "Add Running Data",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    if (Platform.isIOS || Platform.isAndroid)
                         TextButton(
                           onPressed: writeWorkoutRoute,
                           style: const ButtonStyle(
@@ -908,7 +1263,7 @@ class HealthAppState extends State<HealthApp> {
                             style: TextStyle(color: Colors.white),
                           ),
                         ),
-                      TextButton(
+                    TextButton(
                         onPressed: deleteData,
                         style: const ButtonStyle(
                           backgroundColor: WidgetStatePropertyAll(Colors.blue),
@@ -1164,11 +1519,75 @@ class HealthAppState extends State<HealthApp> {
     'No status, click getHealthConnectSdkStatus to get the status.',
   );
 
+  Widget _contentSkinTemperatureFeatureStatus = const Text(
+    'No status, click "Check Skin Temp Feature" to get the status.',
+  );
+
   final Widget _dataAdded = const Text('Data points inserted successfully.');
 
   final Widget _dataDeleted = const Text('Data points deleted successfully.');
 
   Widget get _stepsFetched => Text('Total number of steps: $_nofSteps.');
+
+  Widget get _contentChangesReady {
+    final token = _changesToken;
+    final tokenPreview = token == null
+        ? 'none'
+        : (token.length > 12 ? '${token.substring(0, 12)}...' : token);
+    final previousToken = _previousChangesToken;
+    final previousPreview = previousToken == null
+        ? 'none'
+        : (previousToken.length > 12
+            ? '${previousToken.substring(0, 12)}...'
+            : previousToken);
+    final lastChangesAt = _lastChangesAt;
+
+    return ListView.builder(
+      itemCount: _changes.length + 1,
+      itemBuilder: (_, index) {
+        if (index == 0) {
+          return ListTile(
+            title: const Text('Health Connect Changes'),
+            subtitle: Text(
+              'prevToken: $previousPreview\n'
+              'nextToken: $tokenPreview\n'
+              'hasMore: $_changesHasMore | tokenExpired: $_changesTokenExpired\n'
+              'applied upserts: $_lastAppliedUpserts | applied deletes: $_lastAppliedDeletes\n'
+              'inserted: $_lastInserted | updated: $_lastUpdated | removed: $_lastRemoved\n'
+              'store count: $_lastBeforeCount -> $_lastAfterCount\n'
+              'last pull: ${lastChangesAt ?? "never"}',
+            ),
+          );
+        }
+
+        final change = _changes[index - 1];
+        if (change.type == HealthChangeType.delete) {
+          return ListTile(
+            title: const Text('Delete'),
+            subtitle: Text('recordId: ${change.recordId ?? "unknown"}'),
+          );
+        }
+
+        final dataPoint = change.dataPoint;
+        if (dataPoint == null) {
+          return ListTile(
+            title: Text('Upsert ${change.dataType?.name ?? "UNKNOWN"}'),
+            subtitle: const Text('No data point decoded.'),
+          );
+        }
+
+        return ListTile(
+          title: Text('${dataPoint.typeString}: ${dataPoint.value}'),
+          trailing: Text(dataPoint.unitString),
+          subtitle: Text('${dataPoint.dateFrom} - ${dataPoint.dateTo}'),
+        );
+      },
+    );
+  }
+
+  final Widget _contentChangesNotReady = const Text(
+    'No change token yet. Tap "Create Changes Token" after authorization.',
+  );
 
   final Widget _dataNotAdded = const Text(
     'Failed to add data.\nDo you have permissions to add data?',
@@ -1189,9 +1608,13 @@ class HealthAppState extends State<HealthApp> {
     AppState.DATA_NOT_DELETED => _dataNotDeleted,
     AppState.STEPS_READY => _stepsFetched,
     AppState.HEALTH_CONNECT_STATUS => _contentHealthConnectStatus,
+    AppState.SKIN_TEMPERATURE_FEATURE_STATUS =>
+      _contentSkinTemperatureFeatureStatus,
     AppState.PERMISSIONS_REVOKING => _permissionsRevoking,
     AppState.PERMISSIONS_REVOKED => _permissionsRevoked,
     AppState.PERMISSIONS_NOT_REVOKED => _permissionsNotRevoked,
+    AppState.CHANGES_READY => _contentChangesReady,
+    AppState.CHANGES_NOT_READY => _contentChangesNotReady,
   };
 
   Widget _detailedBottomSheet({HealthDataPoint? healthPoint}) {

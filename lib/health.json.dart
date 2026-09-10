@@ -20,6 +20,7 @@ void _registerFromJsonFunctions() {
     MenstruationFlowHealthValue(flow: null, dateTime: DateTime.now()),
     InsulinDeliveryHealthValue(units: 0.0, reason: InsulinDeliveryReason.NOT_SET),
     ActivityIntensityHealthValue(intensityLevel: ActivityIntensityLevel.unknown, minutes: 0),
+    SkinTemperatureHealthValue(temperatureDelta: 0, measurementLocation: SkinTemperatureMeasurementLocation.unknown),
   ]);
 
   _fromJsonFunctionsRegistered = true;
