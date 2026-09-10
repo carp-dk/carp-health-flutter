@@ -64,6 +64,7 @@ class StubDeviceInfoPlugin implements DeviceInfoPlugin {
           'physicalRamSize': 8192,
           'availableRamSize': 4096,
           'isiOSAppOnMac': false,
+          'isiOSAppOnVision': false,
           'utsname': {
             'sysname': 'stub-ios-sysname',
             'nodename': 'stub-ios-nodename',
