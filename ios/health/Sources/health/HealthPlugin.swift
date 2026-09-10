@@ -19,6 +19,13 @@ public class HealthPlugin: NSObject, FlutterPlugin {
     var characteristicsTypesDict: [String: HKCharacteristicType] = [:]
     var nutritionList: [String] = []
 
+    /// Registers the host app's generated plugins on a headless background engine.
+    static var pluginRegistrantCallback: FlutterPluginRegistrantCallback?
+
+    @objc public static func setPluginRegistrantCallback(_ cb: @escaping FlutterPluginRegistrantCallback) {
+        pluginRegistrantCallback = cb
+    }
+
     /// Service classes
     private lazy var healthDataReader: HealthDataReader = .init(
         healthStore: healthStore,
@@ -49,6 +56,13 @@ public class HealthPlugin: NSObject, FlutterPlugin {
         )
         let instance = HealthPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
+
+        // Re-arm observers on a cold background relaunch, before Dart runs.
+        instance.initializeTypes()
+        HKObserverManager.shared.reRegisterFromStored(
+            healthStore: instance.healthStore,
+            dataTypesDict: instance.dataTypesDict
+        )
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -181,6 +195,35 @@ public class HealthPlugin: NSObject, FlutterPlugin {
                                     message: "Error checking permissions: \(error.localizedDescription)",
                                     details: nil))
             }
+
+        case "registerHealthKitBackgroundDeliveryCallback":
+            guard let args = call.arguments as? [String: Any],
+                  let callbackHandle = (args["callbackHandle"] as? NSNumber)?.int64Value
+            else {
+                result(FlutterError(code: "BG_DELIVERY_ERROR",
+                                    message: "Missing or invalid callbackHandle",
+                                    details: nil))
+                return
+            }
+            HKDeliveryUserDefaults.storeCallbackHandle(callbackHandle)
+            result(nil)
+
+        case "configureBackgroundDelivery":
+            guard let args = call.arguments as? [String: Any],
+                  let types = args["types"] as? [String]
+            else {
+                result(FlutterError(code: "BG_DELIVERY_ERROR",
+                                    message: "Missing or invalid types",
+                                    details: nil))
+                return
+            }
+            HKDeliveryUserDefaults.storeRegisteredTypes(types)
+            HKObserverManager.shared.configure(
+                healthStore: healthStore,
+                typeNames: types,
+                dataTypesDict: dataTypesDict
+            )
+            result(nil)
 
         case "delete":
             do {
