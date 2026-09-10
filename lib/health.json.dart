@@ -17,6 +17,7 @@ void _registerFromJsonFunctions() {
     NutritionHealthValue(),
     WorkoutRouteHealthValue(locations: []),
     WorkoutRouteLocation(latitude: 0, longitude: 0, timestamp: DateTime.now()),
+    WorkoutEvent(type: 0, startDate: DateTime.now()),
     MenstruationFlowHealthValue(flow: null, dateTime: DateTime.now()),
     InsulinDeliveryHealthValue(units: 0.0, reason: InsulinDeliveryReason.NOT_SET),
     ActivityIntensityHealthValue(intensityLevel: ActivityIntensityLevel.unknown, minutes: 0),
