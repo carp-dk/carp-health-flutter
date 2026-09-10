@@ -112,6 +112,9 @@ class WorkoutHealthValue extends HealthValue {
   /// The type of the workout.
   HealthWorkoutActivityType workoutActivityType;
 
+  /// Raw workoutActivityType from native data format.
+  String? rawWorkoutActivityType;
+
   /// The total energy burned during the workout.
   /// Might not be available for all workouts.
   int? totalEnergyBurned;
@@ -138,6 +141,7 @@ class WorkoutHealthValue extends HealthValue {
 
   WorkoutHealthValue({
     required this.workoutActivityType,
+    this.rawWorkoutActivityType,
     this.totalEnergyBurned,
     this.totalEnergyBurnedUnit,
     this.totalDistance,
@@ -147,24 +151,38 @@ class WorkoutHealthValue extends HealthValue {
   });
 
   /// Create a [WorkoutHealthValue] based on a health data point from native data format.
-  factory WorkoutHealthValue.fromHealthDataPoint(dynamic dataPoint) => WorkoutHealthValue(
-    workoutActivityType: HealthWorkoutActivityType.values.firstWhere(
-      (element) => element.name == dataPoint['workoutActivityType'],
-      orElse: () => HealthWorkoutActivityType.OTHER,
-    ),
-    totalEnergyBurned: dataPoint['totalEnergyBurned'] != null ? (dataPoint['totalEnergyBurned'] as num).toInt() : null,
-    totalEnergyBurnedUnit: dataPoint['totalEnergyBurnedUnit'] != null
-        ? HealthDataUnit.values.firstWhere((element) => element.name == dataPoint['totalEnergyBurnedUnit'])
-        : null,
-    totalDistance: dataPoint['totalDistance'] != null ? (dataPoint['totalDistance'] as num).toInt() : null,
-    totalDistanceUnit: dataPoint['totalDistanceUnit'] != null
-        ? HealthDataUnit.values.firstWhere((element) => element.name == dataPoint['totalDistanceUnit'])
-        : null,
-    totalSteps: dataPoint['totalSteps'] != null ? (dataPoint['totalSteps'] as num).toInt() : null,
-    totalStepsUnit: dataPoint['totalStepsUnit'] != null
-        ? HealthDataUnit.values.firstWhere((element) => element.name == dataPoint['totalStepsUnit'])
-        : null,
-  );
+  factory WorkoutHealthValue.fromHealthDataPoint(dynamic dataPoint) =>
+      WorkoutHealthValue(
+        workoutActivityType: HealthWorkoutActivityType.values.firstWhere(
+          (element) => element.name == dataPoint['workoutActivityType'],
+          orElse: () => HealthWorkoutActivityType.OTHER,
+        ),
+        rawWorkoutActivityType: dataPoint['workoutActivityType'] as String?,
+        totalEnergyBurned: dataPoint['totalEnergyBurned'] != null
+            ? (dataPoint['totalEnergyBurned'] as num).toInt()
+            : null,
+        totalEnergyBurnedUnit: dataPoint['totalEnergyBurnedUnit'] != null
+            ? HealthDataUnit.values.firstWhere(
+                (element) => element.name == dataPoint['totalEnergyBurnedUnit'],
+              )
+            : null,
+        totalDistance: dataPoint['totalDistance'] != null
+            ? (dataPoint['totalDistance'] as num).toInt()
+            : null,
+        totalDistanceUnit: dataPoint['totalDistanceUnit'] != null
+            ? HealthDataUnit.values.firstWhere(
+                (element) => element.name == dataPoint['totalDistanceUnit'],
+              )
+            : null,
+        totalSteps: dataPoint['totalSteps'] != null
+            ? (dataPoint['totalSteps'] as num).toInt()
+            : null,
+        totalStepsUnit: dataPoint['totalStepsUnit'] != null
+            ? HealthDataUnit.values.firstWhere(
+                (element) => element.name == dataPoint['totalStepsUnit'],
+              )
+            : null,
+      );
 
   @override
   Function get fromJsonFunction => _$WorkoutHealthValueFromJson;
@@ -176,6 +194,7 @@ class WorkoutHealthValue extends HealthValue {
   @override
   String toString() =>
       """$runtimeType - workoutActivityType: ${workoutActivityType.name},
+           rawWorkoutActivityType: $rawWorkoutActivityType,
            totalEnergyBurned: $totalEnergyBurned,
            totalEnergyBurnedUnit: ${totalEnergyBurnedUnit?.name},
            totalDistance: $totalDistance,
@@ -187,6 +206,7 @@ class WorkoutHealthValue extends HealthValue {
   bool operator ==(Object other) =>
       other is WorkoutHealthValue &&
       workoutActivityType == other.workoutActivityType &&
+      rawWorkoutActivityType == other.rawWorkoutActivityType &&
       totalEnergyBurned == other.totalEnergyBurned &&
       totalEnergyBurnedUnit == other.totalEnergyBurnedUnit &&
       totalDistance == other.totalDistance &&
@@ -197,6 +217,7 @@ class WorkoutHealthValue extends HealthValue {
   @override
   int get hashCode => Object.hash(
     workoutActivityType,
+    rawWorkoutActivityType,
     totalEnergyBurned,
     totalEnergyBurnedUnit,
     totalDistance,
