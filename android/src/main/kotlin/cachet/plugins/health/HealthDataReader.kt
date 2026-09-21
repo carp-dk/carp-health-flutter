@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.records.ExerciseRouteResult.ConsentRequired
 import androidx.health.connect.client.records.ExerciseRouteResult.Data
 import androidx.health.connect.client.records.ExerciseRouteResult.NoData
@@ -594,6 +595,16 @@ class HealthDataReader(
 
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
+
+            /**
+             * Only aggregate companion records written by the same app that
+             * recorded the session. Without this, distance/energy/steps from
+             * every other app (or the phone's own activity tracking) overlapping
+             * the workout window is summed in too -- e.g. doubling distance when a
+             * second app also recorded the same activity.
+             */
+            val sessionDataOrigin =
+                setOf(DataOrigin(record.metadata.dataOrigin.packageName))
             
             // Get distance data
             val distanceRequest = healthConnectClient.readRecords(
@@ -603,6 +614,7 @@ class HealthDataReader(
                         record.startTime,
                         record.endTime,
                     ),
+                    dataOriginFilter = sessionDataOrigin,
                 ),
             )
             var totalDistance = 0.0
@@ -618,6 +630,7 @@ class HealthDataReader(
                         record.startTime,
                         record.endTime,
                     ),
+                    dataOriginFilter = sessionDataOrigin,
                 ),
             )
             var totalEnergyBurned = 0.0
@@ -633,6 +646,7 @@ class HealthDataReader(
                         record.startTime,
                         record.endTime
                     ),
+                    dataOriginFilter = sessionDataOrigin,
                 ),
             )
             var totalSteps = 0.0
