@@ -60,6 +60,7 @@ const _$HealthDataTypeEnumMap = {
   HealthDataType.BASAL_ENERGY_BURNED: 'BASAL_ENERGY_BURNED',
   HealthDataType.BLOOD_GLUCOSE: 'BLOOD_GLUCOSE',
   HealthDataType.BLOOD_OXYGEN: 'BLOOD_OXYGEN',
+  HealthDataType.VO2_MAX: 'VO2_MAX',
   HealthDataType.BLOOD_PRESSURE_DIASTOLIC: 'BLOOD_PRESSURE_DIASTOLIC',
   HealthDataType.BLOOD_PRESSURE_SYSTOLIC: 'BLOOD_PRESSURE_SYSTOLIC',
   HealthDataType.BODY_FAT_PERCENTAGE: 'BODY_FAT_PERCENTAGE',
@@ -124,6 +125,54 @@ const _$HealthDataTypeEnumMap = {
   HealthDataType.FLIGHTS_CLIMBED: 'FLIGHTS_CLIMBED',
   HealthDataType.DISTANCE_DELTA: 'DISTANCE_DELTA',
   HealthDataType.WALKING_SPEED: 'WALKING_SPEED',
+  HealthDataType.TIME_IN_DAYLIGHT: 'TIME_IN_DAYLIGHT',
+  HealthDataType.WALKING_DOUBLE_SUPPORT_PERCENTAGE:
+      'WALKING_DOUBLE_SUPPORT_PERCENTAGE',
+  HealthDataType.WALKING_STEP_LENGTH: 'WALKING_STEP_LENGTH',
+  HealthDataType.WALKING_ASYMMETRY_PERCENTAGE: 'WALKING_ASYMMETRY_PERCENTAGE',
+  HealthDataType.APPLE_WALKING_STEADINESS: 'APPLE_WALKING_STEADINESS',
+  HealthDataType.STAIR_ASCENT_SPEED: 'STAIR_ASCENT_SPEED',
+  HealthDataType.STAIR_DESCENT_SPEED: 'STAIR_DESCENT_SPEED',
+  HealthDataType.SIX_MINUTE_WALK_TEST_DISTANCE: 'SIX_MINUTE_WALK_TEST_DISTANCE',
+  HealthDataType.RUNNING_POWER: 'RUNNING_POWER',
+  HealthDataType.RUNNING_SPEED: 'RUNNING_SPEED',
+  HealthDataType.RUNNING_STRIDE_LENGTH: 'RUNNING_STRIDE_LENGTH',
+  HealthDataType.RUNNING_VERTICAL_OSCILLATION: 'RUNNING_VERTICAL_OSCILLATION',
+  HealthDataType.RUNNING_GROUND_CONTACT_TIME: 'RUNNING_GROUND_CONTACT_TIME',
+  HealthDataType.HEART_RATE_RECOVERY_ONE_MINUTE:
+      'HEART_RATE_RECOVERY_ONE_MINUTE',
+  HealthDataType.PHYSICAL_EFFORT: 'PHYSICAL_EFFORT',
+  HealthDataType.ENVIRONMENTAL_AUDIO_EXPOSURE: 'ENVIRONMENTAL_AUDIO_EXPOSURE',
+  HealthDataType.HEADPHONE_AUDIO_EXPOSURE: 'HEADPHONE_AUDIO_EXPOSURE',
+  HealthDataType.NUMBER_OF_TIMES_FALLEN: 'NUMBER_OF_TIMES_FALLEN',
+  HealthDataType.BASAL_BODY_TEMPERATURE: 'BASAL_BODY_TEMPERATURE',
+  HealthDataType.PEAK_EXPIRATORY_FLOW: 'PEAK_EXPIRATORY_FLOW',
+  HealthDataType.FORCED_VITAL_CAPACITY: 'FORCED_VITAL_CAPACITY',
+  HealthDataType.INHALER_USAGE: 'INHALER_USAGE',
+  HealthDataType.BLOOD_ALCOHOL_CONTENT: 'BLOOD_ALCOHOL_CONTENT',
+  HealthDataType.NUMBER_OF_ALCOHOLIC_BEVERAGES: 'NUMBER_OF_ALCOHOLIC_BEVERAGES',
+  HealthDataType.PUSH_COUNT: 'PUSH_COUNT',
+  HealthDataType.SWIMMING_STROKE_COUNT: 'SWIMMING_STROKE_COUNT',
+  HealthDataType.DISTANCE_WHEELCHAIR: 'DISTANCE_WHEELCHAIR',
+  HealthDataType.DISTANCE_DOWNHILL_SNOW_SPORTS: 'DISTANCE_DOWNHILL_SNOW_SPORTS',
+  HealthDataType.DISTANCE_CROSS_COUNTRY_SKIING: 'DISTANCE_CROSS_COUNTRY_SKIING',
+  HealthDataType.DISTANCE_PADDLE_SPORTS: 'DISTANCE_PADDLE_SPORTS',
+  HealthDataType.DISTANCE_ROWING: 'DISTANCE_ROWING',
+  HealthDataType.DISTANCE_SKATING_SPORTS: 'DISTANCE_SKATING_SPORTS',
+  HealthDataType.CYCLING_CADENCE: 'CYCLING_CADENCE',
+  HealthDataType.CYCLING_POWER: 'CYCLING_POWER',
+  HealthDataType.CYCLING_SPEED: 'CYCLING_SPEED',
+  HealthDataType.CYCLING_FUNCTIONAL_THRESHOLD_POWER:
+      'CYCLING_FUNCTIONAL_THRESHOLD_POWER',
+  HealthDataType.CROSS_COUNTRY_SKIING_SPEED: 'CROSS_COUNTRY_SKIING_SPEED',
+  HealthDataType.PADDLE_SPORTS_SPEED: 'PADDLE_SPORTS_SPEED',
+  HealthDataType.ROWING_SPEED: 'ROWING_SPEED',
+  HealthDataType.ENVIRONMENTAL_SOUND_REDUCTION: 'ENVIRONMENTAL_SOUND_REDUCTION',
+  HealthDataType.WORKOUT_EFFORT_SCORE: 'WORKOUT_EFFORT_SCORE',
+  HealthDataType.ESTIMATED_WORKOUT_EFFORT_SCORE:
+      'ESTIMATED_WORKOUT_EFFORT_SCORE',
+  HealthDataType.APPLE_SLEEPING_BREATHING_DISTURBANCES:
+      'APPLE_SLEEPING_BREATHING_DISTURBANCES',
   HealthDataType.SPEED: 'SPEED',
   HealthDataType.MINDFULNESS: 'MINDFULNESS',
   HealthDataType.WATER: 'WATER',
@@ -200,6 +249,7 @@ const _$HealthDataUnitEnumMap = {
   HealthDataUnit.KILOCALORIE: 'KILOCALORIE',
   HealthDataUnit.LARGE_CALORIE: 'LARGE_CALORIE',
   HealthDataUnit.SMALL_CALORIE: 'SMALL_CALORIE',
+  HealthDataUnit.KILOCALORIE_PER_HOUR_KILOGRAM: 'KILOCALORIE_PER_HOUR_KILOGRAM',
   HealthDataUnit.DEGREE_CELSIUS: 'DEGREE_CELSIUS',
   HealthDataUnit.DEGREE_FAHRENHEIT: 'DEGREE_FAHRENHEIT',
   HealthDataUnit.KELVIN: 'KELVIN',
@@ -207,6 +257,7 @@ const _$HealthDataUnitEnumMap = {
   HealthDataUnit.HERTZ: 'HERTZ',
   HealthDataUnit.SIEMEN: 'SIEMEN',
   HealthDataUnit.VOLT: 'VOLT',
+  HealthDataUnit.WATT: 'WATT',
   HealthDataUnit.INTERNATIONAL_UNIT: 'INTERNATIONAL_UNIT',
   HealthDataUnit.COUNT: 'COUNT',
   HealthDataUnit.PERCENT: 'PERCENT',
@@ -215,6 +266,11 @@ const _$HealthDataUnitEnumMap = {
   HealthDataUnit.MILLIGRAM_PER_DECILITER: 'MILLIGRAM_PER_DECILITER',
   HealthDataUnit.MILLIMOLES_PER_LITER: 'MILLIMOLES_PER_LITER',
   HealthDataUnit.METER_PER_SECOND: 'METER_PER_SECOND',
+  HealthDataUnit.MILLILITER_PER_KILOGRAM_PER_MINUTE:
+      'MILLILITER_PER_KILOGRAM_PER_MINUTE',
+  HealthDataUnit.LITER_PER_MINUTE: 'LITER_PER_MINUTE',
+  HealthDataUnit.COUNT_PER_MINUTE: 'COUNT_PER_MINUTE',
+  HealthDataUnit.APPLE_EFFORT_SCORE: 'APPLE_EFFORT_SCORE',
   HealthDataUnit.UNKNOWN_UNIT: 'UNKNOWN_UNIT',
   HealthDataUnit.NO_UNIT: 'NO_UNIT',
 };
@@ -291,6 +347,21 @@ WorkoutHealthValue _$WorkoutHealthValueFromJson(Map<String, dynamic> json) =>
         _$HealthDataUnitEnumMap,
         json['totalStepsUnit'],
       ),
+      totalFlightsClimbed: (json['totalFlightsClimbed'] as num?)?.toInt(),
+      totalSwimmingStrokeCount: (json['totalSwimmingStrokeCount'] as num?)
+          ?.toInt(),
+      avgMets: json['avgMets'] as num?,
+      elevationAscended: json['elevationAscended'] as num?,
+      elevationDescended: json['elevationDescended'] as num?,
+      duration: json['duration'] as num?,
+      isIndoor: json['isIndoor'] as bool?,
+      weatherTemperature: json['weatherTemperature'] as num?,
+      weatherHumidity: json['weatherHumidity'] as num?,
+      averageSpeed: json['averageSpeed'] as num?,
+      maximumSpeed: json['maximumSpeed'] as num?,
+      workoutEvents: (json['workoutEvents'] as List<dynamic>?)
+          ?.map((e) => WorkoutEvent.fromJson(e as Map<String, dynamic>))
+          .toList(),
     )..$type = json['__type'] as String?;
 
 Map<String, dynamic> _$WorkoutHealthValueToJson(WorkoutHealthValue instance) =>
@@ -305,6 +376,18 @@ Map<String, dynamic> _$WorkoutHealthValueToJson(WorkoutHealthValue instance) =>
       'totalDistanceUnit': ?_$HealthDataUnitEnumMap[instance.totalDistanceUnit],
       'totalSteps': ?instance.totalSteps,
       'totalStepsUnit': ?_$HealthDataUnitEnumMap[instance.totalStepsUnit],
+      'totalFlightsClimbed': ?instance.totalFlightsClimbed,
+      'totalSwimmingStrokeCount': ?instance.totalSwimmingStrokeCount,
+      'avgMets': ?instance.avgMets,
+      'elevationAscended': ?instance.elevationAscended,
+      'elevationDescended': ?instance.elevationDescended,
+      'duration': ?instance.duration,
+      'isIndoor': ?instance.isIndoor,
+      'weatherTemperature': ?instance.weatherTemperature,
+      'weatherHumidity': ?instance.weatherHumidity,
+      'averageSpeed': ?instance.averageSpeed,
+      'maximumSpeed': ?instance.maximumSpeed,
+      'workoutEvents': ?instance.workoutEvents?.map((e) => e.toJson()).toList(),
     };
 
 const _$HealthWorkoutActivityTypeEnumMap = {
@@ -412,6 +495,18 @@ const _$HealthWorkoutActivityTypeEnumMap = {
   HealthWorkoutActivityType.WHEELCHAIR: 'WHEELCHAIR',
   HealthWorkoutActivityType.OTHER: 'OTHER',
 };
+
+WorkoutEvent _$WorkoutEventFromJson(Map<String, dynamic> json) => WorkoutEvent(
+  type: (json['type'] as num).toInt(),
+  startDate: DateTime.parse(json['startDate'] as String),
+)..$type = json['__type'] as String?;
+
+Map<String, dynamic> _$WorkoutEventToJson(WorkoutEvent instance) =>
+    <String, dynamic>{
+      '__type': ?instance.$type,
+      'type': instance.type,
+      'startDate': instance.startDate.toIso8601String(),
+    };
 
 WorkoutRouteLocation _$WorkoutRouteLocationFromJson(
   Map<String, dynamic> json,
