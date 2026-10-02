@@ -107,7 +107,7 @@ class HealthDataReader(
 
                     // Handle special cases
                     when (dataType) {
-                        WORKOUT -> handleWorkoutData(records, recordingMethodsToFilter, healthConnectData)
+                        WORKOUT -> handleWorkoutData(records, recordingMethodsToFilter, healthConnectData, grantedPermissions)
                         SLEEP_SESSION, SLEEP_ASLEEP, SLEEP_AWAKE, SLEEP_AWAKE_IN_BED, 
                         SLEEP_LIGHT, SLEEP_DEEP, SLEEP_REM, SLEEP_OUT_OF_BED, SLEEP_UNKNOWN -> 
                             handleSleepData(records, recordingMethodsToFilter, dataType, healthConnectData)
@@ -201,11 +201,12 @@ class HealthDataReader(
                 val matchingRecord = response.record
 
                 if (matchingRecord != null) {
+                    val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
                     // Handle special cases using shared logic
                     when (dataType) {
                         HealthConstants.WORKOUT -> {
                             val tempData = mutableListOf<Map<String, Any?>>()
-                            handleWorkoutData(listOf(matchingRecord), emptyList(), tempData)
+                            handleWorkoutData(listOf(matchingRecord), emptyList(), tempData, grantedPermissions)
                             healthPoint = if (tempData.isNotEmpty()) tempData[0] else mapOf()
                         }
                         HealthConstants.SLEEP_SESSION,
@@ -577,11 +578,13 @@ class HealthDataReader(
      * @param records List of ExerciseSessionRecord objects
      * @param recordingMethodsToFilter Recording methods to exclude (empty list means no filtering)
      * @param healthConnectData Mutable list to append processed workout data
+     * @param grantedPermissions Set of permissions granted to the app for conditional data retrieval
      */
     private suspend fun handleWorkoutData(
         records: List<Record>,
         recordingMethodsToFilter: List<Int> = emptyList(),
-        healthConnectData: MutableList<Map<String, Any?>>
+        healthConnectData: MutableList<Map<String, Any?>>,
+        grantedPermissions: Set<String> = emptySet(),
     ) {
         val filteredRecords = if (recordingMethodsToFilter.isEmpty()) {
             records
@@ -592,52 +595,74 @@ class HealthDataReader(
             )
         }
 
+        val canReadDistance = grantedPermissions.contains(
+            HealthPermission.getReadPermission(DistanceRecord::class)
+        )
+        val canReadCalories = grantedPermissions.contains(
+            HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
+        )
+        val canReadSteps = grantedPermissions.contains(
+            HealthPermission.getReadPermission(StepsRecord::class)
+        )
+
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
             
-            // Get distance data
-            val distanceRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
-                    ),
-                ),
-            )
+            // Get distance data (only if READ_DISTANCE is granted)
             var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
+            if (canReadDistance) {
+                val distanceRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = DistanceRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
+                    ),
+                )
+                for (distanceRec in distanceRequest.records) {
+                    totalDistance += distanceRec.distance.inMeters
+                }
+            } else {
+                Log.i("FLUTTER_HEALTH", "Distance permission not granted; skipping distance aggregation")
             }
 
-            // Get energy burned data
-            val energyBurnedRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
-                    ),
-                ),
-            )
+            // Get energy burned data (only if READ_TOTAL_CALORIES_BURNED is granted)
             var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+            if (canReadCalories) {
+                val energyBurnedRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = TotalCaloriesBurnedRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
+                    ),
+                )
+                for (energyBurnedRec in energyBurnedRequest.records) {
+                    totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                }
+            } else {
+                Log.i("FLUTTER_HEALTH", "TotalCaloriesBurned permission not granted; skipping energy aggregation")
             }
 
-            // Get steps data
-            val stepRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime
-                    ),
-                ),
-            )
+            // Get steps data (only if READ_STEPS is granted)
             var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
+            if (canReadSteps) {
+                val stepRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = StepsRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime
+                        ),
+                    ),
+                )
+                for (stepRec in stepRequest.records) {
+                    totalSteps += stepRec.count
+                }
+            } else {
+                Log.i("FLUTTER_HEALTH", "Steps permission not granted; skipping step aggregation")
             }
 
             // Add final datapoint
