@@ -9,7 +9,17 @@ class HealthDataReader {
     let dataQuantityTypesDict: [String: HKQuantityType]
     let unitDict: [String: HKUnit]
     let workoutActivityTypeMap: [String: HKWorkoutActivityType]
+    let workoutActivityTypeNames: [HKWorkoutActivityType: String]
     let characteristicsTypesDict: [String: HKCharacteristicType]
+
+    /// Names that only exist for Health Connect. Writing one stores a HealthKit type
+    /// that has a name of its own, so they are never returned when reading.
+    static let healthConnectWorkoutActivityTypeNames: Set<String> = [
+        "ROCK_CLIMBING",
+        "RUNNING_TREADMILL",
+        "SWIMMING_OPEN_WATER",
+        "SWIMMING_POOL",
+    ]
 
     /// - Parameters:
     ///   - healthStore: The HealthKit store
@@ -31,7 +41,38 @@ class HealthDataReader {
         self.dataQuantityTypesDict = dataQuantityTypesDict
         self.unitDict = unitDict
         self.workoutActivityTypeMap = workoutActivityTypeMap
+        self.workoutActivityTypeNames = HealthDataReader.workoutActivityTypeNames(
+            from: workoutActivityTypeMap
+        )
         self.characteristicsTypesDict = characteristicsTypesDict
+    }
+
+    /// Builds the lookup used to name the activity type of a workout read from HealthKit.
+    ///
+    /// Several names can map to one HealthKit type: `RUNNING` and `RUNNING_TREADMILL` both
+    /// store `.running`. Searching the dictionary for the first match would return a
+    /// different one from launch to launch, because dictionary order is not stable. The
+    /// names are therefore visited in a fixed order, HealthKit's own names first.
+    /// - Parameter workoutActivityTypeMap: Dictionary of workout activity types
+    /// - Returns: The name each HealthKit workout activity type is read back as
+    static func workoutActivityTypeNames(
+        from workoutActivityTypeMap: [String: HKWorkoutActivityType]
+    ) -> [HKWorkoutActivityType: String] {
+        let names = workoutActivityTypeMap.keys.sorted { lhs, rhs in
+            let lhsIsHealthConnectName = healthConnectWorkoutActivityTypeNames.contains(lhs)
+            let rhsIsHealthConnectName = healthConnectWorkoutActivityTypeNames.contains(rhs)
+            if lhsIsHealthConnectName != rhsIsHealthConnectName {
+                return rhsIsHealthConnectName
+            }
+            return lhs < rhs
+        }
+        var namesByType: [HKWorkoutActivityType: String] = [:]
+        for name in names {
+            if let type = workoutActivityTypeMap[name], namesByType[type] == nil {
+                namesByType[type] = name
+            }
+        }
+        return namesByType
     }
 
     /// Gets health data
@@ -252,9 +293,8 @@ class HealthDataReader {
                 let dictionaries = workoutSamples.map { sample -> NSDictionary in
                     return [
                         "uuid": "\(sample.uuid)",
-                        "workoutActivityType": self.workoutActivityTypeMap.first(where: {
-                            $0.value == sample.workoutActivityType
-                        })?.key,
+                        "workoutActivityType":
+                            self.workoutActivityTypeNames[sample.workoutActivityType],
                         "totalEnergyBurned": sample.totalEnergyBurned?.doubleValue(
                             for: HKUnit.kilocalorie()
                         ),
@@ -541,9 +581,8 @@ class HealthDataReader {
                 let dictionaries = workoutSamples.map { sample -> NSDictionary in
                     return [
                         "uuid": "\(sample.uuid)",
-                        "workoutActivityType": self.workoutActivityTypeMap.first(where: {
-                            $0.value == sample.workoutActivityType
-                        })?.key,
+                        "workoutActivityType":
+                            self.workoutActivityTypeNames[sample.workoutActivityType],
                         "totalEnergyBurned": sample.totalEnergyBurned?.doubleValue(
                             for: HKUnit.kilocalorie()
                         ),
