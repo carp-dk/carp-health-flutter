@@ -1871,7 +1871,6 @@ class Health {
     return {
       // Both
       HealthWorkoutActivityType.AMERICAN_FOOTBALL,
-      HealthWorkoutActivityType.ARCHERY,
       HealthWorkoutActivityType.AUSTRALIAN_FOOTBALL,
       HealthWorkoutActivityType.BADMINTON,
       HealthWorkoutActivityType.BASEBALL,
@@ -1881,7 +1880,6 @@ class Health {
       HealthWorkoutActivityType.CARDIO_DANCE,
       HealthWorkoutActivityType.CRICKET,
       HealthWorkoutActivityType.CROSS_COUNTRY_SKIING,
-      HealthWorkoutActivityType.CURLING,
       HealthWorkoutActivityType.DOWNHILL_SKIING,
       HealthWorkoutActivityType.ELLIPTICAL,
       HealthWorkoutActivityType.FENCING,
@@ -1892,6 +1890,7 @@ class Health {
       HealthWorkoutActivityType.HIKING,
       HealthWorkoutActivityType.HOCKEY,
       HealthWorkoutActivityType.MARTIAL_ARTS,
+      HealthWorkoutActivityType.PADDLE_SPORTS,
       HealthWorkoutActivityType.PILATES,
       HealthWorkoutActivityType.RACQUETBALL,
       HealthWorkoutActivityType.ROWING,
@@ -1933,7 +1932,6 @@ class Health {
       HealthWorkoutActivityType.SURFING,
       HealthWorkoutActivityType.SWIMMING_OPEN_WATER,
       HealthWorkoutActivityType.SWIMMING_POOL,
-      HealthWorkoutActivityType.WALKING_TREADMILL,
       HealthWorkoutActivityType.WEIGHTLIFTING,
       HealthWorkoutActivityType.WHEELCHAIR,
       HealthWorkoutActivityType.OTHER,

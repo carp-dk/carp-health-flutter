@@ -488,6 +488,7 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | BASEBALL                         | yes              | yes                       |                                                                                                 |
 | BASKETBALL                       | yes              | yes                       |                                                                                                 |
 | BIKING                           | yes              | yes                       | on iOS this is CYCLING, but name changed here to fit with Android                               |
+| BIKING_STATIONARY                |                  | yes                       |                                                                                                 |
 | BOWLING                          | yes              |                           |                                                                                                 |
 | BOXING                           | yes              | yes                       |                                                                                                 |
 | CALISTHENICS                     |                  | yes                       |                                                                                                 |
@@ -517,7 +518,7 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | HANDBALL                         | yes              | yes                       |                                                                                                 |
 | HIGH_INTENSITY_INTERVAL_TRAINING | yes              | yes                       |                                                                                                 |
 | HIKING                           | yes              | yes                       |                                                                                                 |
-| HOCKEY                           | yes              |                           |                                                                                                 |
+| HOCKEY                           | yes              | yes                       | on Android this will be stored as ICE_HOCKEY                                                    |
 | HUNTING                          | yes              |                           |                                                                                                 |
 | JUMP_ROPE                        | yes              |                           |                                                                                                 |
 | KICKBOXING                       | yes              |                           |                                                                                                 |
@@ -525,7 +526,7 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | MARTIAL_ARTS                     | yes              | yes                       |                                                                                                 |
 | MIND_AND_BODY                    | yes              |                           |                                                                                                 |
 | MIXED_CARDIO                     | yes              |                           |                                                                                                 |
-| PADDLE_SPORTS                    | yes              |                           |                                                                                                 |
+| PADDLE_SPORTS                    | yes              | yes                       | on Android this is PADDLING                                                                     |
 | PARAGLIDING                      |                  | yes                       |                                                                                                 |
 | PICKLEBALL                       | yes              |                           |                                                                                                 |
 | PILATES                          | yes              | yes                       |                                                                                                 |
@@ -543,7 +544,7 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | SKIING                           | (yes)            | yes                       | on iOS you have to choose between CROSS_COUNTRY_SKIING and DOWNHILL_SKIING                      |
 | SNOW_SPORTS                      | yes              |                           |                                                                                                 |
 | SNOWBOARDING                     | yes              | yes                       |                                                                                                 |
-| SOCCER                           | yes              |                           |                                                                                                 |
+| SOCCER                           | yes              | yes                       |                                                                                                 |
 | SOCIAL_DANCE                     | yes              | (yes)                     | on Android this will be stored as DANCING                                                       |
 | SOFTBALL                         | yes              | yes                       |                                                                                                 |
 | SQUASH                           | yes              | yes                       |                                                                                                 |

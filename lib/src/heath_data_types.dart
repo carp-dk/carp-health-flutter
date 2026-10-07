@@ -490,7 +490,7 @@ enum HealthWorkoutActivityType {
 
   // Both
   AMERICAN_FOOTBALL,
-  ARCHERY,
+  ARCHERY, // iOS only
   AUSTRALIAN_FOOTBALL,
   BADMINTON,
   BASEBALL,
@@ -500,7 +500,7 @@ enum HealthWorkoutActivityType {
   CARDIO_DANCE,
   CRICKET,
   CROSS_COUNTRY_SKIING,
-  CURLING,
+  CURLING, // iOS only
   DOWNHILL_SKIING,
   ELLIPTICAL,
   FENCING,
@@ -509,7 +509,7 @@ enum HealthWorkoutActivityType {
   HANDBALL,
   HIGH_INTENSITY_INTERVAL_TRAINING,
   HIKING,
-  HOCKEY,
+  HOCKEY, // on Android this is ICE_HOCKEY
   JUMP_ROPE,
   KICKBOXING,
   MARTIAL_ARTS,
@@ -551,7 +551,7 @@ enum HealthWorkoutActivityType {
   LACROSSE,
   MIND_AND_BODY,
   MIXED_CARDIO,
-  PADDLE_SPORTS,
+  PADDLE_SPORTS, // also on Android, where it is called PADDLING
   PICKLEBALL,
   PLAY,
   PREPARATION_AND_RECOVERY,
@@ -588,7 +588,7 @@ enum HealthWorkoutActivityType {
   STRENGTH_TRAINING,
   SWIMMING_OPEN_WATER,
   SWIMMING_POOL,
-  WALKING_TREADMILL,
+  WALKING_TREADMILL, // not supported: Health Connect has no treadmill walking type
   WEIGHTLIFTING,
   WHEELCHAIR,
 
