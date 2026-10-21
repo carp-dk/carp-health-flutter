@@ -321,6 +321,35 @@ class Health {
     }
   }
 
+  /// Registers a Dart [callback] to run when HealthKit delivers new data in the
+  /// background (including after the app has been terminated).
+  ///
+  /// The [callback] MUST be a top-level or static function, since it is invoked
+  /// on a headless Flutter engine via its callback handle.
+  ///
+  /// iOS only. No-op on other platforms.
+  Future<void> registerBackgroundDeliveryCallback(Function callback) async {
+    if (!Platform.isIOS) return;
+    final handle = PluginUtilities.getCallbackHandle(callback);
+    if (handle == null) {
+      throw ArgumentError('callback must be a top-level or static function');
+    }
+    await _channel.invokeMethod('registerHealthKitBackgroundDeliveryCallback', {
+      'callbackHandle': handle.toRawHandle(),
+    });
+  }
+
+  /// Configures which HealthKit [types] should wake the app via background
+  /// delivery and observer queries.
+  ///
+  /// iOS only. No-op on other platforms.
+  Future<void> configureBackgroundDelivery(List<HealthDataType> types) async {
+    if (!Platform.isIOS) return;
+    await _channel.invokeMethod('configureBackgroundDelivery', {
+      'types': types.map((t) => t.name).toList(),
+    });
+  }
+
   /// Checks whether Skin Temperature is available on this Android device.
   ///
   /// Android only. Returns false on iOS or if an error occurs.
