@@ -11,6 +11,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import java.time.Instant
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -54,7 +55,7 @@ class HealthDataOperations(
             return
         }
 
-        scope.launch {
+        launchReporting(result) {
             result.success(
                     healthConnectClient
                             .permissionController
@@ -90,8 +91,13 @@ class HealthDataOperations(
      */
     fun revokePermissions(call: MethodCall, result: Result) {
         scope.launch {
-            Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
-            healthConnectClient.permissionController.revokeAllPermissions()
+            try {
+                Log.i("FLUTTER_HEALTH", "Revoking all Health Connect permissions")
+                healthConnectClient.permissionController.revokeAllPermissions()
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Unable to revoke permissions")
+                Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+            }
         }
         result.success(true)
     }
@@ -104,7 +110,7 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean availability status
      */
     fun isHealthDataHistoryAvailable(call: MethodCall, result: Result) {
-        scope.launch {
+        launchReporting(result) {
             result.success(
                     healthConnectClient.features.getFeatureStatus(
                             HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
@@ -121,7 +127,7 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean authorization status
      */
     fun isHealthDataHistoryAuthorized(call: MethodCall, result: Result) {
-        scope.launch {
+        launchReporting(result) {
             result.success(
                     healthConnectClient
                             .permissionController
@@ -139,7 +145,7 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean availability status
      */
     fun isHealthDataInBackgroundAvailable(call: MethodCall, result: Result) {
-        scope.launch {
+        launchReporting(result) {
             result.success(
                     healthConnectClient.features.getFeatureStatus(
                             HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
@@ -156,7 +162,7 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean authorization status
      */
     fun isHealthDataInBackgroundAuthorized(call: MethodCall, result: Result) {
-        scope.launch {
+        launchReporting(result) {
             result.success(
                     healthConnectClient
                             .permissionController
@@ -174,7 +180,7 @@ class HealthDataOperations(
      * @param result Flutter result callback returning boolean availability status
      */
     fun isSkinTemperatureAvailable(call: MethodCall, result: Result) {
-        scope.launch {
+        launchReporting(result) {
             result.success(
                     healthConnectClient.features.getFeatureStatus(
                             HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE
@@ -366,5 +372,29 @@ class HealthDataOperations(
         }
 
         return permList
+    }
+
+    /**
+     * Launches [block] in [scope] and reports any exception to Flutter through [result]
+     * instead of letting it escape the coroutine.
+     *
+     * Calls into Health Connect can throw `android.os.RemoteException` ("Binding to service
+     * failed" / "Binding died") when its service cannot be bound, for example while the
+     * Health Connect app is disabled, updating or killed by the system. Uncaught inside
+     * `scope.launch`, that exception crashes the whole app, and a try/catch on the Dart side
+     * cannot help because it never reaches Dart. Reported as an error, it surfaces as a
+     * `PlatformException` that the caller can handle. See issue #149.
+     */
+    private fun launchReporting(result: Result, block: suspend () -> Unit) {
+        scope.launch {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+                result.error("HEALTH_CONNECT_ERROR", e.message, null)
+            }
+        }
     }
 }
