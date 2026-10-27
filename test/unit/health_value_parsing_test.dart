@@ -35,6 +35,65 @@ void main() {
       expect(value.totalDistance, 5000);
     });
 
+    test('builds a workout summary from Android camelCase keys', () {
+      final point = HealthDataPoint.fromHealthDataPoint(
+        HealthDataType.WORKOUT,
+        {...HealthFixtures.workoutPoint(), 'totalSteps': 6200, 'totalStepsUnit': 'COUNT'},
+        HealthDataUnit.NO_UNIT.name,
+      );
+
+      final summary = point.workoutSummary;
+      expect(summary, isNotNull);
+      expect(summary!.workoutType, 'RUNNING');
+      expect(summary.totalDistance, 5000);
+      expect(summary.totalEnergyBurned, 200);
+      expect(summary.totalSteps, 6200);
+    });
+
+    test('builds a workout summary when Android sends no totals', () {
+      final point = HealthDataPoint.fromHealthDataPoint(
+        HealthDataType.WORKOUT,
+        {...HealthFixtures.workoutPoint(), 'totalDistance': null, 'totalEnergyBurned': null},
+        HealthDataUnit.NO_UNIT.name,
+      );
+
+      final summary = point.workoutSummary;
+      expect(summary, isNotNull);
+      expect(summary!.workoutType, 'RUNNING');
+      expect(summary.totalDistance, 0);
+      expect(summary.totalEnergyBurned, 0);
+      expect(summary.totalSteps, 0);
+    });
+
+    test('prefers the iOS snake_case summary keys when present', () {
+      final point = HealthDataPoint.fromHealthDataPoint(
+        HealthDataType.WORKOUT,
+        {
+          ...HealthFixtures.workoutPoint(),
+          'workout_type': 'running',
+          'total_distance': 4999,
+          'total_energy_burned': 199,
+        },
+        HealthDataUnit.NO_UNIT.name,
+      );
+
+      final summary = point.workoutSummary;
+      expect(summary, isNotNull);
+      expect(summary!.workoutType, 'running');
+      expect(summary.totalDistance, 4999);
+      expect(summary.totalEnergyBurned, 199);
+    });
+
+    test('leaves the workout summary null for other data types', () {
+      final point = HealthDataPoint.fromHealthDataPoint(
+        HealthDataType.HEART_RATE,
+        HealthFixtures.numericPoint(),
+        null,
+      );
+
+      expect(point.workoutSummary, isNull);
+    });
+
     test('parses workout route health data points', () {
       final point = HealthDataPoint.fromHealthDataPoint(
         HealthDataType.WORKOUT_ROUTE,

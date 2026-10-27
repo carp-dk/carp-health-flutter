@@ -137,12 +137,13 @@ class HealthDataPoint {
     final String? uuid = dataPoint["uuid"] as String?;
     final String? deviceModel = dataPoint["device_model"] as String?;
 
-    // Set WorkoutSummary, if available.
+    // Set WorkoutSummary, if available. Android sends only the camelCase keys.
     WorkoutSummary? workoutSummary;
     if (dataPoint["workout_type"] != null ||
         dataPoint["total_distance"] != null ||
         dataPoint["total_energy_burned"] != null ||
-        dataPoint["total_steps"] != null) {
+        dataPoint["total_steps"] != null ||
+        dataPoint["workoutActivityType"] != null) {
       workoutSummary = WorkoutSummary.fromHealthDataPoint(dataPoint);
     }
 
