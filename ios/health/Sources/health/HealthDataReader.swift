@@ -164,9 +164,7 @@ class HealthDataReader {
             }
 
             guard let samples = samplesOrNil else {
-                DispatchQueue.main.async {
-                    result([])
-                }
+                result([])
                 return
             }
 
@@ -198,9 +196,7 @@ class HealthDataReader {
                         "metadata": HealthUtilities.sanitizeMetadata(sample.metadata),
                     ]
                 }
-                DispatchQueue.main.async {
-                    result(dictionaries)
-                }
+                result(dictionaries)
             } else if var categorySamples = samples as? [HKCategorySample] {
                 // filter category samples based on dataTypeKey
                 switch dataTypeKey {
@@ -245,9 +241,7 @@ class HealthDataReader {
                         "metadata": HealthUtilities.sanitizeMetadata(sample.metadata),
                     ]
                 }
-                DispatchQueue.main.async {
-                    result(categories)
-                }
+                result(categories)
             } else if let workoutSamples = samples as? [HKWorkout] {
                 let dictionaries = workoutSamples.map { sample -> NSDictionary in
                     return [
@@ -278,9 +272,7 @@ class HealthDataReader {
                     ]
                 }
 
-                DispatchQueue.main.async {
-                    result(dictionaries)
-                }
+                result(dictionaries)
             } else if let audiogramSamples = samples as? [HKAudiogramSample] {
                 let dictionaries = audiogramSamples.map { sample -> NSDictionary in
                     var frequencies = [Double]()
@@ -310,9 +302,7 @@ class HealthDataReader {
                         "source_name": sample.sourceRevision.source.name,
                     ]
                 }
-                DispatchQueue.main.async {
-                    result(dictionaries)
-                }
+                result(dictionaries)
             } else if let nutritionSamples = samples as? [HKCorrelation] {
                 var foods: [[String: Any?]] = []
                 for food in nutritionSamples {
@@ -355,9 +345,7 @@ class HealthDataReader {
                     }
                 }
 
-                DispatchQueue.main.async {
-                    result(foods)
-                }
+                result(foods)
             } else {
                 if #available(iOS 14.0, *), let ecgSamples = samples as? [HKElectrocardiogram] {
                     self.fetchEcgMeasurements(ecgSamples, result)

@@ -17,6 +17,7 @@ import androidx.health.connect.client.units.*
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
@@ -55,7 +56,8 @@ class HealthDataReader(
             "Getting data for $dataType with unit $dataUnit between $startTime and $endTime, filtering by $recordingMethodsToFilter"
         )
 
-        scope.launch {
+        // Off the main thread: converting a large catch-up (e.g. 100k points) would stall the UI.
+        scope.launch(Dispatchers.Default) {
             try {
                 val grantedPermissions =
                     healthConnectClient.permissionController.getGrantedPermissions()
