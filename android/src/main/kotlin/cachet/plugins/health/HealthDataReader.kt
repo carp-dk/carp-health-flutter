@@ -34,6 +34,7 @@ class HealthDataReader(
     private val dataConverter: HealthDataConverter
 ) {
     private val recordingFilter = HealthRecordingFilter()
+    private val permissionChecker = HealthPermissionChecker(context)
 
     /**
      * Retrieves all health data points of a specified type within a given time range.
@@ -133,7 +134,7 @@ class HealthDataReader(
                     "Unable to return $dataType due to the following exception:"
                 )
                 Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
-                result.success(emptyList<Map<String, Any?>>()) // Return empty list instead of null
+                result.error("UNAVAILABLE", "Data not available", emptyList<Map<String, Any?>>()) // Return empty list instead of null
             }
         }
     }
@@ -598,48 +599,72 @@ class HealthDataReader(
             val record = rec as ExerciseSessionRecord
             
             // Get distance data
-            val distanceRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+            var totalDistance: Double? = null
+            if (permissionChecker.isHealthDistancePermissionGranted()) {
+                val distanceRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = DistanceRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalDistance = 0.0
-            for (distanceRec in distanceRequest.records) {
-                totalDistance += distanceRec.distance.inMeters
+                )
+                totalDistance = 0.0
+                for (distanceRec in distanceRequest.records) {
+                    totalDistance = totalDistance!! + distanceRec.distance.inMeters
+                }
+            } else {
+                Log.i(
+                    "FLUTTER_HEALTH",
+                    "Skipping distance data retrieval for workout due to missing health distance permission"
+                )
             }
 
             // Get energy burned data
-            val energyBurnedRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime,
+            var totalEnergyBurned: Double? = null
+            if (permissionChecker.isHealthTotalCaloriesBurnedPermissionGranted()) {
+                val energyBurnedRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = TotalCaloriesBurnedRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime,
+                        ),
                     ),
-                ),
-            )
-            var totalEnergyBurned = 0.0
-            for (energyBurnedRec in energyBurnedRequest.records) {
-                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                )
+                totalEnergyBurned = 0.0
+                for (energyBurnedRec in energyBurnedRequest.records) {
+                    totalEnergyBurned = totalEnergyBurned!! + energyBurnedRec.energy.inKilocalories
+                }
+            } else {
+                Log.i(
+                    "FLUTTER_HEALTH",
+                    "Skipping total calories burned data retrieval for workout due to missing permissions"
+                )
             }
 
             // Get steps data
-            val stepRequest = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        record.startTime,
-                        record.endTime
+            var totalSteps: Double? = null
+            if (permissionChecker.isHealthStepsPermissionGranted()) {
+                val stepRequest = healthConnectClient.readRecords(
+                    ReadRecordsRequest(
+                        recordType = StepsRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            record.startTime,
+                            record.endTime
+                        ),
                     ),
-                ),
-            )
-            var totalSteps = 0.0
-            for (stepRec in stepRequest.records) {
-                totalSteps += stepRec.count
+                )
+                totalSteps = 0.0
+                for (stepRec in stepRequest.records) {
+                    totalSteps = totalSteps!! + stepRec.count.toDouble()
+                }
+            } else {
+                Log.i(
+                    "FLUTTER_HEALTH",
+                    "Skipping steps data retrieval for workout due to missing permissions"
+                )
             }
 
             // Add final datapoint
@@ -651,11 +676,11 @@ class HealthDataReader(
                                 .filterValues { it == record.exerciseType }
                                 .keys
                                 .firstOrNull() ?: "OTHER"),
-                    "totalDistance" to if (totalDistance == 0.0) null else totalDistance,
+                    "totalDistance" to totalDistance,
                     "totalDistanceUnit" to "METER",
-                    "totalEnergyBurned" to if (totalEnergyBurned == 0.0) null else totalEnergyBurned,
+                    "totalEnergyBurned" to totalEnergyBurned,
                     "totalEnergyBurnedUnit" to "KILOCALORIE",
-                    "totalSteps" to if (totalSteps == 0.0) null else totalSteps,
+                    "totalSteps" to totalSteps,
                     "totalStepsUnit" to "COUNT",
                     "unit" to "MINUTES",
                     "date_from" to record.startTime.toEpochMilli(),
