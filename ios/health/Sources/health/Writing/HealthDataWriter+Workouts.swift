@@ -43,7 +43,7 @@ extension HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned ?? nil,
             totalDistance: totalDistance ?? nil,
-            metadata: nil
+            metadata: workoutMetadata(from: arguments["metadata"])
         )
 
         healthStore.save(
@@ -97,7 +97,7 @@ extension HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned ?? nil,
             totalDistance: totalDistance ?? nil,
-            metadata: nil
+            metadata: workoutMetadata(from: arguments["metadata"])
         )
 
         healthStore.save(

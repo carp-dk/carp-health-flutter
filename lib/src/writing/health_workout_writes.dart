@@ -19,6 +19,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///    *ONLY FOR IOS* Default value is METER.
   ///  - [title] The title of the workout.
   ///    *ONLY FOR HEALTH CONNECT* Default value is the [activityType], e.g. "STRENGTH_TRAINING".
+  ///  - [metadata] HealthKit metadata of the workout, such as its brand name or whether it was done indoors.
+  ///    *ONLY FOR IOS* Ignored on Android. See [WorkoutMetadata].
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
   Future<bool> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
@@ -29,6 +31,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
     int? totalDistance,
     HealthDataUnit totalDistanceUnit = HealthDataUnit.METER,
     String? title,
+    WorkoutMetadata? metadata,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
@@ -52,6 +55,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
       'totalDistanceUnit': totalDistanceUnit.name,
       'title': title,
       'recordingMethod': recordingMethod.toInt(),
+      if (metadata != null) 'metadata': metadata.toJson(),
     };
     return await Health._channel.invokeMethod('writeWorkoutData', args) == true;
   }
@@ -72,6 +76,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///    *ONLY FOR IOS* Default value is METER.
   ///  - [title] The title of the workout.
   ///    *ONLY FOR HEALTH CONNECT* Default value is the [activityType], e.g. "STRENGTH_TRAINING".
+  ///  - [metadata] HealthKit metadata of the workout, such as its brand name or whether it was done indoors.
+  ///    *ONLY FOR IOS* Ignored on Android. See [WorkoutMetadata].
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
   Future<String?> writeWorkoutDataUUID({
     required HealthWorkoutActivityType activityType,
@@ -82,6 +88,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
     int? totalDistance,
     HealthDataUnit totalDistanceUnit = HealthDataUnit.METER,
     String? title,
+    WorkoutMetadata? metadata,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
@@ -105,6 +112,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
       'totalDistanceUnit': totalDistanceUnit.name,
       'title': title,
       'recordingMethod': recordingMethod.toInt(),
+      if (metadata != null) 'metadata': metadata.toJson(),
     };
 
     String uuid = '${await Health._channel.invokeMethod('writeWorkoutDataUUID', args)}';

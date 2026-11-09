@@ -19,7 +19,8 @@ import java.time.Instant
 
 /**
  * Writes a workout as an exercise session, with its distance and energy burned as records of their
- * own, for writeWorkoutData and writeWorkoutDataUUID.
+ * own, for writeWorkoutData and writeWorkoutDataUUID. The 'metadata' argument (WorkoutMetadata) is
+ * HealthKit workout metadata, which Health Connect has no equivalent for, so it is ignored here.
  */
 internal class WorkoutWriter(
     private val healthConnectClient: HealthConnectClient,

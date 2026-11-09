@@ -58,6 +58,7 @@ part 'src/writing/health_platform_specific_writes.dart';
 part 'src/writing/health_workout_routes.dart';
 part 'src/writing/health_workout_writes.dart';
 part 'src/writing/workout_activity_types.dart';
+part 'src/writing/workout_metadata.dart';
 
 part 'health.g.dart';
 part 'health.json.dart';

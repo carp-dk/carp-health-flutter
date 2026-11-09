@@ -12,6 +12,7 @@
 * Android: Fix `getHealthIntervalDataFromTypes` failing with a `ClassCastException`, and for `WEIGHT`, `WATER`, `SLEEP_*` and `ACTIVITY_INTENSITY` with "Unsupported value" (values are now sent in kilograms, litres and minutes). `HEART_RATE` intervals are the average beats per minute, as on iOS, instead of the number of samples.
 * Android: A `preferredUnits` entry that Health Connect values are not converted to throws `invalidArgument`, as on iOS, instead of labelling values with a unit they are not in. Android converts weight to `POUND`, height to `CENTIMETER` and `INCH`, body and skin temperature to `DEGREE_FAHRENHEIT` and `KELVIN`, and blood glucose to `MILLIMOLES_PER_LITER`; every other type is returned in its default unit.
 * Android: Workouts are returned when distance, calories or steps permission is missing (those totals are null).
+* iOS: `writeWorkoutData` and `writeWorkoutDataUUID` take an optional `WorkoutMetadata` (brand name, indoor, group fitness, coached workout, Apple Fitness+ session on iOS 17+), saved as HealthKit workout metadata; Android ignores it - PR [#452](https://github.com/carp-dk/carp-health-flutter/pull/452) by @kvenn.
 * iOS: Fix `getHealthIntervalDataFromTypes` crashing the app for `HEART_RATE` and other types that HealthKit averages over time.
 * iOS: An incompatible `preferredUnits` entry throws `INVALID_ARGUMENT` instead of crashing the app, and `CENTIMETER` and `MILLIMOLES_PER_LITER` work (they crashed the app).
 * iOS: An ECG whose voltage measurements cannot be read fails the read instead of being left out silently.
