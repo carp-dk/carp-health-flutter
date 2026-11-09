@@ -122,7 +122,7 @@ object HealthConstants {
         STEPS to StepsRecord.COUNT_TOTAL,
         AGGREGATE_STEP_COUNT to StepsRecord.COUNT_TOTAL,
         ACTIVE_ENERGY_BURNED to ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
-        HEART_RATE to HeartRateRecord.MEASUREMENTS_COUNT,
+        HEART_RATE to HeartRateRecord.BPM_AVG,
         DISTANCE_DELTA to DistanceRecord.DISTANCE_TOTAL,
         WATER to HydrationRecord.VOLUME_TOTAL,
         SLEEP_ASLEEP to SleepSessionRecord.SLEEP_DURATION_TOTAL,

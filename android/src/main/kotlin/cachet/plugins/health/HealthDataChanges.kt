@@ -1,7 +1,6 @@
 package cachet.plugins.health
 
 import android.content.Context
-import android.os.Handler
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.changes.DeletionChange
@@ -11,6 +10,7 @@ import androidx.health.connect.client.request.ChangesTokenRequest
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
@@ -55,16 +55,14 @@ class HealthDataChanges(
             recordTypes.add(classType)
         }
 
-        scope.launch {
+        scope.launch(Dispatchers.Default) {
             try {
                 val token = healthConnectClient.getChangesToken(
                     ChangesTokenRequest(recordTypes = recordTypes)
                 )
-                Handler(context.mainLooper).run { result.success(token) }
-            } catch (e: Exception) {
-                Log.e("FLUTTER_HEALTH::ERROR", "Error fetching changes token: ${e.message}")
-                Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
-                result.success(null)
+                result.success(token)
+            } catch (e: Throwable) {
+                HealthErrors.report(result, e, "getChangesToken")
             }
         }
     }
@@ -72,80 +70,106 @@ class HealthDataChanges(
     /**
      * Fetches the next page of changes for a previously created token.
      *
+     * A page that is too large to convert or send (more than 100,000 data points, e.g. for
+     * thousands of changed heart rate series, or an OutOfMemoryError) or that Health Connect
+     * cannot return ("Too many records in the cursor") is reported as DATA_TOO_LARGE; the Dart
+     * side then reports the token as expired.
+     *
      * @param call Method call containing 'changesToken' and optional 'includeSelf'
      * @param result Flutter result callback returning changes payload
      */
     fun getChanges(call: MethodCall, result: Result) {
-        val changesToken = call.argument<String>("changesToken")
-        val includeSelf = call.argument<Boolean>("includeSelf") ?: false
+        // Off the main thread: a page of changes can expand to tens of thousands of data points.
+        scope.launch(Dispatchers.Default) {
+            try {
+                val changesToken = call.optionalString("changesToken")
+                val includeSelf = call.argument<Boolean>("includeSelf") ?: false
 
-        if (changesToken.isNullOrEmpty()) {
-            result.success(null)
+                if (changesToken.isNullOrEmpty()) {
+                    result.success(null)
+                    return@launch
+                }
+
+                // In its own call, so nothing of a page that did not fit is held while reporting.
+                replyChanges(changesToken, includeSelf, result)
+            } catch (e: Throwable) {
+                HealthErrors.report(result, e, "getChanges")
+            }
+        }
+    }
+
+    /** Reads the page of changes after [changesToken], converts it and replies. */
+    private suspend fun replyChanges(changesToken: String, includeSelf: Boolean, result: Result) {
+        val response = healthConnectClient.getChanges(changesToken)
+        // Health Connect returns a page of changed records whatever their size, and one heart rate record
+        // can hold thousands of samples. Converting and sending millions of points at once would run out
+        // of memory; the Dart side reports this as an expired token, so the app reads the range again.
+        val points = response.changes.sumOf { change ->
+            val record = (change as? UpsertionChange)?.record
+            if (record == null || (!includeSelf && record.metadata.dataOrigin.packageName == context.packageName)) 0L
+            else dataConverter.sampleCount(record).toLong() * maxOf(1, dataTypesForRecord(record).size)
+        }
+        if (points > MAX_CHANGE_POINTS) {
+            result.error(
+                HealthErrors.DATA_TOO_LARGE,
+                "The page of changes holds $points data points, more than $MAX_CHANGE_POINTS",
+                null,
+            )
             return
         }
+        val changes = mutableListOf<Map<String, Any?>>()
 
-        scope.launch {
-            try {
-                val response = healthConnectClient.getChanges(changesToken)
-                val changes = mutableListOf<Map<String, Any?>>()
+        for (change in response.changes) {
+            when (change) {
+                is UpsertionChange -> {
+                    val record = change.record
+                    val originPackage = record.metadata.dataOrigin.packageName
+                    if (!includeSelf && originPackage == context.packageName) {
+                        continue
+                    }
 
-                for (change in response.changes) {
-                    when (change) {
-                        is UpsertionChange -> {
-                            val record = change.record
-                            val originPackage = record.metadata.dataOrigin.packageName
-                            if (!includeSelf && originPackage == context.packageName) {
-                                continue
-                            }
+                    if (record is ExerciseSessionRecord) {
+                        changes.add(
+                            mapOf(
+                                "type" to "upsert",
+                                "dataTypeKey" to HealthConstants.WORKOUT,
+                                "dataPoint" to convertWorkoutRecord(record)
+                            )
+                        )
+                        continue
+                    }
 
-                            if (record is ExerciseSessionRecord) {
-                                changes.add(
-                                    mapOf(
-                                        "type" to "upsert",
-                                        "dataTypeKey" to HealthConstants.WORKOUT,
-                                        "dataPoint" to convertWorkoutRecord(record)
-                                    )
-                                )
-                                continue
-                            }
-
-                            for (dataType in dataTypesForRecord(record)) {
-                                val dataPoints = dataConverter.convertRecord(record, dataType)
-                                for (dataPoint in dataPoints) {
-                                    changes.add(
-                                        mapOf(
-                                            "type" to "upsert",
-                                            "dataTypeKey" to dataType,
-                                            "dataPoint" to dataPoint
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                        is DeletionChange -> {
+                    for (dataType in dataTypesForRecord(record)) {
+                        val dataPoints = dataConverter.convertRecord(record, dataType)
+                        for (dataPoint in dataPoints) {
                             changes.add(
                                 mapOf(
-                                    "type" to "delete",
-                                    "recordId" to change.recordId
+                                    "type" to "upsert",
+                                    "dataTypeKey" to dataType,
+                                    "dataPoint" to dataPoint
                                 )
                             )
                         }
                     }
                 }
-
-                val payload = mapOf(
-                    "changes" to changes,
-                    "nextChangesToken" to response.nextChangesToken,
-                    "hasMore" to response.hasMore,
-                    "changesTokenExpired" to response.changesTokenExpired,
-                )
-                Handler(context.mainLooper).run { result.success(payload) }
-            } catch (e: Exception) {
-                Log.e("FLUTTER_HEALTH::ERROR", "Error fetching changes: ${e.message}")
-                Log.e("FLUTTER_HEALTH::ERROR", e.stackTraceToString())
-                result.success(null)
+                is DeletionChange -> {
+                    changes.add(
+                        mapOf(
+                            "type" to "delete",
+                            "recordId" to change.recordId
+                        )
+                    )
+                }
             }
         }
+
+        val payload = mapOf(
+            "changes" to changes,
+            "nextChangesToken" to response.nextChangesToken,
+            "hasMore" to response.hasMore,
+            "changesTokenExpired" to response.changesTokenExpired,
+        )
+        result.success(payload)
     }
 
     private fun dataTypesForRecord(record: Record): List<String> = when (record) {
@@ -204,3 +228,6 @@ class HealthDataChanges(
         )
     }
 }
+
+// The most data points one getChanges reply may hold: twice the largest getDataPage page.
+private const val MAX_CHANGE_POINTS = 100_000L

@@ -97,6 +97,8 @@ class HealthDataPoint {
     }
   }
 
+  static final Map<String, HealthDataUnit> _unitsByName = HealthDataUnit.values.asNameMap();
+
   /// Converts dateTo - dateFrom to minutes.
   NumericHealthValue _convertMinutes() =>
       NumericHealthValue(numericValue: (dateTo.millisecondsSinceEpoch - dateFrom.millisecondsSinceEpoch) / (1000 * 60));
@@ -108,7 +110,18 @@ class HealthDataPoint {
   Map<String, dynamic> toJson() => _$HealthDataPointToJson(this);
 
   /// Create a [HealthDataPoint] based on a health data point from native data format.
-  factory HealthDataPoint.fromHealthDataPoint(HealthDataType dataType, dynamic dataPoint, String? unitName) {
+  ///
+  /// [sourceDeviceId] is 'unknown' if omitted. The plugin passes the id of the
+  /// device it runs on (see [Health.deviceId]).
+  factory HealthDataPoint.fromHealthDataPoint(
+    HealthDataType dataType,
+    dynamic dataPoint,
+    String? unitName, {
+    String? sourceDeviceId,
+  }) {
+    // Parsing can run in a worker isolate, which has its own registry.
+    _registerFromJsonFunctions();
+
     // Handling different [HealthValue] types
     HealthValue value = switch (dataType) {
       HealthDataType.AUDIOGRAM => AudiogramHealthValue.fromHealthDataPoint(dataPoint),
@@ -130,10 +143,7 @@ class HealthDataPoint {
     final Map<String, dynamic>? metadata = dataPoint["metadata"] == null
         ? null
         : Map<String, dynamic>.from(dataPoint['metadata'] as Map);
-    final HealthDataUnit unit = HealthDataUnit.values.firstWhere(
-      (value) => value.name == unitName,
-      orElse: () => dataTypeToUnit[dataType] ?? HealthDataUnit.UNKNOWN_UNIT,
-    );
+    final HealthDataUnit unit = _unitsByName[unitName] ?? dataTypeToUnit[dataType] ?? HealthDataUnit.UNKNOWN_UNIT;
     final String? uuid = dataPoint["uuid"] as String?;
     final String? deviceModel = dataPoint["device_model"] as String?;
 
@@ -155,8 +165,8 @@ class HealthDataPoint {
       unit: unit,
       dateFrom: from,
       dateTo: to,
-      sourcePlatform: Health().platformType,
-      sourceDeviceId: Health().deviceId,
+      sourcePlatform: Platform.isIOS ? HealthPlatformType.appleHealth : HealthPlatformType.googleHealthConnect,
+      sourceDeviceId: sourceDeviceId ?? 'unknown',
       sourceId: sourceId,
       sourceName: sourceName,
       recordingMethod: RecordingMethod.fromInt(recordingMethod),

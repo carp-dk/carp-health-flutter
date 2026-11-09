@@ -371,28 +371,39 @@ class HealthAppState extends State<HealthApp> {
     _healthDataList.clear();
 
     try {
-      // fetch health data
-      List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
+      // fetch health data page by page, so memory stays bounded however much
+      // data there is (getHealthDataFromTypes returns all points in one list)
+      var total = 0;
+      await for (final page in health.getHealthDataPages(
         types: types,
         startTime: yesterday,
         endTime: now,
         recordingMethodsToFilter: recordingMethodsToFilter,
-      );
+      )) {
+        total += page.points.length;
+
+        // keep the 100 newest data points
+        _healthDataList
+          ..addAll(page.points)
+          ..sort((a, b) => b.dateTo.compareTo(a.dateTo));
+        if (_healthDataList.length > 100) {
+          _healthDataList.removeRange(100, _healthDataList.length);
+        }
+      }
 
       debugPrint(
-        'Total number of data points: ${healthData.length}. '
-        '${healthData.length > 100 ? 'Only showing the first 100.' : ''}',
+        'Total number of data points: $total. '
+        '${total > 100 ? 'Only showing the first 100.' : ''}',
       );
-
-      // sort the data points by date
-      healthData.sort((a, b) => b.dateTo.compareTo(a.dateTo));
-
-      // save all the new data points (only the first 100)
-      _healthDataList.addAll(
-        (healthData.length < 100) ? healthData : healthData.sublist(0, 100),
+    } on HealthPlatformException catch (error) {
+      // Health Connect or HealthKit reported an error, for example
+      // HealthErrorCode.rateLimitExceeded, which is worth retrying later.
+      debugPrint(
+        "Exception in getHealthDataPages: $error - "
+        "errorCode: ${error.errorCode}, retryable: ${error.isRetryable}",
       );
     } catch (error) {
-      debugPrint("Exception in getHealthDataFromTypes: $error");
+      debugPrint("Exception in getHealthDataPages: $error");
     }
 
     // filter out duplicates

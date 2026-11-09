@@ -38,6 +38,7 @@ android {
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+        test.java.srcDirs += 'src/test/kotlin'
     }
     defaultConfig {
         minSdkVersion 26
@@ -46,6 +47,10 @@ android {
     }
     lintOptions {
         disable 'InvalidPackage'
+    }
+    testOptions {
+        // android.jar methods return defaults (e.g. Log) instead of throwing in JVM unit tests.
+        unitTests.returnDefaultValues = true
     }
     namespace "cachet.plugins.health"
 }
@@ -57,5 +62,7 @@ dependencies {
 
     implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
     implementation "androidx.fragment:fragment-ktx:1.8.9"
+
+    testImplementation "junit:junit:4.13.2"
 
 }

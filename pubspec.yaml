@@ -1,6 +1,6 @@
 name: health
 description: Wrapper for Apple's HealthKit on iOS and Google's Health Connect on Android.
-version: 13.3.2
+version: 14.0.0
 homepage: https://github.com/carp-dk/carp-health-flutter
 issue_tracker: https://github.com/carp-dk/carp-health-flutter/issues
 documentation: https://docs.carp.dk/packages/flutter-health-plugin

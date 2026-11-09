@@ -3,6 +3,7 @@ library;
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io' show Platform;
+import 'dart:isolate';
 
 import 'package:carp_serializable/carp_serializable.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -16,6 +17,16 @@ part 'src/health_data_point.dart';
 part 'src/health_changes.dart';
 part 'src/health_value_types.dart';
 part 'src/health_plugin.dart';
+part 'src/reading/aggregate_reads.dart';
+part 'src/reading/cancellation.dart';
+part 'src/reading/changes.dart';
+part 'src/reading/data_reads.dart';
+part 'src/reading/health_data_page.dart';
+part 'src/reading/health_platform_exception.dart';
+part 'src/reading/page_reads.dart';
+part 'src/reading/parsing.dart';
+part 'src/reading/read_support.dart';
+part 'src/reading/worker_isolate.dart';
 part 'src/workout_summary.dart';
 
 part 'health.g.dart';

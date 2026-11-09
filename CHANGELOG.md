@@ -1,3 +1,30 @@
+## 14.0.0
+
+* Fix: move health data reads off the main thread - PR [#531](https://github.com/carp-dk/carp-health-flutter/pull/531)
+* Fix app crash (`OutOfMemoryError`) when reading large amounts of data, Health Connect now reads page by page up to 5000 records per call and iOS now reads page by page too
+* Move replies decoding and parsing to a background isolate. See `HealthIsolateMode` (`auto` (default), `worker`, `inline`) and `pageSize`
+* Add `getHealthDataPages()` with a return of `Stream<HealthDataPage>` for reading large time ranges page by page
+* Add Error handlings: `getHealthDataFromTypes`, `getHealthDataPages`, `getHealthIntervalDataFromTypes` and `getHealthDataByUUID` throw a `HealthPlatformException` (a `PlatformException` and a `HealthException`) with a `HealthErrorCode`
+* Android: `getChanges()` returns `changesTokenExpired: true` when Health Connect cannot return the pending changes ("Too many records in the cursor") or a page of changes holds more than 100,000 data points. Create a new token and re-read.
+* Fix: `HealthDataPoint.sourceDeviceId` was always `unknown`; it is now `identifierForVendor` on iOS and `Build.ID` on Android (from `device_info_plus`; a build id, which devices with the same build share). `HealthDataPoint.fromHealthDataPoint`, `HealthChange.fromMethodChannel` and `HealthChangesResponse.fromMethodChannel` accept an optional `sourceDeviceId`.
+* Android: Fix `HEART_RATE`, `SPEED` and `SKIN_TEMPERATURE` returning samples outside `startTime`–`endTime`, and include the in-window samples of records that started up to 24 hours before `startTime` (Health Connect matches these records by their start time only), including records that end exactly at `startTime`.
+* Android: Fix `getTotalStepsInInterval(includeManualEntry: false)` counting only the first 1000 step records.
+* Android: Fix `getHealthIntervalDataFromTypes` failing with a `ClassCastException`, and for `WEIGHT`, `WATER`, `SLEEP_*` and `ACTIVITY_INTENSITY` with "Unsupported value" (values are now sent in kilograms, litres and minutes). `HEART_RATE` intervals are the average beats per minute, as on iOS, instead of the number of samples.
+* Android: A `preferredUnits` entry that Health Connect values are not converted to throws `invalidArgument`, as on iOS, instead of labelling values with a unit they are not in. Android converts weight to `POUND`, height to `CENTIMETER` and `INCH`, body and skin temperature to `DEGREE_FAHRENHEIT` and `KELVIN`, and blood glucose to `MILLIMOLES_PER_LITER`; every other type is returned in its default unit.
+* Android: Workouts are returned when distance, calories or steps permission is missing (those totals are null).
+* iOS: Fix `getHealthIntervalDataFromTypes` crashing the app for `HEART_RATE` and other types that HealthKit averages over time.
+* iOS: An incompatible `preferredUnits` entry throws `INVALID_ARGUMENT` instead of crashing the app, and `CENTIMETER` and `MILLIMOLES_PER_LITER` work (they crashed the app).
+* iOS: An ECG whose voltage measurements cannot be read fails the read instead of being left out silently.
+* Behaviour changes:
+  - On Android, read failures throw instead of returning an empty list (iOS already threw), and `getHealthDataByUUID` throws instead of returning `null`; `null` now only means the record was not found.
+  - iOS read errors use `PERMISSION_DENIED`, `DEVICE_LOCKED`, `NOT_SUPPORTED`, `INVALID_ARGUMENT` or `DATA_TOO_LARGE` where HealthKit reports these conditions; other errors keep `HEALTH_ERROR`.
+  - On iOS, `getTotalStepsInInterval` returns `null` instead of throwing.
+  - `sourceDeviceId` is part of `HealthDataPoint ==`, so points read with this version are not equal to the same points stored by 13.3.x (which had `unknown`).
+  - A type listed twice in `types` is read once.
+  - Android `getHealthIntervalDataFromTypes` for `HEART_RATE` returns average beats per minute instead of sample counts.
+  - Hand-written classes that implement `Health` or `HealthException` must add the new members.
+* Docs: new README sections "Reading large amounts of data", "Error handling" and "Health Connect limits" (API quotas, which depend on the Health Connect version, and the calls each read costs).
+
 ## 13.3.2
 
 * Write data now returns UUID of records - PR [#448](https://github.com/carp-dk/carp-health-flutter/pull/448)

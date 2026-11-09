@@ -12,7 +12,8 @@ part of '../health.dart';
 ///
 ///  * Handling permissions to access health data using the [hasPermissions],
 ///    [requestAuthorization], [revokePermissions] methods.
-///  * Reading health data using the [getHealthDataFromTypes] method.
+///  * Reading health data using the [getHealthDataFromTypes] method, or page by
+///    page with [getHealthDataPages] for large ranges.
 ///  * Writing health data using the [writeHealthData] method.
 ///  * Cleaning up duplicate data points via the [removeDuplicates] method.
 ///
@@ -36,15 +37,58 @@ part of '../health.dart';
 ///
 /// **Note** that you should check the availability of GHC before using any setter
 /// or getter methods. Otherwise, the plugin will throw an exception.
-class Health {
+class Health with _HealthReadSupport, _HealthPageReads, _HealthDataReads, _HealthAggregateReads, _HealthChanges {
   static const MethodChannel _channel = MethodChannel('flutter_health');
 
+  /// The default [pageSize].
+  static const int defaultPageSize = 20000;
+
+  /// The largest [pageSize] accepted. Bigger pages risk running Android's Java
+  /// heap out of memory while a page is built and sent.
+  static const int maxPageSize = 50000;
+
+  @override
   String? _deviceId;
+  @override
   final DeviceInfoPlugin _deviceInfo;
   HealthConnectSdkStatus _healthConnectSdkStatus = HealthConnectSdkStatus.sdkUnavailable;
 
+  /// Where data returned by Health Connect or HealthKit is decoded and parsed;
+  /// see [HealthIsolateMode]. Read once when a read starts, so it can be
+  /// changed at any time.
+  @override
+  HealthIsolateMode isolateMode;
+
+  int _pageSize = defaultPageSize;
+
+  /// Target number of data points per platform call when reading data, from 1
+  /// to [maxPageSize]. Bigger means fewer Health Connect calls, which count
+  /// against its API quota, but more memory per call. See the README section
+  /// "Health Connect limits".
+  ///
+  /// Health Connect returns at most 5000 records per call. One heart rate,
+  /// speed or skin temperature record holds many samples: heart rate is read
+  /// in time slices of at most about this many samples, and speed and skin
+  /// temperature read at most `pageSize / 3600` records per call. Sleep
+  /// sessions, workouts and workout routes are read in smaller pages, and so
+  /// are ECGs and workout routes on iOS. Read once when a read starts, so it
+  /// can be changed at any time.
+  @override
+  int get pageSize => _pageSize;
+
+  set pageSize(int value) {
+    RangeError.checkValueInInterval(value, 1, maxPageSize, 'pageSize');
+    _pageSize = value;
+  }
+
   /// Get an instance of the health plugin.
-  Health({DeviceInfoPlugin? deviceInfo}) : _deviceInfo = deviceInfo ?? DeviceInfoPlugin() {
+  ///
+  /// [Health.isolateMode] and [Health.pageSize] control how data is read; see
+  /// their documentation. Both can also be changed later. Throws a [RangeError] if
+  /// [pageSize] is not between 1 and [maxPageSize].
+  Health({DeviceInfoPlugin? deviceInfo, this.isolateMode = HealthIsolateMode.auto, int pageSize = defaultPageSize})
+    : _deviceInfo = deviceInfo ?? DeviceInfoPlugin() {
+    this.pageSize = pageSize;
     _registerFromJsonFunctions();
   }
 
@@ -52,13 +96,17 @@ class Health {
   HealthConnectSdkStatus get healthConnectSdkStatus => _healthConnectSdkStatus;
 
   /// The type of platform of this device.
+  @override
   HealthPlatformType get platformType =>
       Platform.isIOS ? HealthPlatformType.appleHealth : HealthPlatformType.googleHealthConnect;
 
-  /// The id of this device.
+  /// The id of this device, which read data points carry as their
+  /// [HealthDataPoint.sourceDeviceId].
   ///
   /// On Android this is the [ID](https://developer.android.com/reference/android/os/Build#ID) of the BUILD.
   /// On iOS this is the [identifierForVendor](https://developer.apple.com/documentation/uikit/uidevice/1620059-identifierforvendor) of the UIDevice.
+  /// It is 'unknown' until [configure] or the first read has looked it up.
+  @override
   String get deviceId => _deviceId ?? 'unknown';
 
   /// Configure the health plugin. Must be called before using the plugin.
@@ -69,18 +117,24 @@ class Health {
   }
 
   /// Check if a given data type is available on the platform
+  @override
   bool isDataTypeAvailable(HealthDataType dataType) =>
       Platform.isAndroid ? dataTypeKeysAndroid.contains(dataType) : dataTypeKeysIOS.contains(dataType);
 
   /// Check if a given data type is available on this device.
   /// Currently only needed for Android Skin Temperature support.
+  @override
   Future<void> _checkIfDataTypeAvailableOnDevice(HealthDataType dataType) async {
     if (!Platform.isAndroid) return;
 
     if (dataType == HealthDataType.SKIN_TEMPERATURE) {
       final available = await isSkinTemperatureAvailable();
       if (!available) {
-        throw HealthException(dataType, 'Not available on this Android device');
+        throw HealthException(
+          dataType,
+          'Not available on this Android device',
+          errorCode: HealthErrorCode.notSupported,
+        );
       }
     }
   }
@@ -194,6 +248,7 @@ class Health {
   /// Checks if Google Health Connect is available and throws an [UnsupportedError]
   /// if not.
   /// Internal methods used to check availability before any getter or setter methods.
+  @override
   Future<void> _checkIfHealthConnectAvailableOnAndroid() async {
     if (!Platform.isAndroid) return;
 
@@ -435,78 +490,6 @@ class Health {
     }
   }
 
-  List<HealthDataType> _normalizeTypesForChanges(List<HealthDataType> types) {
-    final normalized = List<HealthDataType>.from(types, growable: true);
-
-    final bmiIndex = normalized.indexOf(HealthDataType.BODY_MASS_INDEX);
-    if (bmiIndex != -1) {
-      normalized.removeAt(bmiIndex);
-      if (!normalized.contains(HealthDataType.WEIGHT)) {
-        normalized.add(HealthDataType.WEIGHT);
-      }
-      if (!normalized.contains(HealthDataType.HEIGHT)) {
-        normalized.add(HealthDataType.HEIGHT);
-      }
-    }
-
-    if (normalized.contains(HealthDataType.WORKOUT_ROUTE) && !normalized.contains(HealthDataType.WORKOUT)) {
-      normalized.add(HealthDataType.WORKOUT);
-    }
-
-    return normalized.toSet().toList();
-  }
-
-  /// Calculate the BMI using the last observed height and weight values.
-  Future<List<HealthDataPoint>> _computeAndroidBMI(
-    DateTime startTime,
-    DateTime endTime,
-    List<RecordingMethod> recordingMethodsToFilter,
-  ) async {
-    List<HealthDataPoint> heights = await _prepareQuery(
-      startTime,
-      endTime,
-      HealthDataType.HEIGHT,
-      recordingMethodsToFilter,
-    );
-
-    if (heights.isEmpty) {
-      return [];
-    }
-
-    List<HealthDataPoint> weights = await _prepareQuery(
-      startTime,
-      endTime,
-      HealthDataType.WEIGHT,
-      recordingMethodsToFilter,
-    );
-
-    double h = (heights.last.value as NumericHealthValue).numericValue.toDouble();
-
-    const dataType = HealthDataType.BODY_MASS_INDEX;
-    final unit = dataTypeToUnit[dataType]!;
-
-    final bmiHealthPoints = <HealthDataPoint>[];
-    for (var i = 0; i < weights.length; i++) {
-      final bmiValue = (weights[i].value as NumericHealthValue).numericValue.toDouble() / (h * h);
-      final x = HealthDataPoint(
-        uuid: '',
-        value: NumericHealthValue(numericValue: bmiValue),
-        type: dataType,
-        unit: unit,
-        dateFrom: weights[i].dateFrom,
-        dateTo: weights[i].dateTo,
-        sourcePlatform: platformType,
-        sourceDeviceId: _deviceId!,
-        sourceId: '',
-        sourceName: '',
-        recordingMethod: RecordingMethod.unknown,
-      );
-
-      bmiHealthPoints.add(x);
-    }
-    return bmiHealthPoints;
-  }
-
   /// Write health data.
   ///
   /// Returns true if successful, false otherwise.
@@ -550,7 +533,7 @@ class Health {
     }
     // If not implemented on platform, throw an exception
     if (!isDataTypeAvailable(type)) {
-      throw HealthException(type, 'Not available on platform $platformType');
+      throw HealthException(type, 'Not available on platform $platformType', errorCode: HealthErrorCode.notSupported);
     }
     endTime ??= startTime;
     if (startTime.isAfter(endTime)) {
@@ -629,22 +612,16 @@ class Health {
     RecordingMethod recordingMethod = RecordingMethod.automatic,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
-    if (Platform.isIOS &&
-        [
-          RecordingMethod.active,
-          RecordingMethod.unknown,
-        ].contains(recordingMethod)) {
+    if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
 
     if (type == HealthDataType.WORKOUT) {
-      throw ArgumentError(
-        "Adding workouts should be done using the writeWorkoutData method.",
-      );
+      throw ArgumentError("Adding workouts should be done using the writeWorkoutData method.");
     }
     // If not implemented on platform, throw an exception
     if (!isDataTypeAvailable(type)) {
-      throw HealthException(type, 'Not available on platform $platformType');
+      throw HealthException(type, 'Not available on platform $platformType', errorCode: HealthErrorCode.notSupported);
     }
 
     endTime ??= startTime;
@@ -659,9 +636,7 @@ class Health {
           HealthDataType.ELECTROCARDIOGRAM,
         }.contains(type) &&
         Platform.isIOS) {
-      throw ArgumentError(
-        "$type - iOS does not support writing this data type in HealthKit",
-      );
+      throw ArgumentError("$type - iOS does not support writing this data type in HealthKit");
     }
 
     // Assign default unit if not specified
@@ -1202,7 +1177,10 @@ class Health {
     return success ?? false;
   }
 
-  /// [iOS only] Fetch a `HealthDataPoint` by `uuid` and `type`. Returns `null` if no matching record.
+  // The reads are implemented by the mixins in src/reading/ and declared here
+  // too, so that dartdoc documents them as members of Health.
+
+  /// Fetch a `HealthDataPoint` by `uuid` and `type`. Returns `null` if no matching record.
   ///
   /// Parameters:
   ///  * [uuid] - UUID of your saved health data point (e.g. A91A2F10-3D7B-486A-B140-5ADCD3C9C6D0)
@@ -1210,370 +1188,137 @@ class Health {
   ///
   /// Assuming above data are coming from your database.
   ///
-  /// Note: this feature is only for iOS at this moment due to
-  /// requires refactoring for Android.
-  Future<HealthDataPoint?> getHealthDataByUUID({required String uuid, required HealthDataType type}) async {
-    if (uuid.isEmpty) {
-      throw HealthException(type, 'UUID is empty!');
-    }
-
-    await _checkIfHealthConnectAvailableOnAndroid();
-
-    // Ask for device ID only once
-    _deviceId ??= Platform.isAndroid
-        ? (await _deviceInfo.androidInfo).id
-        : (await _deviceInfo.iosInfo).identifierForVendor;
-
-    // If not implemented on platform, throw an exception
-    await _checkIfDataTypeAvailableOnDevice(type);
-    if (!isDataTypeAvailable(type)) {
-      throw HealthException(type, 'Not available on platform $platformType');
-    }
-
-    final result = await _dataQueryByUUID(uuid, type);
-
-    debugPrint('data by UUID: ${result?.toString()}');
-
-    return result;
-  }
+  /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports
+  /// an error other than the record not being found.
+  @override
+  Future<HealthDataPoint?> getHealthDataByUUID({required String uuid, required HealthDataType type});
 
   /// Fetch a list of health data points based on [types].
   /// You can also specify the [recordingMethodsToFilter] to filter the data points.
   /// If not specified, all data points will be included.
+  ///
+  /// Types are read in the order of [types], each type once. Within a type,
+  /// points are oldest first on Android (by start time) and newest first on
+  /// iOS (by end time), without duplicates.
+  ///
+  /// Data is read about [pageSize] points per platform call and parsed as set
+  /// by [isolateMode], so neither the native side nor the UI has to handle the
+  /// whole range at once. The returned list does hold all points: for large
+  /// ranges, use [getHealthDataPages] and process the data page by page.
+  ///
+  /// Throws a [HealthException] with [HealthErrorCode.notSupported] if a type
+  /// is not available on this platform or device (before anything is read),
+  /// and a [HealthPlatformException] if Health Connect or HealthKit reports an
+  /// error, for example [HealthErrorCode.rateLimitExceeded]. The call then
+  /// fails as a whole, so do not record sync progress for any of [types].
+  /// A missing read permission is not an error: that type simply returns no data.
+  @override
   Future<List<HealthDataPoint>> getHealthDataFromTypes({
     required List<HealthDataType> types,
     Map<HealthDataType, HealthDataUnit>? preferredUnits,
     required DateTime startTime,
     required DateTime endTime,
     List<RecordingMethod> recordingMethodsToFilter = const [],
-  }) async {
-    await _checkIfHealthConnectAvailableOnAndroid();
-    List<HealthDataPoint> dataPoints = [];
+  });
 
-    for (var type in types) {
-      final result = await _prepareQuery(
-        startTime,
-        endTime,
-        type,
-        recordingMethodsToFilter,
-        dataUnit: preferredUnits?[type],
-      );
-      dataPoints.addAll(result);
-    }
-
-    const int threshold = 100;
-    if (dataPoints.length > threshold) {
-      return compute(removeDuplicates, dataPoints);
-    }
-
-    return removeDuplicates(dataPoints);
-  }
+  /// Read health data of [types] between [startTime] and [endTime] page by page.
+  ///
+  /// Use this instead of [getHealthDataFromTypes] for large ranges, for example
+  /// a first sync of months of heart rate data. Each page holds about
+  /// [pageSize] points (default [Health.pageSize]). The stream is lazy: nothing
+  /// is read until it is listened to, and the next page is read only when the
+  /// listener is ready for it (with `await for`, once the loop body has
+  /// finished). Memory therefore stays bounded if you process each page and
+  /// let it go. [isolateMode] and [Health.pageSize] are read when the stream is
+  /// listened to.
+  ///
+  /// Types are read one after another, in the order of [types], each type
+  /// once. Within a type, points are oldest first: in the order of their
+  /// records' start times on Android (the samples of a heart rate, speed or
+  /// skin temperature record come together), by end time on iOS. Each type ends with exactly one page whose
+  /// [HealthDataPage.isLastPageForType] is true (empty if the type has no more
+  /// data); other pages are never empty. This is a finite read of the data
+  /// stored now, not a live stream of new data, and not a snapshot: data
+  /// written while it runs may or may not be included.
+  ///
+  /// An error ends the stream; pages already delivered stay valid. The error is
+  /// a [RangeError] for an invalid [pageSize], a [HealthException] with
+  /// [HealthErrorCode.notSupported] if a type is not available on this platform
+  /// or device (before anything is read), or a [HealthPlatformException] if
+  /// Health Connect or HealthKit reports an error. Cancelling the subscription
+  /// stops the read: no platform call is made after the one in flight, whose
+  /// page or error is dropped, and the future that `cancel` returns completes
+  /// once that call has returned. A missing read permission is not an error:
+  /// that type returns one empty page, with
+  /// [HealthDataPage.readPermissionDenied] set on Android.
+  ///
+  /// On Android every page costs Health Connect calls, which count against its
+  /// API quota. See the README section "Health Connect limits".
+  @override
+  Stream<HealthDataPage> getHealthDataPages({
+    required List<HealthDataType> types,
+    required DateTime startTime,
+    required DateTime endTime,
+    Map<HealthDataType, HealthDataUnit>? preferredUnits,
+    List<RecordingMethod> recordingMethodsToFilter = const [],
+    int? pageSize,
+  });
 
   /// Fetch a list of health data points based on [types].
   /// You can also specify the [recordingMethodsToFilter] to filter the data points.
-  /// If not specified, all data points will be included.Vkk
+  /// If not specified, all data points will be included.
+  ///
+  /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports an error.
+  @override
   Future<List<HealthDataPoint>> getHealthIntervalDataFromTypes({
     required DateTime startDate,
     required DateTime endDate,
     required List<HealthDataType> types,
     required int interval,
     List<RecordingMethod> recordingMethodsToFilter = const [],
-  }) async {
-    await _checkIfHealthConnectAvailableOnAndroid();
-    List<HealthDataPoint> dataPoints = [];
-
-    for (var type in types) {
-      final result = await _prepareIntervalQuery(startDate, endDate, type, interval, recordingMethodsToFilter);
-      dataPoints.addAll(result);
-    }
-
-    return removeDuplicates(dataPoints);
-  }
+  });
 
   /// Fetch a list of health data points based on [types].
+  ///
+  /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports an error.
+  @override
   Future<List<HealthDataPoint>> getHealthAggregateDataFromTypes({
     required List<HealthDataType> types,
     required DateTime startDate,
     required DateTime endDate,
     int activitySegmentDuration = 1,
     bool includeManualEntry = true,
-  }) async {
-    await _checkIfHealthConnectAvailableOnAndroid();
-    List<HealthDataPoint> dataPoints = [];
-
-    final result = await _prepareAggregateQuery(startDate, endDate, types, activitySegmentDuration, includeManualEntry);
-    dataPoints.addAll(result);
-
-    return removeDuplicates(dataPoints);
-  }
+  });
 
   /// Create a Health Connect changes token for the provided [types].
   ///
   /// Android only. Returns null on iOS or if an error occurs.
-  Future<String?> getChangesToken({required List<HealthDataType> types}) async {
-    if (Platform.isIOS) return null;
-
-    await _checkIfHealthConnectAvailableOnAndroid();
-    if (types.isEmpty) {
-      throw ArgumentError('The list of [types] must not be empty.');
-    }
-
-    final normalizedTypes = _normalizeTypesForChanges(types);
-    if (normalizedTypes.isEmpty) {
-      throw ArgumentError('No supported types supplied for change token creation.');
-    }
-
-    for (final type in normalizedTypes) {
-      await _checkIfDataTypeAvailableOnDevice(type);
-      if (!isDataTypeAvailable(type)) {
-        throw HealthException(type, 'Not available on platform $platformType');
-      }
-    }
-
-    try {
-      return await _channel.invokeMethod<String>('getChangesToken', {
-        'types': normalizedTypes.map((type) => type.name).toList(),
-      });
-    } catch (e) {
-      debugPrint('$runtimeType - Exception in getChangesToken(): $e');
-      return null;
-    }
-  }
+  @override
+  Future<String?> getChangesToken({required List<HealthDataType> types});
 
   /// Fetch the next page of changes for a previously created token.
   ///
-  /// Android only. Returns null on iOS or if an error occurs.
-  Future<HealthChangesResponse?> getChanges({
-    required String changesToken,
-    bool includeSelf = false,
-  }) async {
-    if (Platform.isIOS) return null;
-
-    await _checkIfHealthConnectAvailableOnAndroid();
-    if (changesToken.isEmpty) {
-      throw ArgumentError('The [changesToken] must not be empty.');
-    }
-
-    try {
-      final response = await _channel.invokeMethod('getChanges', {
-        'changesToken': changesToken,
-        'includeSelf': includeSelf,
-      });
-
-      if (response is Map) {
-        return HealthChangesResponse.fromMethodChannel(response);
-      }
-      return null;
-    } catch (e) {
-      debugPrint('$runtimeType - Exception in getChanges(): $e');
-      return null;
-    }
-  }
-
-  /// Prepares an interval query, i.e. checks if the types are available, etc.
-  Future<List<HealthDataPoint>> _prepareQuery(
-    DateTime startTime,
-    DateTime endTime,
-    HealthDataType dataType,
-    List<RecordingMethod> recordingMethodsToFilter, {
-    HealthDataUnit? dataUnit,
-  }) async {
-    // Ask for device ID only once
-    _deviceId ??= Platform.isAndroid
-        ? (await _deviceInfo.androidInfo).id
-        : (await _deviceInfo.iosInfo).identifierForVendor;
-
-    // If not implemented on platform, throw an exception
-    await _checkIfDataTypeAvailableOnDevice(dataType);
-    if (!isDataTypeAvailable(dataType)) {
-      throw HealthException(dataType, 'Not available on platform $platformType');
-    }
-
-    // If BodyMassIndex is requested on Android, calculate this manually
-    if (dataType == HealthDataType.BODY_MASS_INDEX && Platform.isAndroid) {
-      return _computeAndroidBMI(startTime, endTime, recordingMethodsToFilter);
-    }
-    return await _dataQuery(startTime, endTime, dataType, recordingMethodsToFilter, dataUnit: dataUnit);
-  }
-
-  /// Prepares an interval query, i.e. checks if the types are available, etc.
-  Future<List<HealthDataPoint>> _prepareIntervalQuery(
-    DateTime startDate,
-    DateTime endDate,
-    HealthDataType dataType,
-    int interval,
-    List<RecordingMethod> recordingMethodsToFilter,
-  ) async {
-    // Ask for device ID only once
-    _deviceId ??= Platform.isAndroid
-        ? (await _deviceInfo.androidInfo).id
-        : (await _deviceInfo.iosInfo).identifierForVendor;
-
-    // If not implemented on platform, throw an exception
-    await _checkIfDataTypeAvailableOnDevice(dataType);
-    if (!isDataTypeAvailable(dataType)) {
-      throw HealthException(dataType, 'Not available on platform $platformType');
-    }
-
-    return await _dataIntervalQuery(startDate, endDate, dataType, interval, recordingMethodsToFilter);
-  }
-
-  /// Prepares an aggregate query, i.e. checks if the types are available, etc.
-  Future<List<HealthDataPoint>> _prepareAggregateQuery(
-    DateTime startDate,
-    DateTime endDate,
-    List<HealthDataType> dataTypes,
-    int activitySegmentDuration,
-    bool includeManualEntry,
-  ) async {
-    // Ask for device ID only once
-    _deviceId ??= Platform.isAndroid
-        ? (await _deviceInfo.androidInfo).id
-        : (await _deviceInfo.iosInfo).identifierForVendor;
-
-    for (var type in dataTypes) {
-      // If not implemented on platform, throw an exception
-      await _checkIfDataTypeAvailableOnDevice(type);
-      if (!isDataTypeAvailable(type)) {
-        throw HealthException(type, 'Not available on platform $platformType');
-      }
-    }
-
-    return await _dataAggregateQuery(startDate, endDate, dataTypes, activitySegmentDuration, includeManualEntry);
-  }
-
-  /// Fetches data points from Android/iOS native code.
-  Future<List<HealthDataPoint>> _dataQuery(
-    DateTime startTime,
-    DateTime endTime,
-    HealthDataType dataType,
-    List<RecordingMethod> recordingMethodsToFilter, {
-    HealthDataUnit? dataUnit,
-  }) async {
-    String? unit = dataUnit?.name ?? dataTypeToUnit[dataType]?.name;
-    final args = <String, dynamic>{
-      'dataTypeKey': dataType.name,
-      'dataUnitKey': unit,
-      'startTime': startTime.millisecondsSinceEpoch,
-      'endTime': endTime.millisecondsSinceEpoch,
-      'recordingMethodsToFilter': recordingMethodsToFilter.map((e) => e.toInt()).toList(),
-    };
-    final fetchedDataPoints = await _channel.invokeMethod('getData', args);
-
-    if (fetchedDataPoints != null && fetchedDataPoints is List) {
-      final msg = <String, dynamic>{"dataType": dataType, "dataPoints": fetchedDataPoints, "unit": unit};
-      const thresHold = 100;
-      // If the no. of data points are larger than the threshold,
-      // call the compute method to spawn an Isolate to do the parsing in a separate thread.
-      if (fetchedDataPoints.length > thresHold) {
-        return compute(_parse, msg);
-      }
-      return _parse(msg);
-    } else {
-      return <HealthDataPoint>[];
-    }
-  }
-
-  /// Fetches single data point by `uuid` and `type` from Android/iOS native code.
-  Future<HealthDataPoint?> _dataQueryByUUID(String uuid, HealthDataType dataType) async {
-    final args = <String, dynamic>{
-      'dataTypeKey': dataType.name,
-      'dataUnitKey': dataTypeToUnit[dataType]!.name,
-      'uuid': uuid,
-    };
-
-    final fetchedDataPoint = await _channel.invokeMethod('getDataByUUID', args);
-
-    // fetchedDataPoint is Map<Object, Object>. // Must be converted to List first
-    // so no need to recreate _parse() to handle single HealthDataPoint.
-
-    if (fetchedDataPoint != null) {
-      final msg = <String, dynamic>{
-        "dataType": dataType,
-        "dataPoints": [fetchedDataPoint],
-      };
-
-      // get single record of parsed fetchedDataPoints
-      return _parse(msg).first;
-    } else {
-      return null;
-    }
-  }
-
-  /// function for fetching statistic health data
-  Future<List<HealthDataPoint>> _dataIntervalQuery(
-    DateTime startDate,
-    DateTime endDate,
-    HealthDataType dataType,
-    int interval,
-    List<RecordingMethod> recordingMethodsToFilter,
-  ) async {
-    final args = <String, dynamic>{
-      'dataTypeKey': dataType.name,
-      'dataUnitKey': dataTypeToUnit[dataType]!.name,
-      'startTime': startDate.millisecondsSinceEpoch,
-      'endTime': endDate.millisecondsSinceEpoch,
-      'interval': interval,
-      'recordingMethodsToFilter': recordingMethodsToFilter.map((e) => e.toInt()).toList(),
-    };
-
-    final fetchedDataPoints = await _channel.invokeMethod('getIntervalData', args);
-    if (fetchedDataPoints != null) {
-      final msg = <String, dynamic>{"dataType": dataType, "dataPoints": fetchedDataPoints};
-      return _parse(msg);
-    }
-    return <HealthDataPoint>[];
-  }
-
-  /// function for fetching statistic health data
-  Future<List<HealthDataPoint>> _dataAggregateQuery(
-    DateTime startDate,
-    DateTime endDate,
-    List<HealthDataType> dataTypes,
-    int activitySegmentDuration,
-    bool includeManualEntry,
-  ) async {
-    final args = <String, dynamic>{
-      'dataTypeKeys': dataTypes.map((dataType) => dataType.name).toList(),
-      'startTime': startDate.millisecondsSinceEpoch,
-      'endTime': endDate.millisecondsSinceEpoch,
-      'activitySegmentDuration': activitySegmentDuration,
-      'includeManualEntry': includeManualEntry,
-    };
-
-    final fetchedDataPoints = await _channel.invokeMethod('getAggregateData', args);
-
-    if (fetchedDataPoints != null) {
-      final msg = <String, dynamic>{"dataType": HealthDataType.WORKOUT, "dataPoints": fetchedDataPoints};
-      return _parse(msg);
-    }
-    return <HealthDataPoint>[];
-  }
-
-  List<HealthDataPoint> _parse(Map<String, dynamic> message) {
-    final dataType = message["dataType"] as HealthDataType;
-    final dataPoints = message["dataPoints"] as List;
-    String? unit = message["unit"] as String?;
-
-    return dataPoints
-        .map<HealthDataPoint>((dataPoint) => HealthDataPoint.fromHealthDataPoint(dataType, dataPoint, unit))
-        .toList();
-  }
+  /// Android only. Returns null on iOS or if an error occurs, for example when
+  /// Health Connect's API quota is used up; try again later.
+  ///
+  /// [HealthChangesResponse.changesTokenExpired] means the token can no longer
+  /// be used: read the data since your last sync (for example with
+  /// [getHealthDataPages]) and create a new token. This is also returned when
+  /// Health Connect cannot return the pending changes because they are too
+  /// large ("Too many records in the cursor"), so poll often enough to keep
+  /// the batches small.
+  @override
+  Future<HealthChangesResponse?> getChanges({required String changesToken, bool includeSelf = false});
 
   /// Return a list of [HealthDataPoint] based on [points] with no duplicates.
-  List<HealthDataPoint> removeDuplicates(List<HealthDataPoint> points) => LinkedHashSet.of(points).toList();
+  @override
+  List<HealthDataPoint> removeDuplicates(List<HealthDataPoint> points);
 
   /// Get the total number of steps within a specific time period.
-  /// Returns null if not successful.
-  Future<int?> getTotalStepsInInterval(DateTime startTime, DateTime endTime, {bool includeManualEntry = true}) async {
-    final args = <String, dynamic>{
-      'startTime': startTime.millisecondsSinceEpoch,
-      'endTime': endTime.millisecondsSinceEpoch,
-      'recordingMethodsToFilter': includeManualEntry ? <RecordingMethod>[] : [RecordingMethod.manual.toInt()],
-    };
-    final stepsCount = await _channel.invokeMethod<int?>('getTotalStepsInInterval', args);
-    return stepsCount;
-  }
+  /// Returns null if not successful, for example when Health Connect's API
+  /// quota is used up.
+  @override
+  Future<int?> getTotalStepsInInterval(DateTime startTime, DateTime endTime, {bool includeManualEntry = true});
 
   /// Assigns numbers to specific [HealthDataType]s.
   int _alignValue(HealthDataType type) => switch (type) {
@@ -1676,25 +1421,15 @@ class Health {
     RecordingMethod recordingMethod = RecordingMethod.automatic,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
-    if (Platform.isIOS &&
-        [
-          RecordingMethod.active,
-          RecordingMethod.unknown,
-        ].contains(recordingMethod)) {
+    if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
 
     // Check that value is on the current Platform
     if (Platform.isIOS && !_isOnIOS(activityType)) {
-      throw HealthException(
-        activityType,
-        "Workout activity type $activityType is not supported on iOS",
-      );
+      throw HealthException(activityType, "Workout activity type $activityType is not supported on iOS");
     } else if (Platform.isAndroid && !_isOnAndroid(activityType)) {
-      throw HealthException(
-        activityType,
-        "Workout activity type $activityType is not supported on Android",
-      );
+      throw HealthException(activityType, "Workout activity type $activityType is not supported on Android");
     }
     final args = <String, dynamic>{
       'activityType': activityType.name,
@@ -1708,8 +1443,7 @@ class Health {
       'recordingMethod': recordingMethod.toInt(),
     };
 
-    String uuid =
-        '${await _channel.invokeMethod('writeWorkoutDataUUID', args)}';
+    String uuid = '${await _channel.invokeMethod('writeWorkoutDataUUID', args)}';
 
     debugPrint("Added workout data point: $uuid");
 

@@ -10,9 +10,9 @@ This folder contains the reusable test harness, fixtures, and templates for the 
 **How To Add A Method-Channel Test**
 1. Copy a template from `test/templates` into `test/unit` and rename to `*_test.dart`.
 2. Create a `HealthTestContext`.
-3. Stub the channel responses using `ctx.channel.when(...)` or a custom responder.
-4. Call the API under test.
-5. Assert on `ctx.channel.lastCallFor(...)` and parsed outputs.
+3. Stub the channel responses using `ctx.channel.when(...)`, `ctx.channel.whenSequence(...)` (one reply per call, and a `PlatformException` in the list becomes an error reply) or a custom responder. Reads call the native `getDataPage` method; build its replies with `HealthFixtures.page(...)`.
+4. Call the API under test. For reads, `test/support/read_helpers.dart` adds `ctx.collect(...)`, `ctx.pages(...)`, `ctx.pageCalls()` and `ctx.serve(...)`.
+5. Assert on `ctx.channel.lastCallFor(...)` and parsed outputs, and on errors with `platformError(...)` from `test/support/error_matchers.dart`.
 
 **Platform Notes**
 - Many APIs are platform-gated. For iOS/Android-only behavior, keep the unit test focused on arguments and parsing.
@@ -34,6 +34,7 @@ This folder contains the reusable test harness, fixtures, and templates for the 
 - `Health.isHealthDataInBackgroundAuthorized`
 - `Health.requestHealthDataInBackgroundAuthorization`
 - `Health.getHealthDataFromTypes`
+- `Health.getHealthDataPages`
 - `Health.getHealthIntervalDataFromTypes`
 - `Health.getHealthAggregateDataFromTypes`
 - `Health.getHealthDataByUUID`

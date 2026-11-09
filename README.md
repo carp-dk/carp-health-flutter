@@ -8,6 +8,7 @@ The plugin supports:
 
 - handling permissions to access health data using the `hasPermissions`, `requestAuthorization`, `revokePermissions` methods.
 - reading health data using the `getHealthDataFromTypes` method.
+- reading large amounts of health data page by page using the `getHealthDataPages` method.
 - writing health data using the `writeHealthData` method.
 - writing workouts using the `writeWorkout` method.
 - writing workout routes on iOS and Android using the `startWorkoutRoute` / `insertWorkoutRouteData` / `finishWorkoutRoute` methods.
@@ -291,12 +292,141 @@ A `HealthDataPoint` object can be serialized to and from JSON using the `toJson(
 
 See the example app for a showcasing of how it's done.
 
-**Note** On iOS the device must be unlocked before health data can be requested. Otherwise an error will be thrown:
+**Note** On iOS the device must be unlocked before health data can be requested. Otherwise the read throws a `HealthPlatformException` with `errorCode` `HealthErrorCode.deviceLocked` (native code `DEVICE_LOCKED`), which is retryable once the device is unlocked. See [Error handling](#error-handling).
 
-```bash
-flutter: Health Plugin Error:
-flutter:  PlatformException(FlutterHealth, Results are null, Optional(Error Domain=com.apple.healthkit Code=6 "Protected health data is inaccessible" UserInfo={NSLocalizedDescription=Protected health data is inaccessible}))
+### Reading large amounts of data
+
+`getHealthDataFromTypes` returns all data points in one list. A few months of heart rate data can be millions of points, so for large time ranges use `getHealthDataPages`, which returns a `Stream<HealthDataPage>`. The stream is lazy: nothing is read until you listen to it, and the next page is read only when you are ready for it. With `await for`, memory therefore stays bounded as long as you process each page and let it go.
+
+```dart
+await for (final page in health.getHealthDataPages(
+  types: [HealthDataType.HEART_RATE, HealthDataType.STEPS],
+  startTime: lastSync,
+  endTime: now,
+)) {
+  await store(page.points); // the next page is read after this
+}
 ```
+
+- Types are read one after another, each type once. Within a type, points are oldest first and without duplicates: on Android in the order of their records' start times, on iOS by end time. On Android the samples of one heart rate, speed or skin temperature record come together, so the samples of overlapping records from different apps are not merged into one time order.
+- Each type ends with exactly one page whose `isLastPageForType` is true; it is empty if the type had no more data. All other pages hold at least one point.
+- A missing read permission is not an error. On Android, the type then has a single empty page with `readPermissionDenied` set.
+- An error ends the stream; pages already delivered stay valid. Cancelling the subscription stops the read: no platform call is made after it, and `cancel()` completes once the call in flight has returned (an error it reports is dropped).
+- `getHealthDataFromTypes` keeps every point in memory until it returns, which means long garbage collection pauses at millions of points. On iOS it still returns points newest first.
+
+**Page size.** `pageSize` is the target number of data points per platform call: 20,000 by default, at most 50,000. Bigger pages need fewer Health Connect calls (see [Health Connect limits](#health-connect-limits)) but more memory per call. On Android a heart rate page holds at most about `pageSize` samples, however they are spread over records; a record is never split, so one record with more samples makes a larger page. Set it for an instance with `Health(pageSize: 5000)` or `health.pageSize = 5000`, or for one read with `getHealthDataPages(..., pageSize: 5000)`.
+
+**Where parsing runs.** The platform call is always made from the isolate that calls the plugin. `isolateMode` decides where the reply is decoded and parsed into `HealthDataPoint`s:
+
+| `HealthIsolateMode` | Decoding and parsing                                                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auto` (default)    | Replies of 64 KiB or more (a few hundred points) are parsed in a short-lived worker isolate, so the UI keeps running. Smaller replies, calls from an isolate other than the root (UI) isolate and calls under `flutter test` are parsed inline. |
+| `worker`            | Always in a short-lived worker isolate.                                                                                                                                                                                                    |
+| `inline`            | Always in the calling isolate; no isolate is started.                                                                                                                                                                                      |
+
+```dart
+final health = Health(isolateMode: HealthIsolateMode.worker, pageSize: 10000);
+health.isolateMode = HealthIsolateMode.inline; // used by reads started from now on
+```
+
+**Widget tests.** `testWidgets` runs on fake time and never sees work in another isolate finish. `auto` parses inline under `flutter test`, so it works there. With `worker`, use `inline` in the test or wrap the read in `tester.runAsync`.
+
+**Method channel mocks.** Reads call the native method `getDataPage`. A mock written for older versions that only answers `getData` keeps working: when the first `getDataPage` call is not implemented, the plugin reads the type with one `getData` call, as before.
+
+**Bring your own isolate.** To also keep your own processing of the points off the UI isolate, call the plugin from your own isolate. Request permissions on the UI isolate first. Off the root isolate, `auto` parses inline:
+
+```dart
+final token = RootIsolateToken.instance!;
+final count = await Isolate.run(() async {
+  BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+  final health = Health();
+  var count = 0;
+  await for (final page in health.getHealthDataPages(
+    types: [HealthDataType.HEART_RATE],
+    startTime: start,
+    endTime: end,
+  )) {
+    count += page.points.length; // process the points here
+  }
+  return count;
+});
+```
+
+**Resuming.** The plugin does not keep track of what you have read. To sync a long range robustly, read it in time windows and record your progress per finished window; after an interruption, read the unfinished window again. Every read has a fixed cost in Health Connect calls (see [Health Connect limits](#health-connect-limits)), so prefer windows of a week or a month to windows of a day. Each window returns the samples inside it: a heart rate, speed or skin temperature record that crosses a boundary is split between the two windows (on Android, records that began more than 24 hours before a window are not looked for). Reads are at-least-once at such a boundary: a point you already stored can be returned again. Store points with an upsert keyed by `(type, uuid, dateFrom)`; on Android, the heart rate samples of one record share the record's `uuid`.
+
+### Error handling
+
+Read methods throw a `HealthPlatformException` when Health Connect or HealthKit reports an error. It is both a `PlatformException` (what iOS threw before 14.0.0) and a `HealthException`, so existing `on PlatformException` and `on HealthException` handlers keep working. Put `on HealthPlatformException` before `on PlatformException`, as the earlier clause catches it otherwise. `errorCode` says what went wrong and `isRetryable` whether the same call may succeed later. The plugin never retries on its own.
+
+```dart
+try {
+  final points = await health.getHealthDataFromTypes(types: types, startTime: start, endTime: end);
+} on HealthPlatformException catch (e) {
+  if (e.isRetryable) {
+    // For example HealthErrorCode.rateLimitExceeded: try again later.
+  } else if (e.errorCode == HealthErrorCode.permissionDenied) {
+    // Ask for the permission.
+  }
+  // e.platformCode is the native code, e.details holds more information.
+} on HealthException catch (e) {
+  // For example a type that is not available on this platform (HealthErrorCode.notSupported).
+}
+```
+
+| `HealthErrorCode`   | Native code                 | Meaning                                                                                                                                                                                   | `isRetryable` |
+| ------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `rateLimitExceeded` | `RATE_LIMIT_EXCEEDED`       | The app used up its Health Connect API quota. See [Health Connect limits](#health-connect-limits).                                                                                        | yes           |
+| `permissionDenied`  | `PERMISSION_DENIED`         | The call needs a permission the app does not have, for example a background read without `READ_HEALTH_DATA_IN_BACKGROUND`, or, on iOS, a type the app never requested authorization for. A denied read permission for a type is not an error: the type returns no data. | no            |
+| `invalidArgument`   | `INVALID_ARGUMENT`          | The request is not valid, for example a preferred unit that cannot express the data type. On Android, besides each type's default unit, Health Connect values are only converted to `POUND` (weight), `CENTIMETER` and `INCH` (height), `DEGREE_FAHRENHEIT` and `KELVIN` (body and skin temperature) and `MILLIMOLES_PER_LITER` (blood glucose). | no            |
+| `notSupported`      | `NOT_SUPPORTED`             | The data type is not available on this platform or device.                                                                                                                                | no            |
+| `unavailable`       | `UNAVAILABLE`               | Health Connect cannot be reached or is busy, for example while it syncs data.                                                                                                             | yes           |
+| `deviceLocked`      | `DEVICE_LOCKED`             | iOS: protected health data cannot be read while the device is locked.                                                                                                                    | yes           |
+| `dataTooLarge`      | `DATA_TOO_LARGE`            | The platform could not return this much data in one call. Use a smaller `pageSize` or a shorter time range.                                                                               | no            |
+| `unknown`           | `HEALTH_ERROR` (and others) | Any other error.                                                                                                                                                                          | no            |
+
+Codes may be added in minor releases, so a `switch` over `HealthErrorCode` needs a default case. Codes from before 14.0.0, such as `PERMISSION_ERROR`, `ARGUMENT_ERROR` and `INVALID_TYPE`, map to the matching value; `STEPS_ERROR` and `STATISTICS_ERROR` map to `unknown`.
+
+What each read method does on failure:
+
+| Method                                                                   | On failure                                                                                                                                                                                       |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `getHealthDataFromTypes`                                                 | Throws `HealthPlatformException`. An empty list only means no data or, on Android, no read permission. Before 14.0.0, Android returned an empty list on any failure.                            |
+| `getHealthDataPages`                                                     | The stream emits the `HealthPlatformException` (or `HealthException`) and closes.                                                                                                                |
+| `getHealthIntervalDataFromTypes`, `getHealthAggregateDataFromTypes`      | Throws `HealthPlatformException`.                                                                                                                                                                |
+| `getHealthDataByUUID`                                                    | Returns `null` if the record is not found, and throws `HealthPlatformException` on other failures.                                                                                              |
+| `getTotalStepsInInterval`                                                | Returns `null`.                                                                                                                                                                                  |
+| `getChangesToken`, `getChanges`                                          | Return `null`. If Health Connect cannot return the pending changes because they are too many, or a page of changes holds more than 100,000 data points, `getChanges` returns `changesTokenExpired: true`: create a new token and read the data again. |
+| Writes, deletes, permissions and the Health Connect helpers              | Unchanged.                                                                                                                                                                                       |
+
+Other errors are as before: a `HealthException` (now with `errorCode` `notSupported`) when a data type is not available on the platform, which is checked for all types before anything is read; on Android, a `HealthException` with `errorCode` `invalidArgument` for a preferred unit that Health Connect values are not converted to, also checked before anything is read; an `UnsupportedError` when Health Connect is not installed; and `ArgumentError`s for invalid arguments. A `MissingPluginException` is passed on as it is.
+
+### Health Connect limits
+
+Health Connect limits how often each app may call it. When a quota is used up, reads throw a `HealthPlatformException` with `HealthErrorCode.rateLimitExceeded` until the quota window has passed (writes return `false`). The quotas are part of the Health Connect module, so **they vary with the Health Connect version** and may change at any time. These are the values measured on two devices:
+
+| Quota per app           | Pixel 8a, Android 17               | Android 16 emulator               |
+| ----------------------- | ---------------------------------- | --------------------------------- |
+| Reads in the foreground | 80,000 per 15 min, 80,000 per 24 h | 2,000 per 15 min, 16,000 per 24 h |
+| Reads in the background | 1,000 per 15 min, 8,000 per 24 h   | 1,000 per 15 min, 8,000 per 24 h  |
+| Writes                  | 1,000 per 15 min, 8,000 per 24 h   | 1,000 per 15 min, 8,000 per 24 h  |
+| Data written            | 35 MB per 15 min                   | 35 MB per 15 min                  |
+| Size of a request       | 5 MB, and 1 MB per record          | 5 MB, and 1 MB per record         |
+
+The plugin reads Health Connect page by page, and every page is a call. What a read costs:
+
+| Read                                                  | Health Connect calls                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A type with one value per record (steps, weight, ...) | 1 permission check + 1 per 5,000 records (per `pageSize` records if that is smaller)                                                                                                                                                                                                                                        |
+| Heart rate                                            | 1 permission check + 1 per page + 1 count of the samples per about 8 pages (a page holds at most `pageSize` samples, give or take one record) + 1 per record that holds more than `pageSize / 2` samples + 1–4 to look for records that began before `startTime`, if one reaches into the read. For example, a week of heart rate at one sample per second (600,000 samples) costs about 37 calls at the default `pageSize`, and 30 days at one sample per minute about 13. The same on every Android version. |
+| Speed and skin temperature                            | 1 permission check + 1 look-back read + 1 per `pageSize / 3600` records (5 at the default `pageSize`): a record may hold an hour of samples at one per second, and Health Connect has no count of these samples to plan by. |
+| Workouts                                              | Per 20 workouts: 1 permission check + 1 read + up to 3 per workout for its distance, calories and steps                                                                                                                                                                                                      |
+| `getTotalStepsInInterval(includeManualEntry: false)`  | 1 per 5,000 step records                                                                                                                                                                                                                                                                                     |
+| `getHealthIntervalDataFromTypes`                      | 1 per type                                                                                                                                                                                                                                                                                                   |
+| `getChanges`                                          | 1 per call                                                                                                                                                                                                                                                                                                   |
+
+Checking the granted permissions did not count against the read quota on the Android 16 emulator.
+
+To stay within the quotas, read large ranges in the foreground (the background quota is much smaller), prefer a few long reads over many short ones, keep the default `pageSize` or raise it for heart rate data, and call `getChanges` instead of re-reading data you already have.
 
 ### Fetch single health data by UUID
 
@@ -392,7 +522,7 @@ data by UUID: HealthDataPoint -
     dateTo: 2025-05-02 08:25:00.000,
     dataType: WORKOUT,
     platform: HealthPlatformType.appleHealth,
-    deviceId: unknown,
+    deviceId: F74938B9-C011-4DE4-AA5E-CF41B60B96E7,
     sourceId: com.apple.Health,
     sourceName: Health
     recordingMethod: RecordingMethod.manual
