@@ -125,6 +125,13 @@ extension HealthDataOperations {
             }
         }
 
+        // HealthKit raises an exception (crashing the app) for a request without types, e.g. when every
+        // requested type is newer than this iOS version, like POWER before iOS 17. No sheet is shown.
+        if typesToRead.isEmpty, typesToWrite.isEmpty {
+            result(false)
+            return
+        }
+
         healthStore.requestAuthorization(toShare: typesToWrite, read: typesToRead) {
             success, _ in
             DispatchQueue.main.async {

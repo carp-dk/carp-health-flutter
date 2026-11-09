@@ -52,6 +52,11 @@ extension HealthDataWriter {
                 result(false)
                 return
             }
+            // HealthKit raises an exception (crashing the app) for a unit that cannot express the type.
+            guard quantityType.is(compatibleWith: hkUnit) else {
+                result(incompatibleUnitError(unit: unit, type: type))
+                return
+            }
 
             let quantity = HKQuantity(unit: hkUnit, doubleValue: value)
             sample = HKQuantitySample(
@@ -107,17 +112,36 @@ extension HealthDataWriter {
             HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry)
         ]
 
+        guard let sampleType = dataTypesDict[type] else {
+            print("Warning: Health data type '\(type)' not available on this iOS version.")
+            result("")
+            return
+        }
+
         let sample: HKObject
 
-        if dataTypesDict[type]!.isKind(of: HKCategoryType.self) {
+        if let categoryType = sampleType as? HKCategoryType {
             sample = HKCategorySample(
-                type: dataTypesDict[type] as! HKCategoryType, value: Int(value), start: dateFrom,
+                type: categoryType, value: Int(value), start: dateFrom,
+                end: dateTo, metadata: metadata)
+        } else if let quantityType = sampleType as? HKQuantityType {
+            guard let hkUnit = unitDict[unit] else {
+                print("Warning: Health data unit '\(unit)' not available on this iOS version.")
+                result("")
+                return
+            }
+            guard quantityType.is(compatibleWith: hkUnit) else {
+                result(incompatibleUnitError(unit: unit, type: type))
+                return
+            }
+            let quantity = HKQuantity(unit: hkUnit, doubleValue: value)
+            sample = HKQuantitySample(
+                type: quantityType, quantity: quantity, start: dateFrom,
                 end: dateTo, metadata: metadata)
         } else {
-            let quantity = HKQuantity(unit: unitDict[unit]!, doubleValue: value)
-            sample = HKQuantitySample(
-                type: dataTypesDict[type] as! HKQuantityType, quantity: quantity, start: dateFrom,
-                end: dateTo, metadata: metadata)
+            print("Warning: Unsupported HealthKit sample type for '\(type)'.")
+            result("")
+            return
         }
 
         healthStore.save(
@@ -187,6 +211,11 @@ extension HealthDataWriter {
                 }
             }
         )
+    }
+
+    /// The error writeData and writeDataUUID reply with when [unit] cannot express [type], as reads do.
+    private func incompatibleUnitError(unit: String, type: String) -> FlutterError {
+        FlutterError(code: "INVALID_ARGUMENT", message: "Unit \(unit) cannot be used for \(type)", details: nil)
     }
 
     /// Returns a category value that is valid for the current iOS version.
