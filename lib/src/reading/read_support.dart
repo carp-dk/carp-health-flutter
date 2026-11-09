@@ -2,18 +2,7 @@ part of '../../health.dart';
 
 /// What the reads of [Health] share: the checks before a read, the id of this
 /// device, and the platform call whose reply is parsed.
-mixin _HealthReadSupport {
-  // Implemented by Health.
-  abstract String? _deviceId;
-  DeviceInfoPlugin get _deviceInfo;
-  String get deviceId;
-  HealthPlatformType get platformType;
-  HealthIsolateMode get isolateMode;
-  int get pageSize;
-  bool isDataTypeAvailable(HealthDataType dataType);
-  Future<void> _checkIfDataTypeAvailableOnDevice(HealthDataType dataType);
-  Future<void> _checkIfHealthConnectAvailableOnAndroid();
-
+mixin _HealthReadSupport on _HealthSupport {
   /// The id of this device as [HealthDataPoint.sourceDeviceId]: looked up once,
   /// and 'unknown' (but looked up again next time) if that fails.
   Future<String> _resolveDeviceId() async {

@@ -8,11 +8,7 @@ void main() {
 
   group('HealthDataPoint parsing', () {
     test('parses numeric health data points', () {
-      final point = HealthDataPoint.fromHealthDataPoint(
-        HealthDataType.HEART_RATE,
-        HealthFixtures.numericPoint(),
-        null,
-      );
+      final point = HealthDataPoint.fromHealthDataPoint(HealthDataType.HEART_RATE, HealthFixtures.numericPoint(), null);
 
       expect(point.type, HealthDataType.HEART_RATE);
       expect(point.value, isA<NumericHealthValue>());

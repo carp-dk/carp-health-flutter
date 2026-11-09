@@ -1,9 +1,12 @@
 part of '../../health.dart';
 
-/// The reads of [Health] that track changes in Health Connect with a changes
-/// token.
-mixin _HealthChanges on _HealthReadSupport {
-  /// Implementation of [Health.getChangesToken].
+/// Part of [Health]: tracking the changes in Health Connect with a changes
+/// token. Android only.
+// ignore: library_private_types_in_public_api
+mixin HealthChangeTracking on _HealthReadSupport {
+  /// Create a Health Connect changes token for the provided [types].
+  ///
+  /// Android only. Returns null on iOS or if an error occurs.
   Future<String?> getChangesToken({required List<HealthDataType> types}) async {
     if (Platform.isIOS) return null;
 
@@ -34,7 +37,17 @@ mixin _HealthChanges on _HealthReadSupport {
     }
   }
 
-  /// Implementation of [Health.getChanges].
+  /// Fetch the next page of changes for a previously created token.
+  ///
+  /// Android only. Returns null on iOS or if an error occurs, for example when
+  /// Health Connect's API quota is used up; try again later.
+  ///
+  /// [HealthChangesResponse.changesTokenExpired] means the token can no longer
+  /// be used: read the data since your last sync (for example with
+  /// [Health.getHealthDataPages]) and create a new token. This is also returned
+  /// when Health Connect cannot return the pending changes because they are too
+  /// large ("Too many records in the cursor"), so poll often enough to keep the
+  /// batches small.
   Future<HealthChangesResponse?> getChanges({required String changesToken, bool includeSelf = false}) async {
     if (Platform.isIOS) return null;
 

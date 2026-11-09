@@ -70,10 +70,7 @@ void main() {
     test('getHealthDataByUUID requests UUID and data type', () async {
       ctx.channel.when('getDataByUUID', HealthFixtures.numericPoint());
 
-      final result = await ctx.health.getHealthDataByUUID(
-        uuid: 'uuid-1',
-        type: HealthDataType.HEART_RATE,
-      );
+      final result = await ctx.health.getHealthDataByUUID(uuid: 'uuid-1', type: HealthDataType.HEART_RATE);
 
       expect(result, isNotNull);
       final call = ctx.channel.lastCallFor('getDataByUUID');
@@ -142,10 +139,7 @@ void main() {
       final builderId = await ctx.health.startWorkoutRoute();
       expect(builderId, 'builder-1');
 
-      final routeId = await ctx.health.finishWorkoutRoute(
-        builderId: builderId,
-        workoutUuid: 'workout-1',
-      );
+      final routeId = await ctx.health.finishWorkoutRoute(builderId: builderId, workoutUuid: 'workout-1');
       expect(routeId, 'route-1');
 
       final discarded = await ctx.health.discardWorkoutRoute(builderId);
@@ -162,10 +156,7 @@ void main() {
         verticalAccuracy: 8,
       );
 
-      final success = await ctx.health.insertWorkoutRouteData(
-        builderId: 'builder-1',
-        locations: [location],
-      );
+      final success = await ctx.health.insertWorkoutRouteData(builderId: 'builder-1', locations: [location]);
 
       expect(success, isTrue);
       final call = ctx.channel.lastCallFor('insertWorkoutRouteData');

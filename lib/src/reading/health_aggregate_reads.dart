@@ -1,9 +1,14 @@
 part of '../../health.dart';
 
-/// The reads of [Health] that return aggregate health data and total step
-/// counts.
-mixin _HealthAggregateReads on _HealthReadSupport {
-  /// Implementation of [Health.getHealthIntervalDataFromTypes].
+/// Part of [Health]: the reads that return aggregate health data and total
+/// step counts.
+// ignore: library_private_types_in_public_api
+mixin HealthAggregateReads on _HealthReadSupport {
+  /// Fetch a list of health data points based on [types].
+  /// You can also specify the [recordingMethodsToFilter] to filter the data points.
+  /// If not specified, all data points will be included.
+  ///
+  /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports an error.
   Future<List<HealthDataPoint>> getHealthIntervalDataFromTypes({
     required DateTime startDate,
     required DateTime endDate,
@@ -31,7 +36,9 @@ mixin _HealthAggregateReads on _HealthReadSupport {
     return dataPoints;
   }
 
-  /// Implementation of [Health.getHealthAggregateDataFromTypes].
+  /// Fetch a list of health data points based on [types].
+  ///
+  /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports an error.
   Future<List<HealthDataPoint>> getHealthAggregateDataFromTypes({
     required List<HealthDataType> types,
     required DateTime startDate,
@@ -60,7 +67,9 @@ mixin _HealthAggregateReads on _HealthReadSupport {
     );
   }
 
-  /// Implementation of [Health.getTotalStepsInInterval].
+  /// Get the total number of steps within a specific time period.
+  /// Returns null if not successful, for example when Health Connect's API
+  /// quota is used up.
   Future<int?> getTotalStepsInInterval(DateTime startTime, DateTime endTime, {bool includeManualEntry = true}) async {
     final args = <String, dynamic>{
       'startTime': startTime.millisecondsSinceEpoch,

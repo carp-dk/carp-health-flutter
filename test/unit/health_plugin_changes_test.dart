@@ -20,10 +20,7 @@ void main() {
 
   group('Changes API', () {
     test('getChangesToken rejects empty types', () {
-      expect(
-        () => ctx.health.getChangesToken(types: []),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => ctx.health.getChangesToken(types: []), throwsA(isA<ArgumentError>()));
     });
 
     test('getChangesToken normalizes BMI and workout route types', () async {
@@ -39,22 +36,16 @@ void main() {
       final args = Map<String, dynamic>.from(call!.arguments as Map);
       final types = List<String>.from(args['types'] as List);
       expect(types, isNot(contains(HealthDataType.BODY_MASS_INDEX.name)));
-      expect(
-        types.toSet(),
-        {
-          HealthDataType.WEIGHT.name,
-          HealthDataType.HEIGHT.name,
-          HealthDataType.WORKOUT_ROUTE.name,
-          HealthDataType.WORKOUT.name,
-        },
-      );
+      expect(types.toSet(), {
+        HealthDataType.WEIGHT.name,
+        HealthDataType.HEIGHT.name,
+        HealthDataType.WORKOUT_ROUTE.name,
+        HealthDataType.WORKOUT.name,
+      });
     });
 
     test('getChanges rejects empty token', () {
-      expect(
-        () => ctx.health.getChanges(changesToken: ''),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => ctx.health.getChanges(changesToken: ''), throwsA(isA<ArgumentError>()));
     });
 
     test('getChanges parses response', () async {

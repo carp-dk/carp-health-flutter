@@ -51,10 +51,7 @@ void main() {
     test('getHealthDataByUUID forwards UUID and type', () async {
       ctx.channel.when('getDataByUUID', HealthFixtures.numericPoint());
 
-      final result = await ctx.health.getHealthDataByUUID(
-        uuid: 'uuid-1',
-        type: HealthDataType.HEART_RATE,
-      );
+      final result = await ctx.health.getHealthDataByUUID(uuid: 'uuid-1', type: HealthDataType.HEART_RATE);
 
       expect(result, isNotNull);
       final call = ctx.channel.lastCallFor('getDataByUUID');
