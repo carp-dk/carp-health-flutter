@@ -7,6 +7,7 @@ import android.os.Handler
 import androidx.annotation.NonNull
 import androidx.health.connect.client.HealthConnectClient
 import cachet.plugins.health.reading.HealthDataReader
+import cachet.plugins.health.writing.HealthDataWriter
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -234,13 +235,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         dataConverter = HealthDataConverter()
         dataReader = HealthDataReader(healthConnectClient, scope, context!!, dataConverter)
         dataWriter = HealthDataWriter(healthConnectClient, scope)
-        dataOperations =
-                HealthDataOperations(
-                        healthConnectClient,
-                        scope,
-                        healthConnectStatus,
-                        healthConnectAvailable
-                )
+        dataOperations = HealthDataOperations(healthConnectClient, scope)
         dataChanges = HealthDataChanges(healthConnectClient, scope, context!!, dataConverter)
     }
 
