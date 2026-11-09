@@ -1,7 +1,9 @@
 package cachet.plugins.health.reading
 
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.records.CyclingPedalingCadenceRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SpeedRecord
@@ -17,8 +19,9 @@ internal class SeriesLookback(private val healthConnectClient: HealthConnectClie
      * record that began before [startTime] is not returned although some of its samples fall inside
      * the range. One small, newest-first read of the [SERIES_LOOKBACK] before [startTime] finds those
      * records; the converter keeps only their samples inside the range. Records that started earlier
-     * than that, or behind [limit] newer ones, are missed. Used for speed and skin temperature, whose
-     * records are few; heart rate scans the whole look-back range ([HeartRatePageReader]).
+     * than that, or behind [limit] newer ones, are missed. Used for speed, power, cycling cadence and
+     * skin temperature, whose records are few; heart rate scans the whole look-back range
+     * ([HeartRatePageReader]).
      *
      * @param pageRecordIds Ids of the records read for the range itself, which are left out
      */
@@ -65,6 +68,8 @@ internal class SeriesLookback(private val healthConnectClient: HealthConnectClie
         private fun seriesEndTime(record: Record): Instant? = when (record) {
             is HeartRateRecord -> record.endTime
             is SpeedRecord -> record.endTime
+            is PowerRecord -> record.endTime
+            is CyclingPedalingCadenceRecord -> record.endTime
             is SkinTemperatureRecord -> record.endTime
             else -> null
         }

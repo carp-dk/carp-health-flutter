@@ -125,6 +125,8 @@ const _$HealthDataTypeEnumMap = {
   HealthDataType.DISTANCE_DELTA: 'DISTANCE_DELTA',
   HealthDataType.WALKING_SPEED: 'WALKING_SPEED',
   HealthDataType.SPEED: 'SPEED',
+  HealthDataType.POWER: 'POWER',
+  HealthDataType.CYCLING_CADENCE: 'CYCLING_CADENCE',
   HealthDataType.MINDFULNESS: 'MINDFULNESS',
   HealthDataType.WATER: 'WATER',
   HealthDataType.SLEEP_ASLEEP: 'SLEEP_ASLEEP',
@@ -215,6 +217,8 @@ const _$HealthDataUnitEnumMap = {
   HealthDataUnit.MILLIGRAM_PER_DECILITER: 'MILLIGRAM_PER_DECILITER',
   HealthDataUnit.MILLIMOLES_PER_LITER: 'MILLIMOLES_PER_LITER',
   HealthDataUnit.METER_PER_SECOND: 'METER_PER_SECOND',
+  HealthDataUnit.WATT: 'WATT',
+  HealthDataUnit.REVOLUTION_PER_MINUTE: 'REVOLUTION_PER_MINUTE',
   HealthDataUnit.UNKNOWN_UNIT: 'UNKNOWN_UNIT',
   HealthDataUnit.NO_UNIT: 'NO_UNIT',
 };

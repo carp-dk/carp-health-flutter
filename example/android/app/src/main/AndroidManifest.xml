@@ -20,6 +20,8 @@
     <uses-permission android:name="android.permission.health.WRITE_SLEEP"/>
     <uses-permission android:name="android.permission.health.READ_SPEED"/>
     <uses-permission android:name="android.permission.health.WRITE_SPEED"/>
+    <uses-permission android:name="android.permission.health.READ_POWER"/>
+    <!-- CYCLING_CADENCE is read with READ_EXERCISE (above); Health Connect has no cadence permission. -->
     <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
     <uses-permission android:name="android.permission.health.WRITE_DISTANCE"/>
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>

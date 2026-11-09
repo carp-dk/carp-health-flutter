@@ -37,6 +37,8 @@ object HealthConstants {
     const val WEIGHT = "WEIGHT"
     const val TOTAL_CALORIES_BURNED = "TOTAL_CALORIES_BURNED"
     const val SPEED = "SPEED"
+    const val POWER = "POWER"
+    const val CYCLING_CADENCE = "CYCLING_CADENCE"
     const val ACTIVITY_INTENSITY = "ACTIVITY_INTENSITY"
     const val SKIN_TEMPERATURE = "SKIN_TEMPERATURE"
 
@@ -106,6 +108,8 @@ object HealthConstants {
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord::class,
         MENSTRUATION_FLOW to MenstruationFlowRecord::class,
         SPEED to SpeedRecord::class,
+        POWER to PowerRecord::class,
+        CYCLING_CADENCE to CyclingPedalingCadenceRecord::class,
         ACTIVITY_INTENSITY to ActivityIntensityRecord::class,
         SKIN_TEMPERATURE to SkinTemperatureRecord::class,
     )
@@ -129,6 +133,8 @@ object HealthConstants {
         SLEEP_AWAKE to SleepSessionRecord.SLEEP_DURATION_TOTAL,
         SLEEP_IN_BED to SleepSessionRecord.SLEEP_DURATION_TOTAL,
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord.ENERGY_TOTAL,
+        POWER to PowerRecord.POWER_AVG,
+        CYCLING_CADENCE to CyclingPedalingCadenceRecord.RPM_AVG,
         ACTIVITY_INTENSITY to ActivityIntensityRecord.INTENSITY_MINUTES_TOTAL,
         SKIN_TEMPERATURE to SkinTemperatureRecord.TEMPERATURE_DELTA_AVG,
     )

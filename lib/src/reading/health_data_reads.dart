@@ -120,8 +120,9 @@ mixin HealthDataReads on _HealthPageReads {
   ///
   /// Types are read one after another, in the order of [types], each type
   /// once. Within a type, points are oldest first: in the order of their
-  /// records' start times on Android (the samples of a heart rate, speed or
-  /// skin temperature record come together), by end time on iOS. Each type ends with exactly one page whose
+  /// records' start times on Android (the samples of a heart rate, speed,
+  /// power, cycling cadence or skin temperature record come together), by end
+  /// time on iOS. Each type ends with exactly one page whose
   /// [HealthDataPage.isLastPageForType] is true (empty if the type has no more
   /// data); other pages are never empty. This is a finite read of the data
   /// stored now, not a live stream of new data, and not a snapshot: data

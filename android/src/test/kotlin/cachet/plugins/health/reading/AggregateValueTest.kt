@@ -3,10 +3,12 @@ package cachet.plugins.health.reading
 import androidx.health.connect.client.aggregate.AggregateMetric
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.ActivityIntensityRecord
+import androidx.health.connect.client.records.CyclingPedalingCadenceRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
@@ -15,6 +17,7 @@ import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Length
 import androidx.health.connect.client.units.Mass
+import androidx.health.connect.client.units.Power
 import androidx.health.connect.client.units.TemperatureDelta
 import androidx.health.connect.client.units.Volume
 import cachet.plugins.health.HealthConstants
@@ -37,6 +40,8 @@ class AggregateValueTest {
         HydrationRecord.VOLUME_TOTAL to (Volume.liters(1.5) to 1.5),
         SleepSessionRecord.SLEEP_DURATION_TOTAL to (Duration.ofMinutes(420).plusSeconds(30) to 420.5),
         TotalCaloriesBurnedRecord.ENERGY_TOTAL to (Energy.kilocalories(2000.0) to 2000.0),
+        PowerRecord.POWER_AVG to (Power.watts(215.0) to 215.0),
+        CyclingPedalingCadenceRecord.RPM_AVG to (90.5 to 90.5),
         ActivityIntensityRecord.INTENSITY_MINUTES_TOTAL to (Duration.ofMinutes(30) to 30.0),
         SkinTemperatureRecord.TEMPERATURE_DELTA_AVG to (TemperatureDelta.celsius(0.3) to 0.3),
     )
@@ -57,6 +62,12 @@ class AggregateValueTest {
     @Test
     fun heartRateIntervalsAreAverageBeatsPerMinute() {
         assertEquals(HeartRateRecord.BPM_AVG, HealthConstants.mapToAggregateMetric["HEART_RATE"])
+    }
+
+    @Test
+    fun cyclingIntervalsAreAveragePowerAndCadence() {
+        assertEquals(PowerRecord.POWER_AVG, HealthConstants.mapToAggregateMetric["POWER"])
+        assertEquals(CyclingPedalingCadenceRecord.RPM_AVG, HealthConstants.mapToAggregateMetric["CYCLING_CADENCE"])
     }
 
     @Test

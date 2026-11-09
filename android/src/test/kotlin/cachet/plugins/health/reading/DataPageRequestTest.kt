@@ -1,7 +1,9 @@
 package cachet.plugins.health.reading
 
+import androidx.health.connect.client.records.CyclingPedalingCadenceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import cachet.plugins.health.HealthErrors
 import io.flutter.plugin.common.MethodCall
@@ -113,8 +115,12 @@ class DataPageRequestTest {
         assertEquals(ExerciseSessionRecord::class, request("WORKOUT").recordType)
         assertEquals(SleepSessionRecord::class, request("SLEEP_DEEP").recordType)
         assertEquals(HeartRateRecord::class, request("HEART_RATE").recordType)
+        assertEquals(PowerRecord::class, request("POWER").recordType)
+        assertEquals(CyclingPedalingCadenceRecord::class, request("CYCLING_CADENCE").recordType)
         assertTrue(request("HEART_RATE").isSeries)
         assertTrue(request("SPEED").isSeries)
+        assertTrue(request("POWER").isSeries)
+        assertTrue(request("CYCLING_CADENCE").isSeries)
         assertTrue(request("SKIN_TEMPERATURE").isSeries)
         assertFalse(request("STEPS").isSeries)
         assertFalse(request("RESTING_HEART_RATE").isSeries)
@@ -124,6 +130,8 @@ class DataPageRequestTest {
     fun firstPageRecordsPerType() {
         assertEquals(1, request("SPEED").firstRecords(34))
         assertEquals(5, request("SPEED").firstRecords(33))
+        assertEquals(1, request("POWER").firstRecords(34))
+        assertEquals(5, request("CYCLING_CADENCE").firstRecords(33))
         assertEquals(1, request("SKIN_TEMPERATURE", pageSize = 1).firstRecords(36))
         assertEquals(5000, request("STEPS").firstRecords(34))
         assertEquals(100, request("STEPS", pageSize = 100).firstRecords(34))

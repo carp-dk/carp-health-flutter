@@ -23,10 +23,10 @@ internal const val MAX_PLANNED_SLICES = 16
 internal const val MAX_PLAN_DEPTH = 3
 internal val FIRST_PLAN_WINDOW_MS: Long = Duration.ofDays(1).toMillis()
 
-// Speed and skin temperature have no sample count, so their records per request assume a record
-// may hold an hour of 1 Hz samples: at most pageSize / 3600 records (5 at the default pageSize),
-// one on the first page, and that cap but no more than 20 on the Health Connect APK (before
-// Android 14) for the whole token chain.
+// Speed, power, cycling cadence and skin temperature have no sample count, so their records per
+// request assume a record may hold an hour of 1 Hz samples: at most pageSize / 3600 records (5 at
+// the default pageSize), one on the first page, and that cap but no more than 20 on the Health
+// Connect APK (before Android 14) for the whole token chain.
 internal const val ASSUMED_MAX_SAMPLES_PER_RECORD = 3600
 internal const val SERIES_FIRST_RECORDS = 1
 internal const val SERIES_FIXED_RECORDS_PRE34 = 20
@@ -38,8 +38,8 @@ internal const val WORKOUT_MAX_RECORDS = 20
 internal const val ROUTE_MAX_RECORDS = 5
 
 // How far before the requested start series reads look for records that began earlier. Heart
-// rate scans that whole range slice by slice; speed and skin temperature check only the newest
-// records (as many as one page may hold, fewer after a page did not fit in memory).
+// rate scans that whole range slice by slice; the other series check only the newest records (as
+// many as one page may hold, fewer after a page did not fit in memory).
 internal val SERIES_LOOKBACK: Duration = Duration.ofHours(24)
 internal const val SERIES_PROBE_RECORDS_RETRY = 1
 

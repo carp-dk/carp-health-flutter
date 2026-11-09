@@ -1,10 +1,13 @@
 package cachet.plugins.health
 
+import androidx.health.connect.client.records.CyclingPedalingCadenceRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.units.Power
 import androidx.health.connect.client.units.Temperature
 import androidx.health.connect.client.units.TemperatureDelta
 import androidx.health.connect.client.units.Velocity
@@ -37,6 +40,22 @@ class ConverterWindowTest {
         samples = times.map { SpeedRecord.Sample(it, Velocity.metersPerSecond(1.5)) },
         metadata = Metadata.manualEntry(),
     )
+    private val power = PowerRecord(
+        startTime = start.minusSeconds(300),
+        startZoneOffset = null,
+        endTime = end.plusSeconds(300),
+        endZoneOffset = null,
+        samples = times.map { PowerRecord.Sample(it, Power.watts(215.0)) },
+        metadata = Metadata.manualEntry(),
+    )
+    private val cadence = CyclingPedalingCadenceRecord(
+        startTime = start.minusSeconds(300),
+        startZoneOffset = null,
+        endTime = end.plusSeconds(300),
+        endZoneOffset = null,
+        samples = times.map { CyclingPedalingCadenceRecord.Sample(it, 90.5) },
+        metadata = Metadata.manualEntry(),
+    )
     private val skinTemperature = SkinTemperatureRecord(
         startTime = start.minusSeconds(300),
         startZoneOffset = null,
@@ -61,6 +80,20 @@ class ConverterWindowTest {
     }
 
     @Test
+    fun powerKeepsSamplesFromStartUntilBeforeEnd() {
+        val points = converter.convertRecord(power, "POWER", null, start, end)
+        assertEquals(inWindow, dates(points))
+        assertEquals(listOf(215.0, 215.0), points.map { it["value"] })
+    }
+
+    @Test
+    fun cyclingCadenceKeepsSamplesFromStartUntilBeforeEnd() {
+        val points = converter.convertRecord(cadence, "CYCLING_CADENCE", null, start, end)
+        assertEquals(inWindow, dates(points))
+        assertEquals(listOf(90.5, 90.5), points.map { it["value"] })
+    }
+
+    @Test
     fun skinTemperatureKeepsDeltasFromStartUntilBeforeEnd() {
         val points = converter.convertRecord(skinTemperature, "SKIN_TEMPERATURE", null, start, end)
         assertEquals(inWindow, dates(points))
@@ -73,6 +106,8 @@ class ConverterWindowTest {
         val all = times.map { it.toEpochMilli() }
         assertEquals(all, dates(converter.convertRecord(heartRate, "HEART_RATE")))
         assertEquals(all, dates(converter.convertRecord(speed, "SPEED")))
+        assertEquals(all, dates(converter.convertRecord(power, "POWER")))
+        assertEquals(all, dates(converter.convertRecord(cadence, "CYCLING_CADENCE")))
         assertEquals(all, dates(converter.convertRecord(skinTemperature, "SKIN_TEMPERATURE")))
     }
 
@@ -94,6 +129,8 @@ class ConverterWindowTest {
     fun sampleCountIsTakenBeforeTheWindow() {
         assertEquals(4, converter.sampleCount(heartRate))
         assertEquals(4, converter.sampleCount(speed))
+        assertEquals(4, converter.sampleCount(power))
+        assertEquals(4, converter.sampleCount(cadence))
         assertEquals(4, converter.sampleCount(skinTemperature))
         assertEquals(1, converter.sampleCount(StepsRecord(start, null, end, null, 100, Metadata.manualEntry())))
     }
@@ -101,7 +138,13 @@ class ConverterWindowTest {
     @Test
     fun seriesTypesAreTheRecordsWithSamples() {
         assertEquals(
-            setOf(HeartRateRecord::class, SpeedRecord::class, SkinTemperatureRecord::class),
+            setOf(
+                HeartRateRecord::class,
+                SpeedRecord::class,
+                PowerRecord::class,
+                CyclingPedalingCadenceRecord::class,
+                SkinTemperatureRecord::class,
+            ),
             HealthDataConverter.seriesTypes,
         )
     }

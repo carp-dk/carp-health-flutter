@@ -64,8 +64,8 @@ class HealthDataReader(
      *
      * A page holds about 'pageSize' data points. Health Connect pages by record, and one series
      * record can hold thousands of samples: heart rate is therefore read in time slices planned
-     * from counts of its samples ([HistogramPlanner]), and speed and skin temperature ask for few
-     * records per request ([SeriesPageSizer]).
+     * from counts of its samples ([HistogramPlanner]), and speed, power, cycling cadence and skin
+     * temperature ask for few records per request ([SeriesPageSizer]).
      * The reply is {data, nextPageToken}; the token ([DataPageToken], [SliceToken]) is opaque to
      * Dart and null on the last page. Without read permission the first page is empty, last, and flagged
      * 'permissionDenied'. Failures are reported with the codes of [HealthErrors], never as data.

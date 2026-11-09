@@ -43,10 +43,10 @@ internal class DataPageToken(val records: Int, val healthConnectToken: String) {
 }
 
 /**
- * Sizes the pages of speed and skin temperature, whose records hold any number of samples and
- * have no sample count to plan by (heart rate is read in counted time slices, [SlicePlanner]).
- * A request asks for at most [cap] records, so even records of an hour of 1 Hz samples keep a
- * page near pageSize samples.
+ * Sizes the pages of speed, power, cycling cadence and skin temperature, whose records hold any
+ * number of samples and have no sample count to plan by (heart rate is read in counted time
+ * slices, [SlicePlanner]). A request asks for at most [cap] records, so even records of an hour
+ * of 1 Hz samples keep a page near pageSize samples.
  *
  * Health Connect page tokens are positional on Android 14 and later, so the number of records may
  * change along a token chain (verified on Android 17). That is not verified for the Health Connect

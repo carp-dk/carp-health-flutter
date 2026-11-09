@@ -63,6 +63,10 @@ mixin HealthDataWrites on _HealthSupport {
         Platform.isIOS) {
       throw ArgumentError("$type - iOS does not support writing this data type in HealthKit");
     }
+    // Read only on both platforms
+    if ({HealthDataType.POWER, HealthDataType.CYCLING_CADENCE}.contains(type)) {
+      throw ArgumentError("$type - writing this data type is not supported");
+    }
 
     // Assign default unit if not specified
     unit ??= dataTypeToUnit[type]!;
@@ -152,6 +156,10 @@ mixin HealthDataWrites on _HealthSupport {
         }.contains(type) &&
         Platform.isIOS) {
       throw ArgumentError("$type - iOS does not support writing this data type in HealthKit");
+    }
+    // Read only on both platforms
+    if ({HealthDataType.POWER, HealthDataType.CYCLING_CADENCE}.contains(type)) {
+      throw ArgumentError("$type - writing this data type is not supported");
     }
 
     // Assign default unit if not specified

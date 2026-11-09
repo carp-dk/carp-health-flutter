@@ -1,10 +1,13 @@
 package cachet.plugins.health.reading
 
+import androidx.health.connect.client.records.CyclingPedalingCadenceRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.units.Power
 import androidx.health.connect.client.units.TemperatureDelta
 import androidx.health.connect.client.units.Velocity
 import java.time.Instant
@@ -46,7 +49,19 @@ class SeriesLookbackTest {
             listOf(SkinTemperatureRecord.Delta(start, TemperatureDelta.celsius(0.1))), null,
             SkinTemperatureRecord.MEASUREMENT_LOCATION_FINGER,
         )
-        val kept = SeriesLookback.keepLookbackRecords(listOf<Record>(speed, skinTemperature), start, emptySet())
-        assertEquals(listOf("skin", "speed"), kept.map { it.metadata.id })
+        val power = PowerRecord(
+            start.minusSeconds(180), null, start.plusSeconds(60), null,
+            listOf(PowerRecord.Sample(start, Power.watts(200.0))), Metadata.manualEntryWithId("power"),
+        )
+        val cadence = CyclingPedalingCadenceRecord(
+            start.minusSeconds(240), null, start.plusSeconds(60), null,
+            listOf(CyclingPedalingCadenceRecord.Sample(start, 85.0)), Metadata.manualEntryWithId("cadence"),
+        )
+        val kept = SeriesLookback.keepLookbackRecords(
+            listOf<Record>(speed, skinTemperature, power, cadence),
+            start,
+            emptySet(),
+        )
+        assertEquals(listOf("cadence", "power", "skin", "speed"), kept.map { it.metadata.id })
     }
 }

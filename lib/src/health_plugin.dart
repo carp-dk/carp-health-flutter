@@ -88,12 +88,12 @@ class Health
   /// "Health Connect limits".
   ///
   /// Health Connect returns at most 5000 records per call. One heart rate,
-  /// speed or skin temperature record holds many samples: heart rate is read
-  /// in time slices of at most about this many samples, and speed and skin
-  /// temperature read at most `pageSize / 3600` records per call. Sleep
-  /// sessions, workouts and workout routes are read in smaller pages, and so
-  /// are ECGs and workout routes on iOS. Read once when a read starts, so it
-  /// can be changed at any time.
+  /// speed, power, cycling cadence or skin temperature record holds many
+  /// samples: heart rate is read in time slices of at most about this many
+  /// samples, and the others read at most `pageSize / 3600` records per call.
+  /// Sleep sessions, workouts and workout routes are read in smaller pages,
+  /// and so are ECGs and workout routes on iOS. Read once when a read starts,
+  /// so it can be changed at any time.
   @override
   int get pageSize => _pageSize;
 

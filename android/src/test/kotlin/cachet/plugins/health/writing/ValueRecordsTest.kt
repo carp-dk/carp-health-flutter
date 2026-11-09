@@ -26,11 +26,14 @@ class ValueRecordsTest {
         HealthConstants.ACTIVITY_INTENSITY,
     )
 
+    // Read only: the plugin reads these from Health Connect but does not write them.
+    private val readOnly = setOf(HealthConstants.POWER, HealthConstants.CYCLING_CADENCE)
+
     @Test
     fun everyOtherTypeIsWrittenAsTheRecordItIsReadFrom() {
         for ((type, recordClass) in HealthConstants.mapToType) {
             // An aggregate only, read from step records.
-            if (type in ownWriteMethod || type == HealthConstants.AGGREGATE_STEP_COUNT) continue
+            if (type in ownWriteMethod || type in readOnly || type == HealthConstants.AGGREGATE_STEP_COUNT) continue
             assertEquals(type, recordClass, valueRecord(type, start, end, 1.0, metadata)?.let { it::class })
         }
     }
@@ -38,6 +41,13 @@ class ValueRecordsTest {
     @Test
     fun typesWithTheirOwnWriteMethodAreNotWritten() {
         for (type in ownWriteMethod + listOf(HealthConstants.SLEEP_IN_BED, "AUDIOGRAM")) {
+            assertNull(type, valueRecord(type, start, end, 1.0, metadata))
+        }
+    }
+
+    @Test
+    fun readOnlyTypesAreNotWritten() {
+        for (type in readOnly) {
             assertNull(type, valueRecord(type, start, end, 1.0, metadata))
         }
     }

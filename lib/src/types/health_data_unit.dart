@@ -80,6 +80,14 @@ enum HealthDataUnit {
   MILLIGRAM_PER_DECILITER,
   MILLIMOLES_PER_LITER,
   METER_PER_SECOND,
+
+  /// Watts, the unit of [HealthDataType.POWER].
+  WATT,
+
+  /// Revolutions per minute, the unit of [HealthDataType.CYCLING_CADENCE]
+  /// (`count/min` in HealthKit).
+  REVOLUTION_PER_MINUTE,
+
   UNKNOWN_UNIT,
   NO_UNIT,
 }

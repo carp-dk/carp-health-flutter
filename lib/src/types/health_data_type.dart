@@ -76,6 +76,23 @@ enum HealthDataType {
   DISTANCE_DELTA,
   WALKING_SPEED,
   SPEED,
+
+  /// Power in watts, for example from a cycling power meter. Read only:
+  /// writing it throws an [ArgumentError].
+  ///
+  ///  * iOS 17 and later: cycling power, HealthKit's
+  ///    `HKQuantityTypeIdentifier.cyclingPower`.
+  ///  * Android: the samples of Health Connect's `PowerRecord`, the power of
+  ///    any exercise, for example cycling or rowing.
+  POWER,
+
+  /// Cycling cadence in revolutions per minute: how fast the pedals turn.
+  /// Read only: writing it throws an [ArgumentError].
+  ///
+  ///  * iOS 17 and later: HealthKit's `HKQuantityTypeIdentifier.cyclingCadence`.
+  ///  * Android: the samples of Health Connect's `CyclingPedalingCadenceRecord`.
+  CYCLING_CADENCE,
+
   MINDFULNESS,
   WATER,
   SLEEP_ASLEEP,

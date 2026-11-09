@@ -6,6 +6,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Length
 import androidx.health.connect.client.units.Mass
+import androidx.health.connect.client.units.Power
 import androidx.health.connect.client.units.TemperatureDelta
 import androidx.health.connect.client.units.Volume
 import cachet.plugins.health.HealthConstants
@@ -79,6 +80,7 @@ internal class AggregateReader(
             is TemperatureDelta -> value.inCelsius
             is Mass -> value.inKilograms
             is Volume -> value.inLiters
+            is Power -> value.inWatts
             is Duration -> value.toMillis() / 60_000.0
             else -> throw UnsupportedOperationException("Aggregate values of type ${value.javaClass.name} are not supported")
         }

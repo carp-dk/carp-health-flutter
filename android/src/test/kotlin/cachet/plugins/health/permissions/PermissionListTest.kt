@@ -44,6 +44,15 @@ class PermissionListTest {
     }
 
     @Test
+    fun cyclingCadenceIsReadWithTheExercisePermission() {
+        // Health Connect has no permission of its own for cadence records, so apps declare READ_EXERCISE.
+        assertEquals(
+            listOf("android.permission.health.READ_POWER", readSession),
+            permissions(listOf(HealthConstants.POWER, HealthConstants.CYCLING_CADENCE), listOf(0, 0)),
+        )
+    }
+
+    @Test
     fun aTypeThatHealthConnectDoesNotHaveFailsTheWholeList() {
         assertNull(permissions(listOf(HealthConstants.STEPS, "AUDIOGRAM"), listOf(0, 0)))
     }

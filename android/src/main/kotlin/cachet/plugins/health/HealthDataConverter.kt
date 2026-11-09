@@ -19,7 +19,7 @@ class HealthDataConverter {
      *
      * @param record The Health Connect record to convert
      * @param dataType The string identifier for the data type being converted
-     * @param from If set, series samples (heart rate, speed, skin temperature) before this are dropped
+     * @param from If set, the samples of series records ([seriesTypes]) before this are dropped
      * @param to If set, series samples at or after this are dropped
      * @return List<Map<String, Any?>> List of converted records (some records may split into multiple entries)
      * @throws IllegalArgumentException If the record type is not supported
@@ -125,6 +125,14 @@ class HealthDataConverter {
             is SpeedRecord -> record.samples.filter { inWindow(it.time, from, to) }.map { sample ->
                 createInstantRecord(metadata, sample.time, sample.speed.inMetersPerSecond)
             }
+
+            is PowerRecord -> record.samples.filter { inWindow(it.time, from, to) }.map { sample ->
+                createInstantRecord(metadata, sample.time, sample.power.inWatts)
+            }
+
+            is CyclingPedalingCadenceRecord -> record.samples.filter { inWindow(it.time, from, to) }.map { sample ->
+                createInstantRecord(metadata, sample.time, sample.revolutionsPerMinute)
+            }
             
             is SleepSessionRecord -> listOf(
                 createIntervalRecord(
@@ -152,6 +160,8 @@ class HealthDataConverter {
     fun sampleCount(record: Record): Int = when (record) {
         is HeartRateRecord -> record.samples.size
         is SpeedRecord -> record.samples.size
+        is PowerRecord -> record.samples.size
+        is CyclingPedalingCadenceRecord -> record.samples.size
         is SkinTemperatureRecord -> record.deltas.size
         else -> 1
     }
@@ -270,7 +280,12 @@ class HealthDataConverter {
         private const val BLOOD_PRESSURE_DIASTOLIC = "BLOOD_PRESSURE_DIASTOLIC"
 
         /** Record types that hold a series of timestamped samples, each converted to a data point. */
-        val seriesTypes: Set<KClass<out Record>> =
-            setOf(HeartRateRecord::class, SpeedRecord::class, SkinTemperatureRecord::class)
+        val seriesTypes: Set<KClass<out Record>> = setOf(
+            HeartRateRecord::class,
+            SpeedRecord::class,
+            PowerRecord::class,
+            CyclingPedalingCadenceRecord::class,
+            SkinTemperatureRecord::class,
+        )
     }
 }

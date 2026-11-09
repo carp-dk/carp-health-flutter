@@ -77,6 +77,8 @@ const Map<HealthDataType, HealthDataUnit> dataTypeToUnit = {
   HealthDataType.DISTANCE_DELTA: HealthDataUnit.METER,
   HealthDataType.WALKING_SPEED: HealthDataUnit.METER_PER_SECOND,
   HealthDataType.SPEED: HealthDataUnit.METER_PER_SECOND,
+  HealthDataType.POWER: HealthDataUnit.WATT,
+  HealthDataType.CYCLING_CADENCE: HealthDataUnit.REVOLUTION_PER_MINUTE,
 
   HealthDataType.WATER: HealthDataUnit.LITER,
   HealthDataType.SLEEP_ASLEEP: HealthDataUnit.MINUTE,
