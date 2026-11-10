@@ -23,7 +23,8 @@ internal class WorkoutConverter(
     /**
      * Handles special processing for workout/exercise session data.
      * Enriches workout records with associated distance, energy, and step data
-     * by querying related records within the workout time period.
+     * by querying the related records that the workout's app wrote within the
+     * workout time period.
      *
      * @param records List of ExerciseSessionRecord objects
      * @param recordingMethodsToFilter Recording methods to exclude (empty list means no filtering)
@@ -55,6 +56,9 @@ internal class WorkoutConverter(
 
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
+            // Only the records of the app that wrote the workout: other apps' records of the same activity,
+            // such as the phone's own step and distance tracking, would count it twice.
+            val workoutOrigin = setOf(record.metadata.dataOrigin)
 
             // Get distance data
             var totalDistance = 0.0
@@ -66,6 +70,7 @@ internal class WorkoutConverter(
                             record.startTime,
                             record.endTime,
                         ),
+                        dataOriginFilter = workoutOrigin,
                         pageSize = HC_MAX_RECORDS,
                     ),
                 )
@@ -84,6 +89,7 @@ internal class WorkoutConverter(
                             record.startTime,
                             record.endTime,
                         ),
+                        dataOriginFilter = workoutOrigin,
                         pageSize = HC_MAX_RECORDS,
                     ),
                 )
@@ -102,6 +108,7 @@ internal class WorkoutConverter(
                             record.startTime,
                             record.endTime
                         ),
+                        dataOriginFilter = workoutOrigin,
                         pageSize = HC_MAX_RECORDS,
                     ),
                 )

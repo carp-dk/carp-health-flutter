@@ -75,9 +75,12 @@ internal fun sleepSession(
     stages = stages,
 )
 
-// Health Connect sets the data origin of a record, so the constructor that takes one is internal to
-// the client library: it is called through reflection.
-private fun metadata(recordingMethod: Int, id: String, dataOrigin: DataOrigin): Metadata =
+/**
+ * The metadata of a record that the app of [dataOrigin] wrote. Health Connect sets the data origin of a
+ * record, so the constructor that takes one is internal to the client library: it is called through
+ * reflection.
+ */
+internal fun metadata(recordingMethod: Int, id: String, dataOrigin: DataOrigin): Metadata =
     Metadata::class.java
         .getConstructor(
             Int::class.javaPrimitiveType, String::class.java, DataOrigin::class.java, Instant::class.java,

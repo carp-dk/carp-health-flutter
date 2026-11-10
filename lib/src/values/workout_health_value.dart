@@ -8,6 +8,14 @@ part of '../../health.dart';
 /// * [totalEnergyBurnedUnit] - the unit of the total energy burned
 /// * [totalDistance] - the total distance of the workout
 /// * [totalDistanceUnit] - the unit of the total distance
+///
+/// On Android, the totals count the Health Connect records that the app which wrote the workout
+/// recorded in its time, so an activity that two apps recorded (for example a watch app and the
+/// phone) does not count twice. A total is `null` when that app wrote no such records, or without
+/// permission to read them: `READ_DISTANCE` ([HealthDataType.DISTANCE_DELTA]) for [totalDistance],
+/// `READ_TOTAL_CALORIES_BURNED` ([HealthDataType.TOTAL_CALORIES_BURNED]) for [totalEnergyBurned] and
+/// `READ_STEPS` ([HealthDataType.STEPS]) for [totalSteps]. Read those types over the workout's time
+/// to count the data of other apps too.
 @JsonSerializable(includeIfNull: false, explicitToJson: true)
 class WorkoutHealthValue extends HealthValue {
   /// The type of the workout.
