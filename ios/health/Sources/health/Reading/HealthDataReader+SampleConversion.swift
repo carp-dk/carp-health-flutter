@@ -103,6 +103,10 @@ extension HealthDataReader {
                 "totalEnergyBurnedUnit": "KILOCALORIE",
                 "totalDistance": sample.totalDistance?.doubleValue(for: HKUnit.meter()) as Any,
                 "totalDistanceUnit": "METER",
+                "totalFlightsClimbed": sample.totalFlightsClimbed?.doubleValue(for: HKUnit.count()) as Any,
+                "totalSwimmingStrokeCount": sample.totalSwimmingStrokeCount?.doubleValue(
+                    for: HKUnit.count()
+                ) as Any,
                 "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                 "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                 "source_id": sample.sourceRevision.source.bundleIdentifier,

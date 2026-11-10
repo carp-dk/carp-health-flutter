@@ -555,6 +555,9 @@ WorkoutHealthValue _$WorkoutHealthValueFromJson(Map<String, dynamic> json) =>
         _$HealthDataUnitEnumMap,
         json['totalStepsUnit'],
       ),
+      totalFlightsClimbed: (json['totalFlightsClimbed'] as num?)?.toInt(),
+      totalSwimmingStrokeCount: (json['totalSwimmingStrokeCount'] as num?)
+          ?.toInt(),
     )..$type = json['__type'] as String?;
 
 Map<String, dynamic> _$WorkoutHealthValueToJson(WorkoutHealthValue instance) =>
@@ -569,6 +572,8 @@ Map<String, dynamic> _$WorkoutHealthValueToJson(WorkoutHealthValue instance) =>
       'totalDistanceUnit': ?_$HealthDataUnitEnumMap[instance.totalDistanceUnit],
       'totalSteps': ?instance.totalSteps,
       'totalStepsUnit': ?_$HealthDataUnitEnumMap[instance.totalStepsUnit],
+      'totalFlightsClimbed': ?instance.totalFlightsClimbed,
+      'totalSwimmingStrokeCount': ?instance.totalSwimmingStrokeCount,
     };
 
 const _$HealthWorkoutActivityTypeEnumMap = {

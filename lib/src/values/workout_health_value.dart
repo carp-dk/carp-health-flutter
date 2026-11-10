@@ -8,14 +8,19 @@ part of '../../health.dart';
 /// * [totalEnergyBurnedUnit] - the unit of the total energy burned
 /// * [totalDistance] - the total distance of the workout
 /// * [totalDistanceUnit] - the unit of the total distance
+/// * [totalSteps] - the total steps of the workout
+/// * [totalStepsUnit] - the unit of the total steps
+/// * [totalFlightsClimbed] - the flights of stairs climbed during the workout (iOS only)
+/// * [totalSwimmingStrokeCount] - the swimming strokes of the workout (iOS only)
 ///
-/// On Android, the totals count the Health Connect records that the app which wrote the workout
-/// recorded in its time, so an activity that two apps recorded (for example a watch app and the
-/// phone) does not count twice. A total is `null` when that app wrote no such records, or without
-/// permission to read them: `READ_DISTANCE` ([HealthDataType.DISTANCE_DELTA]) for [totalDistance],
-/// `READ_TOTAL_CALORIES_BURNED` ([HealthDataType.TOTAL_CALORIES_BURNED]) for [totalEnergyBurned] and
-/// `READ_STEPS` ([HealthDataType.STEPS]) for [totalSteps]. Read those types over the workout's time
-/// to count the data of other apps too.
+/// On Android, [totalDistance], [totalEnergyBurned] and [totalSteps] count the Health Connect
+/// records that the app which wrote the workout recorded in its time, so an activity that two apps
+/// recorded (for example a watch app and the phone) does not count twice. Such a total is `null`
+/// when that app wrote no such records, or without permission to read them: `READ_DISTANCE`
+/// ([HealthDataType.DISTANCE_DELTA]) for [totalDistance], `READ_TOTAL_CALORIES_BURNED`
+/// ([HealthDataType.TOTAL_CALORIES_BURNED]) for [totalEnergyBurned] and `READ_STEPS`
+/// ([HealthDataType.STEPS]) for [totalSteps]. Read those types over the workout's time to count the
+/// data of other apps too.
 @JsonSerializable(includeIfNull: false, explicitToJson: true)
 class WorkoutHealthValue extends HealthValue {
   /// The type of the workout.
@@ -45,6 +50,14 @@ class WorkoutHealthValue extends HealthValue {
   /// Might not be available for all workouts.
   HealthDataUnit? totalStepsUnit;
 
+  /// The total number of flights of stairs climbed during the workout: HealthKit's total for the
+  /// workout, `null` when it has none. iOS only, always `null` on Android.
+  int? totalFlightsClimbed;
+
+  /// The total number of swimming strokes during the workout: HealthKit's total for the workout,
+  /// `null` when it has none. iOS only, always `null` on Android.
+  int? totalSwimmingStrokeCount;
+
   WorkoutHealthValue({
     required this.workoutActivityType,
     this.totalEnergyBurned,
@@ -53,6 +66,8 @@ class WorkoutHealthValue extends HealthValue {
     this.totalDistanceUnit,
     this.totalSteps,
     this.totalStepsUnit,
+    this.totalFlightsClimbed,
+    this.totalSwimmingStrokeCount,
   });
 
   /// Create a [WorkoutHealthValue] based on a health data point from native data format.
@@ -73,6 +88,12 @@ class WorkoutHealthValue extends HealthValue {
     totalStepsUnit: dataPoint['totalStepsUnit'] != null
         ? HealthDataUnit.values.firstWhere((element) => element.name == dataPoint['totalStepsUnit'])
         : null,
+    totalFlightsClimbed: dataPoint['totalFlightsClimbed'] != null
+        ? (dataPoint['totalFlightsClimbed'] as num).toInt()
+        : null,
+    totalSwimmingStrokeCount: dataPoint['totalSwimmingStrokeCount'] != null
+        ? (dataPoint['totalSwimmingStrokeCount'] as num).toInt()
+        : null,
   );
 
   @override
@@ -90,7 +111,9 @@ class WorkoutHealthValue extends HealthValue {
            totalDistance: $totalDistance,
            totalDistanceUnit: ${totalDistanceUnit?.name}
            totalSteps: $totalSteps,
-           totalStepsUnit: ${totalStepsUnit?.name}""";
+           totalStepsUnit: ${totalStepsUnit?.name},
+           totalFlightsClimbed: $totalFlightsClimbed,
+           totalSwimmingStrokeCount: $totalSwimmingStrokeCount""";
 
   @override
   bool operator ==(Object other) =>
@@ -101,7 +124,9 @@ class WorkoutHealthValue extends HealthValue {
       totalDistance == other.totalDistance &&
       totalDistanceUnit == other.totalDistanceUnit &&
       totalSteps == other.totalSteps &&
-      totalStepsUnit == other.totalStepsUnit;
+      totalStepsUnit == other.totalStepsUnit &&
+      totalFlightsClimbed == other.totalFlightsClimbed &&
+      totalSwimmingStrokeCount == other.totalSwimmingStrokeCount;
 
   @override
   int get hashCode => Object.hash(
@@ -112,5 +137,7 @@ class WorkoutHealthValue extends HealthValue {
     totalDistanceUnit,
     totalSteps,
     totalStepsUnit,
+    totalFlightsClimbed,
+    totalSwimmingStrokeCount,
   );
 }
