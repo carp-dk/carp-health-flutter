@@ -221,10 +221,10 @@ enum HealthDataType {
   /// HealthKit's `environmentalSoundReduction`, iOS 16 and later.
   ENVIRONMENTAL_SOUND_REDUCTION,
 
-  /// HealthKit's `workoutEffortScore`, iOS 18 and later.
+  /// HealthKit's `workoutEffortScore`, iOS 18 and later: a score from 0 to 10.
   WORKOUT_EFFORT_SCORE,
 
-  /// HealthKit's `estimatedWorkoutEffortScore`, iOS 18 and later.
+  /// HealthKit's `estimatedWorkoutEffortScore`, iOS 18 and later: a score from 0 to 10.
   ESTIMATED_WORKOUT_EFFORT_SCORE,
 
   /// HealthKit's `appleSleepingBreathingDisturbances`, iOS 18 and later. Read only: requesting

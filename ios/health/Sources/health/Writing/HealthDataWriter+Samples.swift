@@ -62,6 +62,7 @@ extension HealthDataWriter {
                 result(incompatibleUnitError(unit: unit, type: type))
                 return
             }
+            guard validateQuantityValue(value, of: type, result: result) else { return }
 
             let quantity = HKQuantity(unit: hkUnit, doubleValue: value)
             sample = HKQuantitySample(
@@ -144,6 +145,7 @@ extension HealthDataWriter {
                 result(incompatibleUnitError(unit: unit, type: type))
                 return
             }
+            guard validateQuantityValue(value, of: type, result: result) else { return }
             let quantity = HKQuantity(unit: hkUnit, doubleValue: value)
             sample = HKQuantitySample(
                 type: quantityType, quantity: quantity, start: dateFrom,
@@ -218,5 +220,16 @@ extension HealthDataWriter {
     /// The error writeData and writeDataUUID reply with when [unit] cannot express [type], as reads do.
     private func incompatibleUnitError(unit: String, type: String) -> FlutterError {
         FlutterError(code: "INVALID_ARGUMENT", message: "Unit \(unit) cannot be used for \(type)", details: nil)
+    }
+
+    /// Replies an INVALID_ARGUMENT error for a value HealthKit does not take for [type]: it raises an
+    /// exception (crashing the app) for a workout effort score outside 0 to 10. Their only unit is
+    /// APPLE_EFFORT_SCORE, so [value] is the score. The keys are compared, which needs no iOS 18 check.
+    /// - Returns: false after replying the error: the write must then stop without replying again
+    private func validateQuantityValue(_ value: Double, of type: String, result: FlutterResult) -> Bool {
+        let effortScores = [HealthConstants.WORKOUT_EFFORT_SCORE, HealthConstants.ESTIMATED_WORKOUT_EFFORT_SCORE]
+        guard effortScores.contains(type), !(0.0...10.0).contains(value) else { return true }
+        result(FlutterError(code: "INVALID_ARGUMENT", message: "\(type) must be between 0 and 10", details: nil))
+        return false
     }
 }

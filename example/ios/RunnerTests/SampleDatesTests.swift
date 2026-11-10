@@ -5,8 +5,8 @@ import XCTest
 @testable import health
 
 /// HealthKit raises an exception (crashing the app) for a sample whose time range its type does
-/// not accept and for a meal without nutrients, so writes check these before they create a sample
-/// and reply one INVALID_ARGUMENT error instead.
+/// not accept, for an effort score outside 0 to 10 and for a meal without nutrients, so writes
+/// check these before they create a sample and reply one INVALID_ARGUMENT error instead.
 class SampleDatesTests: XCTestCase {
   private typealias Write = (FlutterMethodCall, @escaping FlutterResult) throws -> Void
 
@@ -153,6 +153,41 @@ class SampleDatesTests: XCTestCase {
     )
   }
 
+  func testEffortScoresOutsideZeroToTenReplyOnce() throws {
+    guard #available(iOS 18.0, *) else { throw XCTSkip("HealthKit has effort scores from iOS 18 on") }
+    let store = SampleSavingStore()
+    let effortWriter = HealthDataWriter(
+      healthStore: store,
+      dataTypesDict: [
+        "WORKOUT_EFFORT_SCORE": HKQuantityType(.workoutEffortScore),
+        "ESTIMATED_WORKOUT_EFFORT_SCORE": HKQuantityType(.estimatedWorkoutEffortScore),
+      ],
+      unitDict: ["APPLE_EFFORT_SCORE": .appleEffortScore()], workoutActivityTypeMap: [:]
+    )
+    let writes: [(String, Write)] = [
+      ("writeData", effortWriter.writeData), ("writeDataUUID", effortWriter.writeDataUUID),
+    ]
+    for (method, write) in writes {
+      for dataTypeKey in ["WORKOUT_EFFORT_SCORE", "ESTIMATED_WORKOUT_EFFORT_SCORE"] {
+        func arguments(_ value: Double) -> [String: Any] {
+          [
+            "value": value, "dataTypeKey": dataTypeKey, "dataUnitKey": "APPLE_EFFORT_SCORE",
+            "recordingMethod": 2, "startTime": milliseconds(now - 60), "endTime": milliseconds(now),
+          ]
+        }
+        for value in [10.5, -1, .infinity, .nan] {
+          try assertRepliesInvalidArgumentOnce(write, method: method, arguments: arguments(value))
+        }
+        let sent = try replies(to: write, method: method, arguments: arguments(10.5))
+        XCTAssertEqual((sent.first as? FlutterError)?.message, "\(dataTypeKey) must be between 0 and 10")
+        // A score HealthKit takes is saved, and the save replies.
+        XCTAssertTrue(try replies(to: write, method: method, arguments: arguments(7)).isEmpty, method)
+      }
+    }
+    let scores = store.saved.map { ($0 as? HKQuantitySample)?.quantity.doubleValue(for: .appleEffortScore()) }
+    XCTAssertEqual(scores, [7, 7, 7, 7])
+  }
+
   /// [arguments] for a sample over the 5 days before now, one more than most types allow.
   private func overFiveDays(_ arguments: [String: Any]) -> [String: Any] {
     let range = ["startTime": milliseconds(now - 5 * day), "endTime": milliseconds(now)]
@@ -167,5 +202,18 @@ class SampleDatesTests: XCTestCase {
     let sent = try replies(to: write, method: method, arguments: arguments)
     XCTAssertEqual(sent.count, 1, method, line: line)
     XCTAssertEqual((sent.first as? FlutterError)?.code, "INVALID_ARGUMENT", method, line: line)
+  }
+}
+
+/// A health store that keeps the objects it is asked to save, without HealthKit, and answers
+/// that they were saved.
+private final class SampleSavingStore: HKHealthStore, @unchecked Sendable {
+  private(set) var saved = [HKObject]()
+
+  override func save(
+    _ object: HKObject, withCompletion completion: @escaping @Sendable (Bool, (any Error)?) -> Void
+  ) {
+    saved.append(object)
+    completion(true, nil)
   }
 }
