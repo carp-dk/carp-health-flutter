@@ -156,6 +156,30 @@ class DataPageRequestTest {
     }
 
     @Test
+    fun aLimitedReadPagesByRecordNewestFirstWithoutLookingBack() {
+        fun limited(dataType: String, limit: Int, token: String? = null) = DataPageRequest.from(
+            call(
+                "dataTypeKey" to dataType, "startTime" to 0, "endTime" to 1_000_000, "pageSize" to 20000,
+                "limit" to limit, "pageToken" to token,
+            )
+        )
+        // Heart rate with a limit is read by record, with the page tokens of the other types.
+        val heartRate = limited("HEART_RATE", 3, token = "v1:1:12345")
+        assertFalse(heartRate.isSliced)
+        assertEquals("12345", heartRate.token!!.healthConnectToken)
+        assertTrue(heartRate.isNewestFirst)
+        assertFalse(limited("SLEEP_DEEP", 3).looksBack)
+        assertTrue(request("SLEEP_DEEP").looksBack)
+        assertFalse(request("SLEEP_DEEP").isNewestFirst)
+        // The first page holds at most 'limit' records.
+        assertEquals(3, limited("STEPS", 3).firstRecords(34))
+        assertEquals(3, limited("SLEEP_SESSION", 3).firstRecords(34))
+        assertEquals(1, limited("WORKOUT_ROUTE", 1).firstRecords(34))
+        assertEquals(3, limited("SPEED", 3).firstRecords(33))
+        assertEquals(1, limited("HEART_RATE", 3).firstRecords(34))
+    }
+
+    @Test
     fun heartRateTakesSliceTokens() {
         fun heartRate(token: String?) = DataPageRequest.from(
             call("dataTypeKey" to "HEART_RATE", "startTime" to 0, "endTime" to 1_000_000, "pageToken" to token)

@@ -101,7 +101,11 @@ internal class DataPageRequest(
     val pageSize: Int,
     val token: DataPageToken?,
     val sliceToken: SliceToken? = null,
-    /** Read only the records that start last, as the one page ([readNewestRecords]); null for all. */
+    /**
+     * The 'limit' of a read of the newest data points ([recordLimit]), or null. Such a read pages
+     * newest first by record start time, with a first page of at most [limit] records, until the
+     * Dart side has 'limit' points; it reads heart rate by record, and does not look back.
+     */
     val limit: Int? = null,
 ) {
     /** The Health Connect record type to read. */
@@ -110,8 +114,11 @@ internal class DataPageRequest(
     /** Whether each record holds a series of samples, each of which is a data point. */
     val isSeries: Boolean get() = recordType in HealthDataConverter.seriesTypes
 
-    /** Whether this is a heart rate read, which goes slice by slice ([SlicePlanner], [sliceToken]). */
-    val isSliced: Boolean get() = dataType == HealthConstants.HEART_RATE
+    /**
+     * Whether this is a heart rate read without a limit, which goes slice by slice ([SlicePlanner],
+     * [sliceToken]). With a limit, heart rate is paged by record like the other series.
+     */
+    val isSliced: Boolean get() = isSlicedRead(dataType, limit)
 
     /** Whether this is a read of a sleep stage type, whose first page also looks back ([SleepLookback]). */
     val isSleepStage: Boolean get() = isSleepStageType(dataType)
@@ -119,16 +126,32 @@ internal class DataPageRequest(
     /** Whether this is the first page of the read. */
     val isFirstPage: Boolean get() = token == null && sliceToken == null
 
-    /** Records to request for the first page; later pages take the number from [token]. */
-    fun firstRecords(sdkInt: Int): Int = when {
-        isSeries -> SeriesPageSizer.firstRecords(sdkInt, pageSize)
-        // Each session carries its whole route.
-        dataType == HealthConstants.WORKOUT_ROUTE -> minOf(pageSize, ROUTE_MAX_RECORDS)
-        // Each workout costs up to three more reads (distance, energy, steps).
-        dataType == HealthConstants.WORKOUT -> minOf(pageSize, WORKOUT_MAX_RECORDS)
-        // Each session expands to its stages.
-        recordType == SleepSessionRecord::class -> minOf(pageSize, SLEEP_MAX_RECORDS)
-        else -> minOf(pageSize, HC_MAX_RECORDS)
+    /** Whether Health Connect is asked for the records that start last first: a read with a [limit]. */
+    val isNewestFirst: Boolean get() = limit != null
+
+    /**
+     * Whether this page also reads the records that began before the range and reach into it
+     * ([SeriesLookback], [SleepLookback]): the first page of a read without a limit. A read with a
+     * limit starts at the other end of the range.
+     */
+    val looksBack: Boolean get() = isFirstPage && limit == null
+
+    /**
+     * Records to request for the first page, at most [limit]; later pages take the number from
+     * [token].
+     */
+    fun firstRecords(sdkInt: Int): Int {
+        val records = when {
+            isSeries -> SeriesPageSizer.firstRecords(sdkInt, pageSize)
+            // Each session carries its whole route.
+            dataType == HealthConstants.WORKOUT_ROUTE -> minOf(pageSize, ROUTE_MAX_RECORDS)
+            // Each workout costs up to three more reads (distance, energy, steps).
+            dataType == HealthConstants.WORKOUT -> minOf(pageSize, WORKOUT_MAX_RECORDS)
+            // Each session expands to its stages.
+            recordType == SleepSessionRecord::class -> minOf(pageSize, SLEEP_MAX_RECORDS)
+            else -> minOf(pageSize, HC_MAX_RECORDS)
+        }
+        return minOf(records, limit ?: records)
     }
 
     companion object {
@@ -139,7 +162,8 @@ internal class DataPageRequest(
         fun from(call: MethodCall): DataPageRequest {
             val dataType = call.requireString("dataTypeKey")
             val pageToken = call.optionalString("pageToken")
-            val sliced = dataType == HealthConstants.HEART_RATE
+            val limit = call.recordLimit()
+            val sliced = isSlicedRead(dataType, limit)
             return DataPageRequest(
                 dataType = dataType,
                 dataUnit = call.optionalString("dataUnitKey"),
@@ -150,8 +174,12 @@ internal class DataPageRequest(
                     ?: DEFAULT_PAGE_SIZE,
                 token = if (sliced) null else DataPageToken.decode(pageToken),
                 sliceToken = if (sliced) SliceToken.decode(pageToken) else null,
-                limit = call.recordLimit(),
+                limit = limit,
             )
         }
+
+        /** Whether a read of [dataType] goes in heart rate time slices: one without a [limit]. */
+        private fun isSlicedRead(dataType: String, limit: Int?): Boolean =
+            dataType == HealthConstants.HEART_RATE && limit == null
     }
 }

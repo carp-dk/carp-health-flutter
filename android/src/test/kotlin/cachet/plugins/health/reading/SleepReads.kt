@@ -25,13 +25,14 @@ internal class PageRead(val pages: List<List<ReadPoint>>, val tokens: List<Strin
 
 /**
  * Reads sleep types with getDataPage and getData while Health Connect holds the sessions given
- * ([fakeSleepStore]), and adds each Health Connect read request to [requests].
+ * ([fakeSleepStore]), or any type from a client given, and adds each Health Connect read request
+ * of the sleep store to [requests].
  */
 internal class SleepReads {
     val requests = mutableListOf<ReadRecordsRequest<*>>()
     private val job = SupervisorJob()
 
-    /** Reads [dataType] in [from, to) page by page, sending each token back as Dart does. */
+    /** Reads [dataType] in [from, to) page by page while Health Connect holds [sessions]. */
     fun pages(
         dataType: String,
         from: Instant,
@@ -40,8 +41,22 @@ internal class SleepReads {
         pageSize: Int = DEFAULT_PAGE_SIZE,
         recordingMethodsToFilter: List<Int> = emptyList(),
         limit: Int? = null,
+    ): PageRead =
+        pages(dataType, from, to, fakeSleepStore(sessions, requests), pageSize, recordingMethodsToFilter, limit)
+
+    /**
+     * Reads [dataType] in [from, to) from [client] page by page, sending each token back as Dart
+     * does: a read with a [limit] stops once it has [limit] points.
+     */
+    fun pages(
+        dataType: String,
+        from: Instant,
+        to: Instant,
+        client: HealthConnectClient,
+        pageSize: Int = DEFAULT_PAGE_SIZE,
+        recordingMethodsToFilter: List<Int> = emptyList(),
+        limit: Int? = null,
     ): PageRead {
-        val client = fakeSleepStore(sessions, requests)
         val reader = DataPageReader(
             client, CoroutineScope(job), HealthDataConverter(), converter(client),
             WorkoutRoutes(HealthRecordingFilter()), SeriesLookback(client), SleepLookback(client),
@@ -60,7 +75,7 @@ internal class SleepReads {
             pages += points(page["data"])
             token = page["nextPageToken"] as String?
             tokens += token
-        } while (token != null)
+        } while (token != null && (limit == null || pages.sumOf { it.size } < limit))
         return PageRead(pages, tokens)
     }
 
@@ -71,8 +86,16 @@ internal class SleepReads {
         to: Instant,
         sessions: List<SleepSessionRecord>,
         limit: Int? = null,
+    ): List<ReadPoint> = legacy(dataType, from, to, fakeSleepStore(sessions, requests), limit)
+
+    /** Reads [dataType] in [from, to) from [client] with the deprecated getData, in one reply. */
+    fun legacy(
+        dataType: String,
+        from: Instant,
+        to: Instant,
+        client: HealthConnectClient,
+        limit: Int? = null,
     ): List<ReadPoint> {
-        val client = fakeSleepStore(sessions, requests)
         val reader = LegacyDataReader(
             client, CoroutineScope(job), converter(client), WorkoutRoutes(HealthRecordingFilter()),
             SeriesLookback(client), SleepLookback(client),

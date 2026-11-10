@@ -74,7 +74,8 @@ class HealthDataReader(
      * The reply is {data, nextPageToken}; the token ([DataPageToken], [SliceToken]) is opaque to
      * Dart and null on the last page. Without read permission the first page is empty, last, and flagged
      * 'permissionDenied'. Failures are reported with the codes of [HealthErrors], never as data.
-     * A call with a 'limit' gets one page: the points of the 'limit' records that start last ([readNewestRecords]).
+     * A call with a 'limit' pages newest first, by record start time, with a first page of at most
+     * 'limit' records ([DataPageRequest.limit]).
      *
      * @param call Method call containing 'dataTypeKey', 'dataUnitKey', 'startTime', 'endTime',
      * 'recordingMethodsToFilter', 'pageSize' and the 'pageToken' returned by the previous page, or a 'limit'

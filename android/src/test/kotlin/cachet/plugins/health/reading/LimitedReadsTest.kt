@@ -3,9 +3,12 @@ package cachet.plugins.health.reading
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ExerciseRoute
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.SleepSessionRecord.Stage
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.response.ReadRecordsResponse
@@ -22,11 +25,15 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Reads with a 'limit': one Health Connect request for the records that start last, newest first. */
+/**
+ * Reads with a 'limit': pages of the records that start last first, until the Dart side has
+ * 'limit' points (where [SleepReads.pages] stops too). Series reads: [LimitedSeriesReadsTest].
+ */
 class LimitedReadsTest {
     private val reads = SleepReads()
 
@@ -57,14 +64,47 @@ class LimitedReadsTest {
     private val sessions = naps + night
 
     @Test
-    fun aLimitedReadIsOneRequestForTheRecordsThatStartLast() {
-        val read = reads.pages(HealthConstants.SLEEP_SESSION, time("00:00"), time("23:00"), sessions, limit = 2)
+    fun aLimitedReadAsksForTheRecordsThatStartLastFirst() {
+        // As Dart reads: pages of at most 'limit' points, until it has 'limit' of them.
+        val read = reads.pages(
+            HealthConstants.SLEEP_SESSION, time("00:00"), time("23:00"), sessions, pageSize = 2, limit = 2,
+        )
         assertEquals(listOf(listOf(point("15:00", "16:00"), point("12:00", "13:00"))), read.pages)
-        assertEquals(listOf<String?>(null), read.tokens)
+        assertNotNull(read.tokens.single())
         val request = reads.requests.single()
         assertFalse(request.ascendingOrder)
         assertEquals(2, request.pageSize)
         assertNull(request.pageToken)
+    }
+
+    @Test
+    fun aLimitedStageReadGoesOnPastSessionsWithoutTheStage() {
+        // A night with deep sleep, then a nap of light sleep only, or one without stages.
+        val deepNight = sleepSession(
+            time("23:00", day = 7), time("07:00"),
+            stages = listOf(
+                Stage(time("23:00", day = 7), time("01:00"), SleepSessionRecord.STAGE_TYPE_LIGHT),
+                Stage(time("01:00"), time("02:00"), SleepSessionRecord.STAGE_TYPE_DEEP),
+                Stage(time("02:00"), time("07:00"), SleepSessionRecord.STAGE_TYPE_LIGHT),
+            ),
+            packageName = APP,
+        )
+        val lightNap = sleepSession(
+            time("14:00"), time("15:00"),
+            stages = listOf(Stage(time("14:00"), time("15:00"), SleepSessionRecord.STAGE_TYPE_LIGHT)),
+            packageName = APP,
+        )
+        for (nap in listOf(lightNap, sleepSession(time("14:00"), time("15:00"), packageName = APP))) {
+            reads.requests.clear()
+            val read = reads.pages(
+                HealthConstants.SLEEP_DEEP, time("00:00", day = 7), time("23:00"), listOf(deepNight, nap),
+                pageSize = 1, limit = 1,
+            )
+            // Used to be the nap alone, as the only page: no point although the night has one.
+            assertEquals(listOf(point("01:00", "02:00")), read.points)
+            assertEquals(listOf(null, "1"), reads.requests.map { it.pageToken })
+            assertTrue(reads.requests.all { !it.ascendingOrder && it.pageSize == 1 })
+        }
     }
 
     @Test
@@ -77,6 +117,10 @@ class LimitedReadsTest {
         val light = reads.pages(HealthConstants.SLEEP_LIGHT, time("00:00"), time("23:00"), sessions, limit = 1)
         assertEquals(listOf(point("15:00", "15:30"), point("15:30", "16:00")), light.points)
         assertEquals(1, reads.requests.size)
+        // A limit above what the range holds reads every nap, but not the night that began before it.
+        val more = reads.pages(HealthConstants.SLEEP_LIGHT, time("00:00"), time("23:00"), sessions, limit = 10)
+        assertEquals(6, more.points.size)
+        assertFalse(point("01:00", "06:00") in more.points)
     }
 
     @Test
@@ -91,9 +135,43 @@ class LimitedReadsTest {
     }
 
     @Test
-    fun theLimitIsAtMostWhatHealthConnectReturns() {
+    fun aLimitedReadAsksForNoMoreRecordsThanOneWithout() {
+        // A limit above 5000 is 5000, and sessions are read at most 500 at a time.
         reads.pages(HealthConstants.SLEEP_SESSION, time("00:00"), time("23:00"), sessions, limit = 100_000)
-        assertEquals(HC_MAX_RECORDS, reads.requests.single().pageSize)
+        assertEquals(SLEEP_MAX_RECORDS, reads.requests.single().pageSize)
+    }
+
+    @Test
+    fun aLimitedRouteReadIsOneNewestFirstRequestWhenTheLatestWorkoutHasARoute() {
+        val workouts = listOf(
+            workout("run", "07:00", route = true), workout("gym", "12:00", route = false),
+            workout("ride", "18:00", route = true),
+        )
+        val client = fakeRecordStore(ExerciseSessionRecord::class, workouts, reads.requests)
+        val ride = listOf(point("18:10", "18:10"))
+        assertEquals(
+            ride,
+            reads.pages(HealthConstants.WORKOUT_ROUTE, time("00:00"), time("23:00"), client, limit = 1).points,
+        )
+        assertEquals(ride, reads.legacy(HealthConstants.WORKOUT_ROUTE, time("00:00"), time("23:00"), client, limit = 1))
+        // One request for each read.
+        assertEquals(2, reads.requests.size)
+        for (request in reads.requests) {
+            assertEquals(ExerciseSessionRecord::class, request.recordType)
+            assertFalse(request.ascendingOrder)
+            assertEquals(1, request.pageSize)
+            assertNull(request.pageToken)
+        }
+    }
+
+    @Test
+    fun aLimitedRouteReadGoesOnPastWorkoutsWithoutARoute() {
+        val workouts = listOf(workout("run", "07:00", route = true), workout("gym", "18:00", route = false))
+        val client = fakeRecordStore(ExerciseSessionRecord::class, workouts, reads.requests)
+        val read = reads.pages(HealthConstants.WORKOUT_ROUTE, time("00:00"), time("23:00"), client, limit = 1)
+        // Used to be the indoor workout alone, as the only page: no route although the run has one.
+        assertEquals(listOf(point("07:10", "07:10")), read.points)
+        assertEquals(listOf(null, "1"), reads.requests.map { it.pageToken })
     }
 
     @Test
@@ -126,6 +204,17 @@ class LimitedReadsTest {
         assertEquals(0, source.calls)
         assertEquals(1, requests.single().pageSize)
         assertFalse(requests.single().ascendingOrder)
+    }
+
+    /** An hour's exercise session from [start], with a route of one location 10 minutes in if [route]. */
+    private fun workout(id: String, start: String, route: Boolean): ExerciseSessionRecord {
+        val location = ExerciseRoute.Location(time(start).plusSeconds(600), 55.78, 12.52)
+        return ExerciseSessionRecord(
+            startTime = time(start), startZoneOffset = null, endTime = time(start).plusSeconds(3600),
+            endZoneOffset = null, metadata = metadata(Metadata.RECORDING_METHOD_ACTIVELY_RECORDED, id, DataOrigin(APP)),
+            exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_RUNNING,
+            exerciseRoute = if (route) ExerciseRoute(listOf(location)) else null,
+        )
     }
 
     /** One getDataPage reply for [dataType] in 09:00 to 11:00 from [client]. */

@@ -7,8 +7,9 @@ mixin _HealthPageReads on _HealthReadSupport {
   /// [Health.getHealthDataPages]. [newestFirst] selects HealthKit's order from
   /// before 14.0.0 (newest end date first) for [Health.getHealthDataFromTypes];
   /// Health Connect ignores it. A [limit] is sent for [_readNewest]: Health
-  /// Connect then replies with the [limit] records that start last as the only
-  /// page. Once [cancellation] is set, no further platform call is made.
+  /// Connect then pages newest first by record start time, and the first page
+  /// holds at most [limit] records. Once [cancellation] is set, no further
+  /// platform call is made.
   Stream<HealthDataPage> _readPages(
     HealthDataType type,
     DateTime startTime,

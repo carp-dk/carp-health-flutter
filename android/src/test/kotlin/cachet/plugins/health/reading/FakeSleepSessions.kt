@@ -1,15 +1,11 @@
 package cachet.plugins.health.reading
 
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.PermissionController
-import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ReadRecordsRequest
-import androidx.health.connect.client.response.ReadRecordsResponse
-import cachet.plugins.health.fakeOf
 import java.lang.reflect.Proxy
 import java.time.Instant
 
@@ -25,39 +21,12 @@ internal fun fakeHealthConnect(answer: (method: String, args: List<Any?>) -> Any
 
 /**
  * A Health Connect client that holds [sessions] and grants reading them, and reads them as Health
- * Connect does (verified on Android 17): a session is in a time range when it starts in it, the
- * sessions come in start order (newest first if asked), and a page token is a position. Each read
- * request is added to [requests].
+ * Connect does ([fakeRecordStore]). Each read request is added to [requests].
  */
 internal fun fakeSleepStore(
     sessions: List<SleepSessionRecord>,
     requests: MutableList<ReadRecordsRequest<*>> = mutableListOf(),
-): HealthConnectClient {
-    val permissions = fakeOf<PermissionController> { method ->
-        check(method == "getGrantedPermissions") { "Unexpected call of $method" }
-        setOf(HealthPermission.getReadPermission(SleepSessionRecord::class))
-    }
-    val byStart = sessions.sortedBy { it.startTime }
-    return fakeHealthConnect { method, args ->
-        when (method) {
-            "getPermissionController" -> permissions
-            "readRecords" -> {
-                val request = args.single() as ReadRecordsRequest<*>
-                requests.add(request)
-                val from = request.timeRangeFilter.startTime
-                val to = request.timeRangeFilter.endTime
-                val matching = byStart
-                    .filter { from == null || !it.startTime.isBefore(from) }
-                    .filter { to == null || it.startTime.isBefore(to) }
-                    .let { if (request.ascendingOrder) it else it.reversed() }
-                val position = request.pageToken?.toInt() ?: 0
-                val next = minOf(position + request.pageSize, matching.size)
-                ReadRecordsResponse(matching.subList(position, next), if (next < matching.size) "$next" else null)
-            }
-            else -> throw UnsupportedOperationException(method)
-        }
-    }
-}
+): HealthConnectClient = fakeRecordStore(SleepSessionRecord::class, sessions, requests)
 
 /** A sleep session written by the app [packageName]. */
 internal fun sleepSession(

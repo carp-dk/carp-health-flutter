@@ -61,8 +61,8 @@ internal class DataPageReader(
     /**
      * Reads, converts and sends the page [request] asks for. A page that turns out too large is
      * dropped before anything is sent and the same position is read again with fewer records;
-     * every such retry costs one more Health Connect call. A request with a limit is answered with
-     * one page of the records that start last ([readNewestRecords]), read once.
+     * every such retry costs one more Health Connect call. A request with a limit is read the same
+     * way, newest first ([DataPageRequest.limit]).
      */
     private suspend fun replyPage(request: DataPageRequest, result: Result) {
         val firstPage = request.isFirstPage
@@ -78,14 +78,6 @@ internal class DataPageReader(
             result.success(
                 mapOf("data" to emptyList<Map<String, Any?>>(), "nextPageToken" to null, "permissionDenied" to true)
             )
-            return
-        }
-        val limit = request.limit
-        if (limit != null) {
-            // The records that start last, as the one page: the Dart side keeps the newest points.
-            val records =
-                healthConnectClient.readNewestRecords(request.recordType, request.startTime, request.endTime, limit)
-            result.success(mapOf("data" to convert(request, records, granted), "nextPageToken" to null))
             return
         }
         if (request.isSliced) {
@@ -111,7 +103,8 @@ internal class DataPageReader(
                 // Last resort: Health Connect cannot return the page, or it does not fit in memory.
                 // A first series page starts at one record, but its lookback can still read fewer.
                 val canReadLess =
-                    records > 1 || (firstPage && request.isSeries && probeRecords > SERIES_PROBE_RECORDS_RETRY)
+                    records > 1 ||
+                        (request.looksBack && request.isSeries && probeRecords > SERIES_PROBE_RECORDS_RETRY)
                 if (!HealthErrors.isDataTooLarge(e) || !canReadLess || retries >= MAX_SHRINK_RETRIES) throw e
                 Log.w("FLUTTER_HEALTH", "${request.dataType}: a page of $records records is too large, re-reading: $e")
                 records = maxOf(1, records / 10)
@@ -125,8 +118,10 @@ internal class DataPageReader(
      * Reads [records] records at the position of [request], converts them and replies, then returns
      * null. An oversized series page is dropped instead when [canShrink]: nothing is sent, and the
      * fewer records to read the same position with are returned. The first page of a series or sleep
-     * stage read also converts the records that began before the range and reach into it
-     * ([SeriesLookback], [SleepLookback]); later pages cost no such read.
+     * stage read without a limit also converts the records that began before the range and reach
+     * into it ([SeriesLookback], [SleepLookback]); later pages cost no such read. A read with a
+     * limit asks for the records that start last first, on every page: the Health Connect APK
+     * (Android 13 and lower) takes the order from each request, not from the page token.
      */
     private suspend fun readAndReplyPage(
         request: DataPageRequest,
@@ -141,6 +136,7 @@ internal class DataPageReader(
             ReadRecordsRequest(
                 recordType = request.recordType,
                 timeRangeFilter = TimeRangeFilter.between(request.startTime, request.endTime),
+                ascendingOrder = !request.isNewestFirst,
                 pageSize = records,
                 pageToken = request.token?.healthConnectToken,
             )
@@ -162,7 +158,7 @@ internal class DataPageReader(
                 SeriesPageSizer.shrinkForOversize(records, request.pageSize, raw)?.let { return it }
             }
             nextRecords = SeriesPageSizer.nextRecords(records, request.pageSize, maxSamples, sdkInt)
-            if (request.isFirstPage) {
+            if (request.looksBack) {
                 earlier = lookback.readLookbackRecords(
                     request.recordType,
                     request.startTime,
@@ -170,7 +166,7 @@ internal class DataPageReader(
                     response.records.mapTo(HashSet()) { it.metadata.id }
                 )
             }
-        } else if (request.isFirstPage && request.isSleepStage) {
+        } else if (request.looksBack && request.isSleepStage) {
             // The sessions that began before the range, for their stages that start inside it.
             earlier = sleepLookback.readLookbackSessions(
                 request.startTime,

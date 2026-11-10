@@ -53,13 +53,14 @@ mixin HealthDataReads on _HealthPageReads {
   /// With a [limit], at most that many of the newest points of each type come
   /// back, newest end time first, for example the latest height or weight,
   /// without reading every page of the range. Null or 0 means no limit, and a
-  /// negative [limit] throws an [ArgumentError]. On Android a limited read is
-  /// one Health Connect call for the [limit] records that start last in the
-  /// range (at most 5000). It does not look for sleep sessions and records of
-  /// a series, such as heart rate, that began before [startTime], and applies
-  /// [recordingMethodsToFilter] to the records read, so fewer than [limit]
-  /// points can come back although the range holds more (iOS applies the
-  /// filter in its query).
+  /// negative [limit] throws an [ArgumentError]. Pages are read newest first
+  /// until [limit] points are in: records that give no point, such as sleep
+  /// sessions without the stage asked for, workouts without a route or data
+  /// left out by [recordingMethodsToFilter], cost more platform calls. On
+  /// Android the pages go by the start time of Health Connect's records, at
+  /// most [limit] records each, and the read does not look for sleep sessions
+  /// and records of a series, such as heart rate, that began before
+  /// [startTime].
   ///
   /// Sleep data points are returned when they start at or after [startTime]
   /// and before [endTime], so reads of consecutive ranges return each of them
