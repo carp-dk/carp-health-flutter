@@ -22,7 +22,9 @@ mixin HealthDataWrites on _HealthSupport {
   ///    (on iOS this must be manual or automatic)
   ///
   /// Values for Sleep and Headache are ignored and will be automatically assigned
-  /// the default value.
+  /// the default value. On Android each sleep value written here is a sleep
+  /// session of its own: write a night with its stages with
+  /// [Health.writeSleepSession].
   ///
   /// Throws an [ArgumentError] for a type with a write method of its own:
   /// [HealthDataType.WORKOUT] ([Health.writeWorkoutData]),

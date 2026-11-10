@@ -71,35 +71,24 @@ extension _WriteSampleDataActions on HealthAppState {
     );
     success &= await health.writeHealthData(value: 1.8, type: HealthDataType.WATER, startTime: earlier, endTime: now);
 
-    // different types of sleep
-    success &= await health.writeHealthData(
-      value: 0.0,
-      type: HealthDataType.SLEEP_ASLEEP,
+    // a short night of sleep: one session with its stages, five minutes each
+    // (on Android, each sleep value written with writeHealthData would be a session of its own)
+    SleepSessionStage stage(HealthDataType type, int minute) => SleepSessionStage(
+      type: type,
+      startTime: earlier.add(Duration(minutes: minute)),
+      endTime: earlier.add(Duration(minutes: minute + 5)),
+    );
+    success &= await health.writeSleepSession(
       startTime: earlier,
       endTime: now,
+      stages: [
+        stage(HealthDataType.SLEEP_LIGHT, 0),
+        stage(HealthDataType.SLEEP_DEEP, 5),
+        stage(HealthDataType.SLEEP_REM, 10),
+        stage(HealthDataType.SLEEP_AWAKE, 15),
+      ],
+      title: 'Sample night',
     );
-    success &= await health.writeHealthData(
-      value: 0.0,
-      type: HealthDataType.SLEEP_AWAKE,
-      startTime: earlier,
-      endTime: now,
-    );
-    if (_isIOS16OrNewer || Platform.isAndroid) {
-      success &= await health.writeHealthData(
-        value: 0.0,
-        type: HealthDataType.SLEEP_REM,
-        startTime: earlier,
-        endTime: now,
-      );
-      success &= await health.writeHealthData(
-        value: 0.0,
-        type: HealthDataType.SLEEP_DEEP,
-        startTime: earlier,
-        endTime: now,
-      );
-    } else if (Platform.isIOS) {
-      debugPrint('Skipping SLEEP_REM and SLEEP_DEEP writes on iOS < 16.');
-    }
     success &= await health.writeHealthData(
       value: 22,
       type: HealthDataType.LEAN_BODY_MASS,

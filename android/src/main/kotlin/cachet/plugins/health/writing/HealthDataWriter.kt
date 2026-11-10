@@ -24,6 +24,7 @@ class HealthDataWriter(
     private val bloodPressure = BloodPressureWriter(healthConnectClient, scope)
     private val meals = MealWriter(healthConnectClient, scope)
     private val activityIntensity = ActivityIntensityWriter(healthConnectClient, scope)
+    private val sleepSessions = SleepSessionWriter(healthConnectClient, scope)
 
     /**
      * Writes a single health data record to Health Connect. Supports most basic health metrics with
@@ -127,6 +128,17 @@ class HealthDataWriter(
      */
     fun writeActivityIntensity(call: MethodCall, result: Result) {
         activityIntensity.writeActivityIntensity(call, result)
+    }
+
+    /**
+     * Writes a sleep session with its stages as one SleepSessionRecord.
+     *
+     * @param call Method call containing 'startTime', 'endTime', 'recordingMethod', 'stages' (maps
+     * with a sleep stage type 'type', 'startTime' and 'endTime') and optionally 'title', 'notes'
+     * @param result Flutter result callback returning boolean success status
+     */
+    fun writeSleepSession(call: MethodCall, result: Result) {
+        sleepSessions.writeSleepSession(call, result)
     }
 
     /**

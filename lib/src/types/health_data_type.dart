@@ -104,7 +104,20 @@ enum HealthDataType {
   SLEEP_OUT_OF_BED,
   SLEEP_REM,
   SLEEP_SESSION,
+
+  /// Sleep of an unknown stage, in minutes.
+  ///
+  ///  * Android: the stages of Health Connect's sleep sessions whose stage is
+  ///    unknown (`SleepSessionRecord.STAGE_TYPE_UNKNOWN`).
+  ///  * iOS: sleep analysis samples with a value the plugin has no type for:
+  ///    none in today's HealthKit, but values Apple adds later read as this
+  ///    type instead of being left out. HealthKit's `asleepUnspecified` is
+  ///    [HealthDataType.SLEEP_ASLEEP]. HealthKit has no unknown sleep value to
+  ///    write: [Health.writeHealthData] throws a [HealthException] with
+  ///    [HealthErrorCode.notSupported], and [Health.writeSleepSession] keeps
+  ///    an unknown stage as time in bed.
   SLEEP_UNKNOWN,
+
   EXERCISE_TIME,
   WORKOUT,
   WORKOUT_ROUTE,

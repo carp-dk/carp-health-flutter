@@ -182,6 +182,15 @@ public class HealthPlugin: NSObject, FlutterPlugin {
                                     details: nil))
             }
 
+        case "writeSleepSession":
+            do {
+                try healthDataWriter.writeSleepSession(call: call, result: result)
+            } catch {
+                result(FlutterError(code: "WRITE_ERROR",
+                                    message: "Error writing sleep session: \(error.localizedDescription)",
+                                    details: nil))
+            }
+
         case "hasPermissions":
             do {
                 try healthDataOperations.hasPermissions(call: call, result: result)

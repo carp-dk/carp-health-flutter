@@ -55,8 +55,10 @@ part 'src/writing/health_data_writes.dart';
 part 'src/writing/health_meal_writes.dart';
 part 'src/writing/health_measurement_writes.dart';
 part 'src/writing/health_platform_specific_writes.dart';
+part 'src/writing/health_sleep_writes.dart';
 part 'src/writing/health_workout_routes.dart';
 part 'src/writing/health_workout_writes.dart';
+part 'src/writing/sleep_session_stage.dart';
 part 'src/writing/workout_activity_types.dart';
 part 'src/writing/workout_metadata.dart';
 

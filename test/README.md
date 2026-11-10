@@ -48,6 +48,7 @@ This folder contains the reusable test harness, fixtures, and templates for the 
 - `Health.writeBloodPressure`
 - `Health.writeBloodOxygen`
 - `Health.writeMeal`
+- `Health.writeSleepSession`
 - `Health.writeMenstruationFlow`
 - `Health.writeAudiogram`
 - `Health.writeInsulinDelivery`

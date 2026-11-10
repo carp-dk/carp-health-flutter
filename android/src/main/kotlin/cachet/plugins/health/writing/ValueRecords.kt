@@ -39,8 +39,9 @@ import androidx.health.connect.client.units.Volume
 import cachet.plugins.health.HealthConstants
 import java.time.Instant
 
-// The sleep data types written as a session with one stage, and the type of that stage.
-private val sleepStageTypes = mapOf(
+// The sleep stage data types and their Health Connect stage types: writeData writes one as a session
+// with one stage of that type, writeSleepSession the stages of a session ([sleepSessionRecord]).
+internal val sleepStageTypes = mapOf(
     HealthConstants.SLEEP_ASLEEP to SleepSessionRecord.STAGE_TYPE_SLEEPING,
     HealthConstants.SLEEP_LIGHT to SleepSessionRecord.STAGE_TYPE_LIGHT,
     HealthConstants.SLEEP_DEEP to SleepSessionRecord.STAGE_TYPE_DEEP,

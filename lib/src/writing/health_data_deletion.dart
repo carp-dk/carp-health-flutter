@@ -14,6 +14,11 @@ mixin HealthDataDeletion on _HealthSupport {
   ///    Must be equal to or earlier than [endTime].
   ///  * [endTime] - the end time when this [value] is measured.
   ///    Must be equal to or later than [startTime].
+  ///
+  /// On iOS, a sleep type or headache severity deletes only the app's samples
+  /// of that type. On Android, any sleep type deletes the app's whole sleep
+  /// sessions in the range, with all their stages: Health Connect stores a
+  /// night as one session (see [Health.writeSleepSession]).
   Future<bool> delete({required HealthDataType type, required DateTime startTime, DateTime? endTime}) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     endTime ??= startTime;

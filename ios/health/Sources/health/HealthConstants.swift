@@ -144,6 +144,9 @@ enum HealthConstants {
     static let SLEEP_LIGHT = "SLEEP_LIGHT"
     static let SLEEP_REM = "SLEEP_REM"
     static let SLEEP_UNKNOWN = "SLEEP_UNKNOWN"
+    // Stage types of writeSleepSession only: HealthKit has no samples of them.
+    static let SLEEP_AWAKE_IN_BED = "SLEEP_AWAKE_IN_BED"
+    static let SLEEP_OUT_OF_BED = "SLEEP_OUT_OF_BED"
 
     static let EXERCISE_TIME = "EXERCISE_TIME"
     static let WORKOUT = "WORKOUT"
