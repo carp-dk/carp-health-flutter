@@ -40,7 +40,6 @@ class StubDeviceInfoPlugin implements DeviceInfoPlugin {
       'type': 'stub-type',
       'isPhysicalDevice': true,
       'systemFeatures': <String>[],
-      'serialNumber': 'stub-serial',
       'isLowRamDevice': false,
     }),
   );

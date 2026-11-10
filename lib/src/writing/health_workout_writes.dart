@@ -22,9 +22,25 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///  - [metadata] HealthKit metadata of the workout, such as its brand name or whether it was done indoors.
   ///    *ONLY FOR IOS* Ignored on Android. See [WorkoutMetadata].
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
+  ///  - [clientRecordId] Your id of the workout, to write it again without adding a copy (see below).
+  ///    *ONLY FOR HEALTH CONNECT* Ignored on iOS, where [WorkoutMetadata.syncIdentifier] does this.
+  ///  - [clientRecordVersion] The version of the workout with [clientRecordId].
+  ///    *ONLY FOR HEALTH CONNECT* Ignored on iOS.
+  ///  - [startZoneOffset] and [endZoneOffset] The offsets from UTC of the local time at the start and at the end
+  ///    of the workout, at most 18 hours either way; without them the records get Health Connect's default.
+  ///    *ONLY FOR HEALTH CONNECT* Ignored on iOS.
   ///
-  /// Throws a [HealthException] with [HealthErrorCode.notSupported] for an [activityType] this platform has no
-  /// workout type for, such as [HealthWorkoutActivityType.ARCHERY] on Android.
+  /// A workout written with the [clientRecordId] (on iOS the [WorkoutMetadata.syncIdentifier]) of a workout
+  /// this app wrote before replaces that workout if its version is greater, and is not added as a copy. On
+  /// Android, the workout's distance and energy burned are records of their own, with the client record ids
+  /// `<clientRecordId>:distance` and `<clientRecordId>:calories`: a rewrite without a distance or energy keeps
+  /// the one written before. Delete them with [Health.deleteByClientRecordId] for [HealthDataType.WORKOUT],
+  /// [HealthDataType.DISTANCE_DELTA] and [HealthDataType.TOTAL_CALORIES_BURNED].
+  ///
+  /// Throws an [ArgumentError] if only one of [clientRecordId] and [clientRecordVersion] is given, or only one
+  /// of [WorkoutMetadata.syncIdentifier] and [WorkoutMetadata.syncVersion], or a zone offset of more than 18
+  /// hours. Throws a [HealthException] with [HealthErrorCode.notSupported] for an [activityType] this platform
+  /// has no workout type for, such as [HealthWorkoutActivityType.ARCHERY] on Android.
   Future<bool> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
@@ -36,25 +52,27 @@ mixin HealthWorkoutWrites on _HealthSupport {
     String? title,
     WorkoutMetadata? metadata,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
+    String? clientRecordId,
+    double? clientRecordVersion,
+    Duration? startZoneOffset,
+    Duration? endZoneOffset,
   }) async {
-    await _checkIfHealthConnectAvailableOnAndroid();
-    if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
-      throw ArgumentError("recordingMethod must be manual or automatic on iOS");
-    }
-
-    _checkWorkoutActivityType(activityType);
-    final args = <String, dynamic>{
-      'activityType': activityType.name,
-      'startTime': start.millisecondsSinceEpoch,
-      'endTime': end.millisecondsSinceEpoch,
-      'totalEnergyBurned': totalEnergyBurned,
-      'totalEnergyBurnedUnit': totalEnergyBurnedUnit.name,
-      'totalDistance': totalDistance,
-      'totalDistanceUnit': totalDistanceUnit.name,
-      'title': title,
-      'recordingMethod': recordingMethod.toInt(),
-      if (metadata != null) 'metadata': metadata.toJson(),
-    };
+    final args = await _workoutArguments(
+      activityType: activityType,
+      start: start,
+      end: end,
+      totalEnergyBurned: totalEnergyBurned,
+      totalEnergyBurnedUnit: totalEnergyBurnedUnit,
+      totalDistance: totalDistance,
+      totalDistanceUnit: totalDistanceUnit,
+      title: title,
+      metadata: metadata,
+      recordingMethod: recordingMethod,
+      clientRecordId: clientRecordId,
+      clientRecordVersion: clientRecordVersion,
+      startZoneOffset: startZoneOffset,
+      endZoneOffset: endZoneOffset,
+    );
     return await Health._channel.invokeMethod('writeWorkoutData', args) == true;
   }
 
@@ -77,9 +95,11 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///  - [metadata] HealthKit metadata of the workout, such as its brand name or whether it was done indoors.
   ///    *ONLY FOR IOS* Ignored on Android. See [WorkoutMetadata].
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
+  ///  - [clientRecordId], [clientRecordVersion], [startZoneOffset] and [endZoneOffset] As in [writeWorkoutData],
+  ///    which says how to write a workout again without adding a copy.
+  ///    *ONLY FOR HEALTH CONNECT* Ignored on iOS.
   ///
-  /// Throws a [HealthException] with [HealthErrorCode.notSupported] for an [activityType] this platform has no
-  /// workout type for, such as [HealthWorkoutActivityType.ARCHERY] on Android.
+  /// Throws what [writeWorkoutData] throws.
   Future<String?> writeWorkoutDataUUID({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
@@ -91,14 +111,71 @@ mixin HealthWorkoutWrites on _HealthSupport {
     String? title,
     WorkoutMetadata? metadata,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
+    String? clientRecordId,
+    double? clientRecordVersion,
+    Duration? startZoneOffset,
+    Duration? endZoneOffset,
+  }) async {
+    final args = await _workoutArguments(
+      activityType: activityType,
+      start: start,
+      end: end,
+      totalEnergyBurned: totalEnergyBurned,
+      totalEnergyBurnedUnit: totalEnergyBurnedUnit,
+      totalDistance: totalDistance,
+      totalDistanceUnit: totalDistanceUnit,
+      title: title,
+      metadata: metadata,
+      recordingMethod: recordingMethod,
+      clientRecordId: clientRecordId,
+      clientRecordVersion: clientRecordVersion,
+      startZoneOffset: startZoneOffset,
+      endZoneOffset: endZoneOffset,
+    );
+
+    String uuid = '${await Health._channel.invokeMethod('writeWorkoutDataUUID', args)}';
+
+    debugPrint("Added workout data point: $uuid");
+
+    return uuid;
+  }
+
+  /// The arguments that both workout writes send, after the checks that [Health.writeWorkoutData] documents.
+  Future<Map<String, dynamic>> _workoutArguments({
+    required HealthWorkoutActivityType activityType,
+    required DateTime start,
+    required DateTime end,
+    required int? totalEnergyBurned,
+    required HealthDataUnit totalEnergyBurnedUnit,
+    required int? totalDistance,
+    required HealthDataUnit totalDistanceUnit,
+    required String? title,
+    required WorkoutMetadata? metadata,
+    required RecordingMethod recordingMethod,
+    required String? clientRecordId,
+    required double? clientRecordVersion,
+    required Duration? startZoneOffset,
+    required Duration? endZoneOffset,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
-
     _checkWorkoutActivityType(activityType);
-    final args = <String, dynamic>{
+    // Android would write the workout without a client record id that has no version, and HealthKit raises
+    // an exception (crashing the app) for a sync identifier without its version, or a version without one.
+    if ((clientRecordId == null) != (clientRecordVersion == null)) {
+      throw ArgumentError("clientRecordId and clientRecordVersion must be given together");
+    }
+    if ((metadata?.syncIdentifier == null) != (metadata?.syncVersion == null)) {
+      throw ArgumentError("WorkoutMetadata.syncIdentifier and syncVersion must be given together");
+    }
+    for (final offset in [startZoneOffset, endZoneOffset]) {
+      if (offset != null && offset.abs() > const Duration(hours: 18)) {
+        throw ArgumentError.value(offset, 'zone offset', 'must be at most 18 hours');
+      }
+    }
+    return {
       'activityType': activityType.name,
       'startTime': start.millisecondsSinceEpoch,
       'endTime': end.millisecondsSinceEpoch,
@@ -109,13 +186,11 @@ mixin HealthWorkoutWrites on _HealthSupport {
       'title': title,
       'recordingMethod': recordingMethod.toInt(),
       if (metadata != null) 'metadata': metadata.toJson(),
+      if (clientRecordId != null) 'clientRecordId': clientRecordId,
+      if (clientRecordVersion != null) 'clientRecordVersion': clientRecordVersion,
+      if (startZoneOffset != null) 'startZoneOffsetSeconds': startZoneOffset.inSeconds,
+      if (endZoneOffset != null) 'endZoneOffsetSeconds': endZoneOffset.inSeconds,
     };
-
-    String uuid = '${await Health._channel.invokeMethod('writeWorkoutDataUUID', args)}';
-
-    debugPrint("Added workout data point: $uuid");
-
-    return uuid;
   }
 
   /// Throws a [HealthException] with [HealthErrorCode.notSupported] if this platform has no workout type for

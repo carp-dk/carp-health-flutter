@@ -6,7 +6,6 @@ import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
-import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.response.InsertRecordsResponse
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Length
@@ -16,6 +15,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.ZoneOffset
 
 /**
  * Writes a workout as an exercise session, with its distance and energy burned as records of their
@@ -43,9 +43,9 @@ internal class WorkoutWriter(
     }
 
     /**
-     * Inserts the records of the workout in [call] and hands the response to [onInserted]. Replies
-     * [failureReply] instead if the activity type is not supported, the workout does not end after it
-     * starts ([requireStartBeforeEnd]) or Health Connect rejects the records or the insert.
+     * Inserts the records of the workout in [call] ([workoutRecords]) and hands the response to
+     * [onInserted]. Replies [failureReply] instead if the activity type is not supported, the records
+     * cannot be built or Health Connect rejects the records or the insert.
      */
     private fun write(
         call: MethodCall,
@@ -53,82 +53,81 @@ internal class WorkoutWriter(
         failureReply: Any,
         onInserted: (InsertRecordsResponse) -> Unit,
     ) {
-        val type = call.argument<String>("activityType")!!
-        val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
-        val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
-        val totalEnergyBurned = call.argument<Int>("totalEnergyBurned")
-        val totalDistance = call.argument<Int>("totalDistance")
-        val recordingMethod = call.argument<Int>("recordingMethod")!!
-        val deviceType: Int? = call.argument<Int>("deviceType")
-        val metadata = buildMetadata(recordingMethod = recordingMethod, deviceType = deviceType)
-
-        val exerciseType = HealthConstants.workoutTypeMap[type]
+        val exerciseType = HealthConstants.workoutTypeMap[call.argument<String>("activityType")!!]
         if (exerciseType == null) {
             result.success(failureReply)
             Log.w("FLUTTER_HEALTH::ERROR", "[Health Connect] Workout type not supported")
             return
         }
-        val title = call.argument<String>("title") ?: type
 
         scope.launch {
             try {
-                requireStartBeforeEnd(startTime, endTime)
-                val records = workoutRecords(
-                    exerciseType, title, startTime, endTime, totalDistance, totalEnergyBurned, metadata,
-                )
-                onInserted(healthConnectClient.insertRecords(records))
+                onInserted(healthConnectClient.insertRecords(workoutRecords(call, exerciseType)))
             } catch (e: Exception) {
                 logAddFailed("the workout", e)
                 result.success(failureReply)
             }
         }
     }
+}
 
-    /** The exercise session, then the distance (meters) and the energy burned (kcal) if given. */
-    private fun workoutRecords(
-        exerciseType: Int,
-        title: String,
-        startTime: Instant,
-        endTime: Instant,
-        totalDistance: Int?,
-        totalEnergyBurned: Int?,
-        metadata: Metadata,
-    ): List<Record> {
-        val records = mutableListOf<Record>(
-            ExerciseSessionRecord(
+/**
+ * The records of the workout in a writeWorkoutData or writeWorkoutDataUUID [call], an exercise session
+ * of [exerciseType], then its distance (meters) and energy burned (kcal) if given. With a
+ * 'clientRecordId' and its 'clientRecordVersion', the session has that client record id and the
+ * distance and energy records `<id>:distance` and `<id>:calories`, all with that version, so that
+ * Health Connect replaces them when the workout is written again with a greater version. The
+ * 'startZoneOffsetSeconds' and 'endZoneOffsetSeconds' are the zone offsets of all of them. Throws
+ * IllegalArgumentException if the workout does not end after it starts ([requireStartBeforeEnd]).
+ */
+internal fun workoutRecords(call: MethodCall, exerciseType: Int): List<Record> {
+    val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
+    val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
+    requireStartBeforeEnd(startTime, endTime)
+    val startZoneOffset = call.argument<Int>("startZoneOffsetSeconds")?.let { ZoneOffset.ofTotalSeconds(it) }
+    val endZoneOffset = call.argument<Int>("endZoneOffsetSeconds")?.let { ZoneOffset.ofTotalSeconds(it) }
+    val recordingMethod = call.argument<Int>("recordingMethod")!!
+    val clientRecordId = call.argument<String>("clientRecordId")
+    val clientRecordVersion = call.argument<Double>("clientRecordVersion")?.toLong()
+    val deviceType = call.argument<Int>("deviceType")
+    // The session's client record id, followed by [suffix] for its other records.
+    fun metadata(suffix: String = "") =
+        buildMetadata(recordingMethod, clientRecordId?.let { it + suffix }, clientRecordVersion, deviceType)
+
+    val records = mutableListOf<Record>(
+        ExerciseSessionRecord(
+            startTime = startTime,
+            startZoneOffset = startZoneOffset,
+            endTime = endTime,
+            endZoneOffset = endZoneOffset,
+            exerciseType = exerciseType,
+            title = call.argument<String>("title") ?: call.argument<String>("activityType"),
+            metadata = metadata(),
+        ),
+    )
+    call.argument<Int>("totalDistance")?.let { totalDistance ->
+        records.add(
+            DistanceRecord(
                 startTime = startTime,
-                startZoneOffset = null,
+                startZoneOffset = startZoneOffset,
                 endTime = endTime,
-                endZoneOffset = null,
-                exerciseType = exerciseType,
-                title = title,
-                metadata = metadata,
+                endZoneOffset = endZoneOffset,
+                distance = Length.meters(totalDistance.toDouble()),
+                metadata = metadata(":distance"),
             ),
         )
-        if (totalDistance != null) {
-            records.add(
-                DistanceRecord(
-                    startTime = startTime,
-                    startZoneOffset = null,
-                    endTime = endTime,
-                    endZoneOffset = null,
-                    distance = Length.meters(totalDistance.toDouble()),
-                    metadata = metadata,
-                ),
-            )
-        }
-        if (totalEnergyBurned != null) {
-            records.add(
-                TotalCaloriesBurnedRecord(
-                    startTime = startTime,
-                    startZoneOffset = null,
-                    endTime = endTime,
-                    endZoneOffset = null,
-                    energy = Energy.kilocalories(totalEnergyBurned.toDouble()),
-                    metadata = metadata,
-                ),
-            )
-        }
-        return records
     }
+    call.argument<Int>("totalEnergyBurned")?.let { totalEnergyBurned ->
+        records.add(
+            TotalCaloriesBurnedRecord(
+                startTime = startTime,
+                startZoneOffset = startZoneOffset,
+                endTime = endTime,
+                endZoneOffset = endZoneOffset,
+                energy = Energy.kilocalories(totalEnergyBurned.toDouble()),
+                metadata = metadata(":calories"),
+            ),
+        )
+    }
+    return records
 }

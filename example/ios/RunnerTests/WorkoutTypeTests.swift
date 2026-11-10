@@ -67,6 +67,25 @@ class WorkoutTypeTests: XCTestCase {
     XCTAssertEqual(reader.workoutActivityName(of: workout), "RUNNING")
   }
 
+  func testSyncIdentifierAndVersionAreSavedTogether() throws {
+    let run = try XCTUnwrap(workout("RUNNING", metadata: ["syncIdentifier": "run-1", "syncVersion": 3]))
+    XCTAssertEqual(run.metadata?[HKMetadataKeySyncIdentifier] as? String, "run-1")
+    XCTAssertEqual(run.metadata?[HKMetadataKeySyncVersion] as? Int, 3)
+    // HealthKit raises an exception (crashing the app) for one of them without the other.
+    for metadata: [String: Any] in [["syncIdentifier": "run-1"], ["syncVersion": 3]] {
+      let run = try XCTUnwrap(workout("RUNNING", metadata: metadata))
+      XCTAssertNil(run.metadata?[HKMetadataKeySyncIdentifier])
+      XCTAssertNil(run.metadata?[HKMetadataKeySyncVersion])
+    }
+    // They are saved with the metadata of the workout type.
+    let treadmill = try XCTUnwrap(
+      workout("RUNNING_TREADMILL", metadata: ["syncIdentifier": "run-2", "syncVersion": 1])
+    )
+    XCTAssertEqual(treadmill.metadata?[HKMetadataKeyIndoorWorkout] as? Bool, true)
+    XCTAssertEqual(treadmill.metadata?[HKMetadataKeySyncIdentifier] as? String, "run-2")
+    XCTAssertEqual(reader.workoutActivityName(of: treadmill), "RUNNING_TREADMILL")
+  }
+
   func testMetadataRefinesTheName() {
     func location(_ location: HKWorkoutSwimmingLocationType) -> [String: Any] {
       [HKMetadataKeySwimmingLocationType: NSNumber(value: location.rawValue)]

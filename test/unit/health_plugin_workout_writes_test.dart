@@ -162,6 +162,8 @@ void main() {
           groupFitness: true,
           coachedWorkout: true,
           appleFitnessPlusSession: false,
+          syncIdentifier: 'run-1',
+          syncVersion: 2,
         ).toJson(),
         {
           'workoutBrandName': 'Acme Fitness',
@@ -169,6 +171,8 @@ void main() {
           'groupFitness': true,
           'coachedWorkout': true,
           'appleFitnessPlusSession': false,
+          'syncIdentifier': 'run-1',
+          'syncVersion': 2,
         },
       );
     });
@@ -181,6 +185,8 @@ void main() {
         groupFitness: false,
         coachedWorkout: true,
         appleFitnessPlusSession: false,
+        syncIdentifier: 'run-1',
+        syncVersion: 2,
       );
 
       expect(identical(full(), full()), isFalse);
@@ -200,6 +206,9 @@ void main() {
         WorkoutMetadata(groupFitness: true),
         WorkoutMetadata(coachedWorkout: true),
         WorkoutMetadata(appleFitnessPlusSession: true),
+        WorkoutMetadata(syncIdentifier: 'run-1', syncVersion: 1),
+        WorkoutMetadata(syncIdentifier: 'run-2', syncVersion: 1),
+        WorkoutMetadata(syncIdentifier: 'run-1', syncVersion: 2),
       ];
 
       for (var i = 0; i < variants.length; i++) {
