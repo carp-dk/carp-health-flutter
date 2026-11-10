@@ -9,9 +9,11 @@ The plugin supports:
 - handling permissions to access health data using the `hasPermissions`, `requestAuthorization`, `revokePermissions` methods.
 - reading health data using the `getHealthDataFromTypes` method.
 - reading large amounts of health data page by page using the `getHealthDataPages` method.
+- reading health data aggregated over time intervals using the `getHealthIntervalDataFromTypes` method.
 - writing health data using the `writeHealthData` method.
-- writing workouts using the `writeWorkout` method.
+- writing workouts using the `writeWorkoutData` method.
 - writing workout routes on iOS and Android using the `startWorkoutRoute` / `insertWorkoutRouteData` / `finishWorkoutRoute` methods.
+- writing a sleep session with its stages, such as a night of sleep, on iOS & Android using the `writeSleepSession` method.
 - writing meals on iOS (Apple Health) & Android using the `writeMeal` method.
 - writing audiograms on iOS using the `writeAudiogram` method.
 - writing blood pressure data using the `writeBloodPressure` method.
@@ -19,7 +21,7 @@ The plugin supports:
 - cleaning up duplicate data points via the `removeDuplicates` method.
 - removing data of a given type in a selected period of time using the `delete` method.
 
-Note that for Android, the target phone **needs** to have the [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata&hl=en) app installed (which is currently in beta) and have access to the internet.
+Note that on Android 13 and lower, the phone **needs** the [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata&hl=en) app from Google Play: check with `isHealthConnectAvailable` and, if it returns `false`, offer `installHealthConnect`. From Android 14 on, Health Connect is part of Android.
 
 See the tables below for supported health and workout data types.
 
@@ -41,6 +43,27 @@ Then, open your Flutter project in Xcode by right clicking on the "ios" folder a
 The iOS side of the plugin requires **iOS 15.0 or later** and ships both as a Swift package (`ios/health`) and as a CocoaPods pod. Apps with [Swift Package Manager](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers) enabled (Flutter 3.44 or later) get the Swift package, everything else keeps using CocoaPods. No extra setup is needed in either case.
 
 ### Google Health Connect (Android)
+
+The plugin uses Health Connect's client library `androidx.health.connect:connect-client` 1.2.0-alpha06, which requires apps to compile against **Android API 37** with the **Android Gradle Plugin (AGP) 9.1.0 or later**. With Flutter 3.47, AGP 9.1 needs **Gradle 9.3.1 or later**. With a lower API level or AGP version, the build fails when it checks the AAR metadata of `connect-client`. Flutter 3.47's `flutter.compileSdkVersion` is 36, so set the API level in the app, as the example app does:
+
+```kotlin
+// android/settings.gradle.kts
+plugins {
+    id("com.android.application") version "9.1.0" apply false
+    // ...
+}
+
+// android/app/build.gradle.kts
+android {
+    compileSdk = 37
+    // ...
+}
+```
+
+```properties
+# android/gradle/wrapper/gradle-wrapper.properties
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+```
 
 Health Connect requires the following lines in the `AndroidManifest.xml` file (see also the example app):
 
@@ -192,7 +215,10 @@ Below is a simplified flow of how to use the plugin.
 
   // fetch health data from the last 24 hours
   List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
-     now.subtract(Duration(days: 1)), now, types);
+    types: types,
+    startTime: now.subtract(Duration(days: 1)),
+    endTime: now,
+  );
 
   // request permissions to write steps and blood glucose
   types = [HealthDataType.STEPS, HealthDataType.BLOOD_GLUCOSE];
@@ -202,18 +228,28 @@ Below is a simplified flow of how to use the plugin.
   ];
   await health.requestAuthorization(types, permissions: permissions);
 
-  // write steps and blood glucose
-  bool success = await health.writeHealthData(10, HealthDataType.STEPS, now, now);
-  success = await health.writeHealthData(3.1, HealthDataType.BLOOD_GLUCOSE, now, now);
+  // write steps over the last 20 minutes (on Android, steps need an endTime after the startTime)
+  // and a blood glucose value measured now
+  var earlier = now.subtract(Duration(minutes: 20));
+  bool success = await health.writeHealthData(
+    value: 10, type: HealthDataType.STEPS, startTime: earlier, endTime: now);
+  success = await health.writeHealthData(
+    value: 3.1, type: HealthDataType.BLOOD_GLUCOSE, startTime: now);
 
   // you can also specify the recording method to store in the metadata (default is RecordingMethod.automatic)
   // on iOS only `RecordingMethod.automatic` and `RecordingMethod.manual` are supported
   // Android additionally supports `RecordingMethod.active` and `RecordingMethod.unknown`
-  success &= await health.writeHealthData(10, HealthDataType.STEPS, now, now, recordingMethod: RecordingMethod.manual);
+  success &= await health.writeHealthData(
+    value: 10,
+    type: HealthDataType.STEPS,
+    startTime: earlier,
+    endTime: now,
+    recordingMethod: RecordingMethod.manual,
+  );
 
-  // get the number of steps for today
+  // get the number of steps for today (0 if there are none)
   var midnight = DateTime(now.year, now.month, now.day);
-  int? steps = await health.getTotalStepsInInterval(midnight, now);
+  int steps = await health.getTotalStepsInInterval(midnight, now);
 ```
 
 ### Writing workout routes (iOS & Android)
@@ -221,18 +257,53 @@ Below is a simplified flow of how to use the plugin.
 1. Request share/read permissions for both `HealthDataType.WORKOUT` and `HealthDataType.WORKOUT_ROUTE`, and ensure location permissions are granted (iOS: Core Location permissions; Android: `ACCESS_FINE_LOCATION` or `ACCESS_COARSE_LOCATION`).
 2. When the workout session starts, open a builder with `final builderId = await health.startWorkoutRoute();`.
 3. Collect GPS samples using `CLLocationManager` (or an equivalent service) and periodically push ordered batches of `WorkoutRouteLocation` values via `insertWorkoutRouteData`.
-4. Save the workout itself (for example, with `writeWorkoutData`) and capture the resulting HealthKit workout UUID.
+4. Save the workout itself with `writeWorkoutDataUUID`, which returns the workout's UUID.
 5. Call `finishWorkoutRoute(builderId: builderId, workoutUuid: workoutUuid, metadata: {...})` to commit the route, or `discardWorkoutRoute(builderId)` if the session is cancelled.
 
-> **Health Connect note:** Android only surfaces routes while your app is in the foreground, and
-> other apps' routes may return a `ConsentRequired` flag. Today (Health Connect 1.1.0) the system
-> does **not** expose the `ExerciseRouteRequestContract` documented by Google, so the only way to
-> read third-party routes is to have the user manually grant "Always allow" for *Exercise routes*
-> inside the Health Connect app (`Health Connect → App permissions → Your app → Exercise routes`).
+> **Health Connect note:** Like other Health Connect reads, routes are read only while your app is
+> in the foreground, unless it also has `READ_HEALTH_DATA_IN_BACKGROUND` (see
+> [Android: Reading Health Data in Background](#android-reading-health-data-in-background)). To read
+> the routes of other apps, your app also needs the *Exercise routes* permission
+> (`READ_EXERCISE_ROUTES`). Without it, such a route is read as a `WORKOUT_ROUTE` data point without
+> locations whose `metadata` has `route_requires_consent: true` (Health Connect's `ConsentRequired`).
+> `requestAuthorization` does not request this permission, and the plugin does not launch Health
+> Connect's `ExerciseRouteRequestContract`, so the user has to grant "Always allow" for
+> *Exercise routes* in the Health Connect app
+> (`Health Connect → App permissions → Your app → Exercise routes`).
 > Also remember to declare the following permissions in your Android manifest:
-> - `<uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTE"/>`
+> - `<uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTES"/>`
 > - `<uses-permission android:name="android.permission.health.WRITE_EXERCISE_ROUTE"/>`
 > - `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>` (or `ACCESS_COARSE_LOCATION`)
+
+### Writing a night of sleep (iOS & Android)
+
+`writeSleepSession` writes a sleep session, such as a night, with its stages in one call. Each stage is a `SleepSessionStage` of one of the types `SLEEP_AWAKE`, `SLEEP_AWAKE_IN_BED`, `SLEEP_ASLEEP`, `SLEEP_LIGHT`, `SLEEP_DEEP`, `SLEEP_REM`, `SLEEP_OUT_OF_BED` and `SLEEP_UNKNOWN`. The stages need not cover the whole session, but they must lie inside it, be sorted by start time and not overlap; otherwise `writeSleepSession` throws an `ArgumentError` before anything is written. All sleep types share one permission on each platform, so request write access to one of them, for example `HealthDataType.SLEEP_ASLEEP` (on Android, declare `android.permission.health.WRITE_SLEEP`).
+
+```dart
+final bedtime = DateTime(2026, 11, 9, 23, 0);
+DateTime at(int minutes) => bedtime.add(Duration(minutes: minutes));
+
+bool saved = await health.writeSleepSession(
+  startTime: bedtime,
+  endTime: at(480),
+  stages: [
+    SleepSessionStage(type: HealthDataType.SLEEP_AWAKE_IN_BED, startTime: at(0), endTime: at(20)),
+    SleepSessionStage(type: HealthDataType.SLEEP_LIGHT, startTime: at(20), endTime: at(120)),
+    SleepSessionStage(type: HealthDataType.SLEEP_DEEP, startTime: at(120), endTime: at(200)),
+    SleepSessionStage(type: HealthDataType.SLEEP_REM, startTime: at(200), endTime: at(260)),
+    SleepSessionStage(type: HealthDataType.SLEEP_LIGHT, startTime: at(260), endTime: at(470)),
+    SleepSessionStage(type: HealthDataType.SLEEP_AWAKE, startTime: at(470), endTime: at(480)),
+  ],
+  title: 'Night', // stored on Android only, as are notes
+);
+```
+
+- **Android** stores one Health Connect sleep session with its stages, title and notes. Reads return the session as a `SLEEP_SESSION` data point and each stage as a data point of its type, without the title and notes. A sleep type written with `writeHealthData` is a session of its own, so a night written stage by stage that way shows up as many sessions.
+- **iOS** saves the session in one call as sleep analysis samples, as HealthKit has no sleep sessions: in-bed samples for the session except its `SLEEP_OUT_OF_BED` stages, read as `SLEEP_IN_BED`, and a sample for each stage, read as the stage's type. The exceptions: `SLEEP_AWAKE_IN_BED` stages are read as `SLEEP_AWAKE`; before iOS 16, light, deep and REM sleep are saved and read as `SLEEP_ASLEEP`; and `SLEEP_OUT_OF_BED` and `SLEEP_UNKNOWN` stages get no sample of their own (an unknown stage stays time in bed). The title and notes are not stored, and iOS has no `SLEEP_SESSION` type. HealthKit accepts at most 4 days for a sleep sample, so a longer session throws a `PlatformException` with code `INVALID_ARGUMENT` before anything is saved.
+
+To remove a session, call `delete` over its time range. On Android, any sleep type deletes the app's sleep sessions in that range with all their stages. On iOS, `delete` removes only the app's samples of the type given, so delete `SLEEP_IN_BED` and each type the stages are read as.
+
+Reads return a sleep data point when it starts in the range: a stage when the stage starts in it, whichever session it belongs to, and on Android a `SLEEP_SESSION` when the session starts in it. Reads of consecutive ranges therefore return each point once; to read a whole night, read up to its end. On Android, the stages of sessions that began up to 24 hours before `startTime` are found, and the stages of one session come together, so the stages of overlapping sessions (from different apps) are not in one time order.
 
 ### Health Data
 
@@ -251,40 +322,33 @@ String sourceId;
 String sourceName;
 RecordingMethod recordingMethod;
 WorkoutSummary? workoutSummary;
+Map<String, dynamic>? metadata;
+String? deviceModel;
 ```
 
-where a [`HealthValue`](https://pub.dev/documentation/health/latest/health/HealthValue-class.html) can be any type of `AudiogramHealthValue`, `ElectrocardiogramHealthValue`, `ElectrocardiogramVoltageValue`, `NumericHealthValue`, `NutritionHealthValue`, or `WorkoutHealthValue`.
+where a [`HealthValue`](https://pub.dev/documentation/health/latest/health/HealthValue-class.html) is a `NumericHealthValue` (most types), `AudiogramHealthValue` (`AUDIOGRAM`), `ElectrocardiogramHealthValue` (`ELECTROCARDIOGRAM`; its `voltageValues` are `ElectrocardiogramVoltageValue`s), `InsulinDeliveryHealthValue` (`INSULIN_DELIVERY`), `MenstruationFlowHealthValue` (`MENSTRUATION_FLOW`), `NutritionHealthValue` (`NUTRITION`), `ActivityIntensityHealthValue` (`ACTIVITY_INTENSITY`), `SkinTemperatureHealthValue` (`SKIN_TEMPERATURE`), `WorkoutHealthValue` (`WORKOUT`) or `WorkoutRouteHealthValue` (`WORKOUT_ROUTE`). `getHealthIntervalDataFromTypes` returns a `NumericHealthValue` for every type.
 
-A `HealthDataPoint` object can be serialized to and from JSON using the `toJson()` and `fromJson()` methods. JSON serialization is using camel_case notation. Null values are not serialized. For example;
+`metadata` is set for iOS quantity and category samples, such as steps, heart rate and sleep (their HealthKit metadata, an empty map if there is none), and for workout routes on both platforms (for example `route_point_count`); it is `null` for other data. `deviceModel` is `null` in data read from Apple Health and Health Connect.
+
+A `HealthDataPoint` object can be serialized to and from JSON using the `toJson()` and `fromJson()` methods. JSON serialization uses camelCase field names, except for some fields of `NutritionHealthValue` and `SkinTemperatureHealthValue`, which keep snake_case keys (for example `meal_type`, `vitamin_a` and `temperature_delta`). Null values are not serialized. For example:
 
 ```json
 {
+  "uuid": "A91A2F10-3D7B-486A-B140-5ADCD3C9C6D0",
   "value": {
     "__type": "NumericHealthValue",
-    "numeric_value": 141.0
+    "numericValue": 141.0
   },
   "type": "STEPS",
   "unit": "COUNT",
-  "date_from": "2024-04-03T10:06:57.736",
-  "date_to": "2024-04-03T10:12:51.724",
-  "source_platform": "appleHealth",
-  "source_device_id": "F74938B9-C011-4DE4-AA5E-CF41B60B96E7",
-  "source_id": "com.apple.health.81AE7156-EC05-47E3-AC93-2D6F65C717DF",
-  "source_name": "iPhone12.bardram.net",
-  "recording_method": 3
-  "value": {
-    "__type": "NumericHealthValue",
-    "numeric_value": 141.0
-  },
-  "type": "STEPS",
-  "unit": "COUNT",
-  "date_from": "2024-04-03T10:06:57.736",
-  "date_to": "2024-04-03T10:12:51.724",
-  "source_platform": "appleHealth",
-  "source_device_id": "F74938B9-C011-4DE4-AA5E-CF41B60B96E7",
-  "source_id": "com.apple.health.81AE7156-EC05-47E3-AC93-2D6F65C717DF",
-  "source_name": "iPhone12.bardram.net",
-  "recording_method": 2
+  "dateFrom": "2024-04-03T10:06:57.736",
+  "dateTo": "2024-04-03T10:12:51.724",
+  "sourcePlatform": "appleHealth",
+  "sourceDeviceId": "F74938B9-C011-4DE4-AA5E-CF41B60B96E7",
+  "sourceId": "com.apple.health.81AE7156-EC05-47E3-AC93-2D6F65C717DF",
+  "sourceName": "iPhone12.bardram.net",
+  "recordingMethod": "automatic",
+  "metadata": {}
 }
 ```
 
@@ -308,7 +372,7 @@ await for (final page in health.getHealthDataPages(
 }
 ```
 
-- Types are read one after another, each type once. Within a type, points are oldest first and without duplicates: on Android in the order of their records' start times, on iOS by end time. On Android the samples of one heart rate, speed or skin temperature record come together, so the samples of overlapping records from different apps are not merged into one time order.
+- Types are read one after another, each type once. Within a type, points are oldest first and without duplicates: on Android in the order of their records' start times, on iOS by end time. On Android the samples of one heart rate, speed, power, cycling cadence or skin temperature record come together, as do the stages of one sleep session, so the samples of overlapping records from different apps are not merged into one time order.
 - Each type ends with exactly one page whose `isLastPageForType` is true; it is empty if the type had no more data. All other pages hold at least one point.
 - A missing read permission is not an error. On Android, the type then has a single empty page with `readPermissionDenied` set.
 - An error ends the stream; pages already delivered stay valid. Cancelling the subscription stops the read: no platform call is made after it, and `cancel()` completes once the call in flight has returned (an error it reports is dropped).
@@ -352,7 +416,25 @@ final count = await Isolate.run(() async {
 });
 ```
 
-**Resuming.** The plugin does not keep track of what you have read. To sync a long range robustly, read it in time windows and record your progress per finished window; after an interruption, read the unfinished window again. Every read has a fixed cost in Health Connect calls (see [Health Connect limits](#health-connect-limits)), so prefer windows of a week or a month to windows of a day. Each window returns the samples inside it: a heart rate, speed or skin temperature record that crosses a boundary is split between the two windows (on Android, records that began more than 24 hours before a window are not looked for). Reads are at-least-once at such a boundary: a point you already stored can be returned again. Store points with an upsert keyed by `(type, uuid, dateFrom)`; on Android, the heart rate samples of one record share the record's `uuid`.
+**Resuming.** The plugin does not keep track of what you have read. To sync a long range robustly, read it in time windows and record your progress per finished window; after an interruption, read the unfinished window again. Every read has a fixed cost in Health Connect calls (see [Health Connect limits](#health-connect-limits)), so prefer windows of a week or a month to windows of a day. Each window returns the samples inside it: a heart rate, speed, power, cycling cadence or skin temperature record that crosses a boundary is split between the two windows (on Android, records that began more than 24 hours before a window are not looked for). Reads are at-least-once at such a boundary: a point you already stored can be returned again. A sleep data point is returned in the window it starts in, so consecutive windows return it once (on Android, the stages of sessions that began more than 24 hours before a window are not looked for). Store points with an upsert keyed by `(type, uuid, dateFrom)`; on Android, the heart rate samples of one record share the record's `uuid`.
+
+### Reading data over intervals
+
+`getHealthIntervalDataFromTypes` aggregates each type over intervals of `interval` seconds from `startDate` to `endDate`, for example the steps and the average heart rate per hour:
+
+```dart
+List<HealthDataPoint> hourly = await health.getHealthIntervalDataFromTypes(
+  types: [HealthDataType.STEPS, HealthDataType.HEART_RATE],
+  startDate: now.subtract(Duration(days: 1)),
+  endDate: now,
+  interval: 3600,
+);
+```
+
+- Each type has one data point per interval that has data. Intervals without data are left out on both platforms.
+- The value of every point is a `NumericHealthValue` in the type's unit (see [Data Types](#data-types)): the sum for cumulative types such as steps, energy, distance and water, and the average for other types. For heart rate, that is the average beats per minute: HealthKit weights each sample by the time it covers, Health Connect takes the mean of the samples. On Android, activity intensity intervals hold the intensity minutes Health Connect computes.
+- For a sleep type, the value is the number of minutes of the interval that the type's data points cover (the points `getHealthDataFromTypes` returns for the type), with overlapping points counted once. A point that began before `startDate` counts with its part after it; on Android, sleep sessions that began up to 24 hours before `startDate` are read for this. For the time in bed, use `SLEEP_SESSION` (the whole session) on Android and `SLEEP_IN_BED` on iOS.
+- Not every type has intervals. On Android, a type without them returns no data points; on iOS, it throws a `HealthPlatformException` with `HealthErrorCode.invalidArgument`. The documentation of `getHealthIntervalDataFromTypes` lists the types of each platform.
 
 ### Error handling
 
@@ -376,7 +458,7 @@ try {
 | `HealthErrorCode`   | Native code                 | Meaning                                                                                                                                                                                   | `isRetryable` |
 | ------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | `rateLimitExceeded` | `RATE_LIMIT_EXCEEDED`       | The app used up its Health Connect API quota. See [Health Connect limits](#health-connect-limits).                                                                                        | yes           |
-| `permissionDenied`  | `PERMISSION_DENIED`         | The call needs a permission the app does not have, for example a background read without `READ_HEALTH_DATA_IN_BACKGROUND`, or, on iOS, a type the app never requested authorization for. A denied read permission for a type is not an error: the type returns no data. | no            |
+| `permissionDenied`  | `PERMISSION_DENIED`         | The call needs a permission the app does not have, for example a background read without `READ_HEALTH_DATA_IN_BACKGROUND`, on Android `getHealthIntervalDataFromTypes` or `getTotalStepsInInterval` without the type's read permission, or, on iOS, a type the app never requested authorization for. In `getHealthDataFromTypes` and `getHealthDataPages`, a denied read permission for a type is not an error: the type returns no data. | no            |
 | `invalidArgument`   | `INVALID_ARGUMENT`          | The request is not valid, for example a preferred unit that cannot express the data type. On Android, besides each type's default unit, Health Connect values are only converted to `POUND` (weight), `CENTIMETER` and `INCH` (height), `DEGREE_FAHRENHEIT` and `KELVIN` (body and skin temperature) and `MILLIMOLES_PER_LITER` (blood glucose). | no            |
 | `notSupported`      | `NOT_SUPPORTED`             | The data type is not available on this platform or device.                                                                                                                                | no            |
 | `unavailable`       | `UNAVAILABLE`               | Health Connect cannot be reached or is busy, for example while it syncs data.                                                                                                             | yes           |
@@ -386,19 +468,21 @@ try {
 
 Codes may be added in minor releases, so a `switch` over `HealthErrorCode` needs a default case. Codes from before 14.0.0, such as `PERMISSION_ERROR`, `ARGUMENT_ERROR` and `INVALID_TYPE`, map to the matching value; `STEPS_ERROR` and `STATISTICS_ERROR` map to `unknown`.
 
-What each read method does on failure:
+What each method does on failure:
 
 | Method                                                                   | On failure                                                                                                                                                                                       |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `getHealthDataFromTypes`                                                 | Throws `HealthPlatformException`. An empty list only means no data or, on Android, no read permission. Before 14.0.0, Android returned an empty list on any failure.                            |
 | `getHealthDataPages`                                                     | The stream emits the `HealthPlatformException` (or `HealthException`) and closes.                                                                                                                |
-| `getHealthIntervalDataFromTypes`, `getHealthAggregateDataFromTypes`      | Throws `HealthPlatformException`.                                                                                                                                                                |
+| `getHealthIntervalDataFromTypes`                                         | Throws `HealthPlatformException`, for example with `permissionDenied` on Android without the type's read permission.                                                                             |
 | `getHealthDataByUUID`                                                    | Returns `null` if the record is not found, and throws `HealthPlatformException` on other failures.                                                                                              |
-| `getTotalStepsInInterval`                                                | Returns `null`.                                                                                                                                                                                  |
-| `getChangesToken`, `getChanges`                                          | Return `null`. If Health Connect cannot return the pending changes because they are too many, or a page of changes holds more than 100,000 data points, `getChanges` returns `changesTokenExpired: true`: create a new token and read the data again. |
-| Writes, deletes, permissions and the Health Connect helpers              | Unchanged.                                                                                                                                                                                       |
+| `getTotalStepsInInterval`                                                | Throws `HealthPlatformException`, for example with `permissionDenied` on Android without the steps read permission (HealthKit returns 0 without it). It returns 0 when there are no steps. Before 14.0.0, Android returned `null` on any failure. |
+| `getChangesToken`, `getChanges`                                          | Throw `HealthPlatformException`. They return `null` only on iOS, which has no Health Connect. If Health Connect cannot return the pending changes because they are too many, or a single change holds more than 100,000 data points, `getChanges` returns `changesTokenExpired: true`: create a new token and read the data again. A larger page of changes is read again with fewer changes. Before 14.0.0, both returned `null` on any failure. |
+| `getHealthAggregateDataFromTypes`                                        | Deprecated: throws an `UnsupportedError` without calling the platform. It has not worked on either platform since Google Fit was removed; use `getHealthIntervalDataFromTypes` instead.        |
+| `writeSleepSession`                                                      | Throws an `ArgumentError` before anything is written if `startTime` is not before `endTime`, a stage is not valid (see [Writing a night of sleep](#writing-a-night-of-sleep-ios--android)) or, on iOS, `recordingMethod` is not `manual` or `automatic`. Returns `false` if the platform does not save the session. On iOS, a session HealthKit does not accept, such as one longer than 4 days, throws a `PlatformException` with code `INVALID_ARGUMENT`. |
+| Other writes, deletes, permissions and the Health Connect helpers        | As before 14.0.0, most return `false` on failure. Calls that crashed the app or never returned now fail instead: on iOS, data HealthKit does not accept, such as a sample longer than its type allows, throws a `PlatformException` with code `INVALID_ARGUMENT`, and on Android, `hasPermissions` throws a `PlatformException` when Health Connect fails. On Android, `writeHealthData` and `writeHealthDataUUID` of a type Health Connect stores with a duration (such as `STEPS`) whose `endTime` equals `startTime` throw a `PlatformException` with code `INVALID_ARGUMENT`. |
 
-Other errors are as before: a `HealthException` (now with `errorCode` `notSupported`) when a data type is not available on the platform, which is checked for all types before anything is read; on Android, a `HealthException` with `errorCode` `invalidArgument` for a preferred unit that Health Connect values are not converted to, also checked before anything is read; an `UnsupportedError` when Health Connect is not installed; and `ArgumentError`s for invalid arguments. A `MissingPluginException` is passed on as it is.
+New in 14.0.0, on Android a `preferredUnits` entry that Health Connect values are not converted to throws a `HealthException` with `errorCode` `invalidArgument` before anything is read; before, the values were labelled with that unit without being converted to it. Other errors are as before: a `HealthException` (now with `errorCode` `notSupported`) when a data type is not available on the platform, which is checked for all types before anything is read; an `UnsupportedError` when Health Connect is not installed; and `ArgumentError`s for invalid arguments. A `MissingPluginException` is passed on as it is.
 
 ### Health Connect limits
 
@@ -418,11 +502,12 @@ The plugin reads Health Connect page by page, and every page is a call. What a r
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A type with one value per record (steps, weight, ...) | 1 permission check + 1 per 5,000 records (per `pageSize` records if that is smaller)                                                                                                                                                                                                                                        |
 | Heart rate                                            | 1 permission check + 1 per page + 1 count of the samples per about 8 pages (a page holds at most `pageSize` samples, give or take one record) + 1 per record that holds more than `pageSize / 2` samples + 1–4 to look for records that began before `startTime`, if one reaches into the read. For example, a week of heart rate at one sample per second (600,000 samples) costs about 37 calls at the default `pageSize`, and 30 days at one sample per minute about 13. The same on every Android version. |
-| Speed and skin temperature                            | 1 permission check + 1 look-back read + 1 per `pageSize / 3600` records (5 at the default `pageSize`): a record may hold an hour of samples at one per second, and Health Connect has no count of these samples to plan by. |
+| Speed, power, cycling cadence and skin temperature    | 1 permission check + 1 look-back read + 1 per `pageSize / 3600` records (5 at the default `pageSize`): a record may hold an hour of samples at one per second, and Health Connect has no count of these samples to plan by. |
 | Workouts                                              | Per 20 workouts: 1 permission check + 1 read + up to 3 per workout for its distance, calories and steps                                                                                                                                                                                                      |
+| Sleep types                                           | 1 permission check + 1 per 500 sleep sessions (per `pageSize` sessions if that is smaller); a stage type (not `SLEEP_SESSION`) also reads the sessions that began in the 24 hours before `startTime`: 1 more per 500 sessions                                                                                |
 | `getTotalStepsInInterval(includeManualEntry: false)`  | 1 per 5,000 step records                                                                                                                                                                                                                                                                                     |
-| `getHealthIntervalDataFromTypes`                      | 1 per type                                                                                                                                                                                                                                                                                                   |
-| `getChanges`                                          | 1 per call                                                                                                                                                                                                                                                                                                   |
+| `getHealthIntervalDataFromTypes`                      | 1 per type. A sleep type reads the sleep sessions from 24 hours before `startDate` to `endDate` instead: 1 per 500 sessions                                                                                                                                                                                  |
+| `getChanges`                                          | 1 per call, and 1 more each time a page of changes that holds more than 100,000 data points is read again with fewer changes                                                                                                                                                                                 |
 
 Checking the granted permissions did not count against the read quota on the Android 16 emulator.
 
@@ -462,15 +547,15 @@ List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
 );
 ```
 
-**Note that for this to work, the information needs to have been provided when writing the data to Health Connect or Apple Health**. For example, steps added manually through the Apple Health App will set `HKWasUserEntered` to true (corresponding to `RecordingMethod.manual`), however it seems that adding steps manually to Google Fit does not write the data with the `RecordingMethod.manual` in the metadata, instead it shows up as `RecordingMethod.unknown`. This is an open issue, and as such filtering manual entries when querying step count on Android with `getTotalStepsInInterval(includeManualEntries: false)` does not necessarily filter out manual steps.
+**Note that for this to work, the information needs to have been provided when writing the data to Health Connect or Apple Health**. For example, steps added manually through the Apple Health App will set `HKWasUserEntered` to true (corresponding to `RecordingMethod.manual`), however it seems that adding steps manually to Google Fit does not write the data with the `RecordingMethod.manual` in the metadata, instead it shows up as `RecordingMethod.unknown`. This is an open issue, and as such filtering manual entries when querying step count on Android with `getTotalStepsInInterval(includeManualEntry: false)` does not necessarily filter out manual steps.
 
-**NOTE**: On iOS, you can only filter by `RecordingMethod.automatic` and `RecordingMethod.manual` as it is stored `HKMetadataKeyWasUserEntered` is a boolean value in the metadata.
+**NOTE**: On iOS, only `RecordingMethod.manual` can be filtered out: HealthKit marks only the samples the user entered (`HKMetadataKeyWasUserEntered`), so the other recording methods in `recordingMethodsToFilter` are ignored. In `getHealthIntervalDataFromTypes` on Android, only the sleep types are filtered: the intervals of the other types are Health Connect aggregates, which include data of every recording method.
 
 ### Filtering out duplicates
 
-If the same data is requested multiple times and saved in the same array duplicates will occur.
+If the same data is requested multiple times and saved in the same array, duplicates will occur.
 
-A single data point can be compared to each other with the == operator, i.e.
+Two data points can be compared with the `==` operator, i.e.
 
 ```dart
 HealthDataPoint p1 = ...;
@@ -483,6 +568,13 @@ If you have a list of data points, duplicates can be removed with:
 ```dart
 List<HealthDataPoint> points = ...;
 points = health.removeDuplicates(points);
+```
+
+`==`, and so `removeDuplicates`, compares every field of the points, including the `sourceDeviceId` and the contents of their `metadata` (before 14.0.0 a point with `metadata`, such as every iOS sample, was never equal to the same data read again). To match points only by the record they come from, compare `type`, `uuid` and `dateFrom`, the key recommended for resuming reads in [Reading large amounts of data](#reading-large-amounts-of-data):
+
+```dart
+final seen = <(HealthDataType, String, DateTime)>{};
+points = points.where((p) => seen.add((p.type, p.uuid, p.dateFrom))).toList();
 ```
 
 ### Android: Reading Health Data in Background
@@ -526,7 +618,7 @@ data by UUID: HealthDataPoint -
     sourceId: com.apple.Health,
     sourceName: Health
     recordingMethod: RecordingMethod.manual
-    workoutSummary: WorkoutSummary - workoutType: runningtotalDistance: 2400, totalEnergyBurned: 0, totalSteps: 0
+    workoutSummary: WorkoutSummary - workoutType: RUNNINGtotalDistance: 2400, totalEnergyBurned: 0, totalSteps: 0
     metadata: null
     deviceModel: null
 ```
@@ -539,28 +631,36 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 
 | **Data Type**                | **Unit**                | **Apple Health** | **Google Health Connect** | **Comments**                                                                                                                       |
 | ---------------------------- | ----------------------- | ---------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| ACTIVE_ENERGY_BURNED         | CALORIES                | yes              | yes                       |                                                                                                                                    |
+| ACTIVE_ENERGY_BURNED         | KILOCALORIE             | yes              | yes                       |                                                                                                                                    |
+| ACTIVITY_INTENSITY           | MINUTES                 |                  | yes                       | Write with `writeActivityIntensity`, not `writeHealthData`; reads give an `ActivityIntensityHealthValue`                           |
 | ATRIAL_FIBRILLATION_BURDEN   | PERCENTAGE              | yes              |                           |                                                                                                                                    |
-| BASAL_ENERGY_BURNED          | CALORIES                | yes              | yes                       |                                                                                                                                    |
+| BASAL_ENERGY_BURNED          | KILOCALORIE             | yes              | yes                       | on Android, Health Connect's basal metabolic rate (`BasalMetabolicRateRecord`) in kilocalories per day                             |
+| BIRTH_DATE                   | NO_UNIT                 | yes              |                           | READ Only - a HealthKit characteristic: the birth date in seconds since 1970                                                       |
 | BLOOD_GLUCOSE                | MILLIGRAM_PER_DECILITER | yes              | yes                       |                                                                                                                                    |
 | BLOOD_OXYGEN                 | PERCENTAGE              | yes              | yes                       |                                                                                                                                    |
 | BLOOD_PRESSURE_DIASTOLIC     | MILLIMETER_OF_MERCURY   | yes              | yes                       |                                                                                                                                    |
 | BLOOD_PRESSURE_SYSTOLIC      | MILLIMETER_OF_MERCURY   | yes              | yes                       |                                                                                                                                    |
+| BLOOD_TYPE                   | NO_UNIT                 | yes              |                           | READ Only - a HealthKit characteristic: the `HKBloodType` raw value                                                                |
 | BODY_FAT_PERCENTAGE          | PERCENTAGE              | yes              | yes                       |                                                                                                                                    |
 | BODY_MASS_INDEX              | NO_UNIT                 | yes              | yes                       |                                                                                                                                    |
 | BODY_TEMPERATURE             | DEGREE_CELSIUS          | yes              | yes                       |                                                                                                                                    |
 | BODY_WATER_MASS              | KILOGRAMS               |                  | yes                       |                                                                                                                                    |
 | ELECTRODERMAL_ACTIVITY       | SIEMENS                 | yes              |                           |                                                                                                                                    |
+| FORCED_EXPIRATORY_VOLUME     | LITER                   | yes              |                           | HealthKit's `forcedExpiratoryVolume1` (FEV1)                                                                                       |
+| GENDER                       | NO_UNIT                 | yes              |                           | READ Only - a HealthKit characteristic: the `HKBiologicalSex` raw value                                                            |
 | HEART_RATE                   | BEATS_PER_MINUTE        | yes              | yes                       |                                                                                                                                    |
 | HEIGHT                       | METERS                  | yes              | yes                       |                                                                                                                                    |
 | RESTING_HEART_RATE           | BEATS_PER_MINUTE        | yes              | yes                       |                                                                                                                                    |
 | RESPIRATORY_RATE             | RESPIRATIONS_PER_MINUTE | yes              | yes                       |                                                                                                                                    |
 | PERIPHERAL_PERFUSION_INDEX   | PERCENTAGE              | yes              |                           |                                                                                                                                    |
 | STEPS                        | COUNT                   | yes              | yes                       |                                                                                                                                    |
+| TOTAL_CALORIES_BURNED        | KILOCALORIE             |                  | yes                       | Active and basal energy together (`TotalCaloriesBurnedRecord`)                                                                     |
 | WAIST_CIRCUMFERENCE          | METERS                  | yes              |                           |                                                                                                                                    |
 | WALKING_HEART_RATE           | BEATS_PER_MINUTE        | yes              |                           |                                                                                                                                    |
 | WEIGHT                       | KILOGRAMS               | yes              | yes                       |                                                                                                                                    |
 | DISTANCE_WALKING_RUNNING     | METERS                  | yes              |                           |                                                                                                                                    |
+| DISTANCE_CYCLING             | METERS                  | yes              |                           |                                                                                                                                    |
+| DISTANCE_SWIMMING            | METERS                  | yes              |                           |                                                                                                                                    |
 | FLIGHTS_CLIMBED              | COUNT                   | yes              | yes                       |                                                                                                                                    |
 | DISTANCE_DELTA               | METERS                  |                  | yes                       |                                                                                                                                    |
 | MINDFULNESS                  | MINUTES                 | yes              |                           |                                                                                                                                    |
@@ -572,7 +672,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | SLEEP_LIGHT                  | MINUTES                 | yes              | yes                       | on iOS, this refers to asleepCore                                                                                                  |
 | SLEEP_OUT_OF_BED             | MINUTES                 |                  | yes                       |                                                                                                                                    |
 | SLEEP_REM                    | MINUTES                 | yes              | yes                       |                                                                                                                                    |
-| SLEEP_UNKNOWN                | MINUTES                 |                  | yes                       |                                                                                                                                    |
+| SLEEP_UNKNOWN                | MINUTES                 | yes              | yes                       | on iOS, sleep values that no other sleep type covers (none yet; values Apple adds later), READ Only; on Android, STAGE_TYPE_UNKNOWN |
 | SLEEP_SESSION                | MINUTES                 |                  | yes                       |                                                                                                                                    |
 | WATER                        | LITER                   | yes              | yes                       |                                                                                                                                    |
 | EXERCISE_TIME                | MINUTES                 | yes              |                           |                                                                                                                                    |
@@ -591,22 +691,28 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | AUDIOGRAM                    | DECIBEL_HEARING_LEVEL   | yes              |                           |                                                                                                                                    |
 | ELECTROCARDIOGRAM            | VOLT                    | yes              |                           | Requires Apple Watch to write the data                                                                                             |
 | NUTRITION                    | NO_UNIT                 | yes              | yes                       |                                                                                                                                    |
-| INSULIN_DELIVERY             | INTERNATIONAL_UNIT      | yes              |                           |                                                                                                                                    |
-| MENSTRUATION_FLOW            | NO_UNIT                 | yes              | yes                       |                                                                                                                                    |
+| DIETARY_*                    | GRAM                    | yes              |                           | One type per nutrient, such as `DIETARY_PROTEIN_CONSUMED`; `DIETARY_ENERGY_CONSUMED` is in KILOCALORIE. On Android, use `NUTRITION` |
+| INSULIN_DELIVERY             | INTERNATIONAL_UNIT      | yes              |                           | Write with `writeInsulinDelivery`, not `writeHealthData`                                                                           |
+| MENSTRUATION_FLOW            | NO_UNIT                 | yes              | yes                       | on iOS, write with `writeMenstruationFlow`, not `writeHealthData`                                                                  |
 | WATER_TEMPERATURE            | DEGREE_CELSIUS          | yes              |                           | Related to/Requires Apple Watch Ultra's Underwater Diving Workout                                                                  |
 | SLEEP_WRIST_TEMPERATURE      | DEGREE_CELSIUS          | yes              |                           | READ Only - `appleSleepingWristTemperature`                                                                                        |
 | SKIN_TEMPERATURE             | DEGREE_CELSIUS          |                  | yes                       | Must check health connect for availability                                                                                         |
 | UNDERWATER_DEPTH             | METER                   | yes              |                           | Related to/Requires Apple Watch Ultra's Underwater Diving Workout                                                                  |
 | UV_INDEX                     | COUNT                   | yes              |                           |                                                                                                                                    |
 | LEAN_BODY_MASS               | KILOGRAMS               | yes              | yes                       |                                                                                                                                    |
-| WALKING_SPEED                | METER_PER_SECOND        | yes              | (yes)                     | On Android this will be recorded as `SPEED` with similar unit                                                                      |
+| WALKING_SPEED                | METER_PER_SECOND        | yes              | (yes)                     | On Android use `SPEED`, which has the same unit                                                                                    |
+| SPEED                        | METER_PER_SECOND        |                  | yes                       | The speed of any exercise (`SpeedRecord`); for walking speed on iOS, see `WALKING_SPEED`                                           |
+| POWER                        | WATT                    | yes              | yes                       | READ Only - iOS 17+ (`cyclingPower`); on Android the power of any exercise (`PowerRecord`)                                         |
+| CYCLING_CADENCE              | REVOLUTION_PER_MINUTE   | yes              | yes                       | READ Only - iOS 17+ (`cyclingCadence`); on Android read with the `READ_EXERCISE` permission                                        |
 | APPLE_MOVE_TIME              | SECOND                  | yes              |                           | READ Only                                                                                                                          |
 | APPLE_STAND_HOUR             | HOUR                    | yes              |                           | READ Only                                                                                                                          |
-| APPLE_MOVE_TIME              | SECOND                  | yes              |                           | READ Only                                                                                                                          |
+| APPLE_STAND_TIME             | SECOND                  | yes              |                           | READ Only                                                                                                                          |
 
 ## Workout Types
 
 The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/documentation/health/latest/health/HealthWorkoutActivityType.html).
+
+Some names share one workout type on a platform, as the comments below show. Reads give one name for each such type, whichever name the workout was written with: DANCING, SKIING or WHEELCHAIR on Android, and RUNNING, CLIMBING or SWIMMING on iOS. On iOS the workout's metadata can refine this name: an indoor run reads as RUNNING_TREADMILL, and a swim with a pool or open water location as SWIMMING_POOL or SWIMMING_OPEN_WATER. On iOS, `WorkoutSummary.workoutType` is this name too; before 14.0.0 it was HealthKit's own name, such as `running`.
 
 | **Workout Type**                 | **Apple Health** | **Google Health Connect** | **Comments**                                                                                    |
 | -------------------------------- | ---------------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -621,17 +727,17 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | BOWLING                          | yes              |                           |                                                                                                 |
 | BOXING                           | yes              | yes                       |                                                                                                 |
 | CALISTHENICS                     |                  | yes                       |                                                                                                 |
-| CARDIO_DANCE                     | yes              | (yes)                     | on Android this will be stored as DANCING                                                       |
+| CARDIO_DANCE                     | yes              | (yes)                     | on Android this will be stored and read back as DANCING                                         |
 | CLIMBING                         | yes              |                           |                                                                                                 |
 | COOLDOWN                         | yes              |                           |                                                                                                 |
 | CORE_TRAINING                    | yes              |                           |                                                                                                 |
 | CRICKET                          | yes              | yes                       |                                                                                                 |
-| CROSS_COUNTRY_SKIING             | yes              | (yes)                     | on Android this will be stored as SKIING                                                        |
+| CROSS_COUNTRY_SKIING             | yes              | (yes)                     | on Android this will be stored and read back as SKIING                                          |
 | CROSS_TRAINING                   | yes              |                           |                                                                                                 |
 | CURLING                          | yes              |                           |                                                                                                 |
-| DANCING                          | yes              | yes                       | on iOS this is DANCE, but name changed here to fit with Android                                 |
+| DANCING                          | (yes)            | yes                       | on iOS you have to choose between CARDIO_DANCE and SOCIAL_DANCE                                 |
 | DISC_SPORTS                      | yes              |                           |                                                                                                 |
-| DOWNHILL_SKIING                  | yes              | (yes)                     | on Android this will be stored as SKIING                                                        |
+| DOWNHILL_SKIING                  | yes              | (yes)                     | on Android this will be stored and read back as SKIING                                          |
 | ELLIPTICAL                       | yes              | yes                       |                                                                                                 |
 | EQUESTRIAN_SPORTS                | yes              |                           |                                                                                                 |
 | FENCING                          | yes              | yes                       |                                                                                                 |
@@ -639,7 +745,7 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | FITNESS_GAMING                   | yes              |                           |                                                                                                 |
 | FLEXIBILITY                      | yes              |                           |                                                                                                 |
 | FRISBEE_DISC                     |                  | yes                       |                                                                                                 |
-| FUNCTIONAL_STRENGTH_TRAINING     | yes              | (yes)                     | on Android this will be stored as STRENGTH_TRAINING                                             |
+| FUNCTIONAL_STRENGTH_TRAINING     | yes              |                           | on Android use STRENGTH_TRAINING                                                                |
 | GOLF                             | yes              | yes                       |                                                                                                 |
 | GUIDED_BREATHING                 |                  | yes                       |                                                                                                 |
 | GYMNASTICS                       | yes              | yes                       |                                                                                                 |
@@ -649,6 +755,7 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | HIKING                           | yes              | yes                       |                                                                                                 |
 | HOCKEY                           | yes              |                           |                                                                                                 |
 | HUNTING                          | yes              |                           |                                                                                                 |
+| ICE_SKATING                      |                  | yes                       |                                                                                                 |
 | JUMP_ROPE                        | yes              |                           |                                                                                                 |
 | KICKBOXING                       | yes              |                           |                                                                                                 |
 | LACROSSE                         | yes              |                           |                                                                                                 |
@@ -662,19 +769,21 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | PLAY                             | yes              |                           |                                                                                                 |
 | PREPARATION_AND_RECOVERY         | yes              |                           |                                                                                                 |
 | RACQUETBALL                      | yes              | yes                       |                                                                                                 |
-| ROCK_CLIMBING                    | (yes)            | yes                       | on iOS this will be stored as CLIMBING                                                          |
+| ROCK_CLIMBING                    | (yes)            | yes                       | on iOS this will be stored and read back as CLIMBING                                            |
 | ROWING                           | yes              | yes                       |                                                                                                 |
+| ROWING_MACHINE                   |                  | yes                       |                                                                                                 |
 | RUGBY                            | yes              | yes                       |                                                                                                 |
 | RUNNING                          | yes              | yes                       |                                                                                                 |
-| RUNNING_TREADMILL                | (yes)            | yes                       | on iOS this will be stored as RUNNING                                                           |
+| RUNNING_TREADMILL                | (yes)            | yes                       | on iOS this will be stored as an indoor RUNNING workout and read back as RUNNING_TREADMILL      |
 | SAILING                          | yes              | yes                       |                                                                                                 |
 | SCUBA_DIVING                     |                  | yes                       |                                                                                                 |
 | SKATING                          | yes              | yes                       | On iOS this will be stored as SKATING_SPORTS                                                    |
 | SKIING                           | (yes)            | yes                       | on iOS you have to choose between CROSS_COUNTRY_SKIING and DOWNHILL_SKIING                      |
 | SNOW_SPORTS                      | yes              |                           |                                                                                                 |
 | SNOWBOARDING                     | yes              | yes                       |                                                                                                 |
+| SNOWSHOEING                      |                  | yes                       |                                                                                                 |
 | SOCCER                           | yes              |                           |                                                                                                 |
-| SOCIAL_DANCE                     | yes              | (yes)                     | on Android this will be stored as DANCING                                                       |
+| SOCIAL_DANCE                     | yes              | (yes)                     | on Android this will be stored and read back as DANCING                                         |
 | SOFTBALL                         | yes              | yes                       |                                                                                                 |
 | SQUASH                           | yes              | yes                       |                                                                                                 |
 | STAIR_CLIMBING                   | yes              | yes                       |                                                                                                 |
@@ -684,13 +793,13 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | STRENGTH_TRAINING                | (yes)            | yes                       | on iOS you have to choose between FUNCTIONAL_STRENGTH_TRAINING or TRADITIONAL_STRENGTH_TRAINING |
 | SURFING                          | yes              | yes                       | on iOS this is SURFING_SPORTS, but name changed here to fit with Android                        |
 | SWIMMING                         | yes              | (yes)                     | on Android you have to choose between SWIMMING_OPEN_WATER and SWIMMING_POOL                     |
-| SWIMMING_OPEN_WATER              | (yes)            | yes                       | on iOS this will be stored as SWIMMING                                                          |
-| SWIMMING_POOL                    | (yes)            | yes                       | on iOS this will be stored as SWIMMING                                                          |
+| SWIMMING_OPEN_WATER              | (yes)            | yes                       | on iOS this will be stored as SWIMMING in open water and read back as SWIMMING_OPEN_WATER       |
+| SWIMMING_POOL                    | (yes)            | yes                       | on iOS this will be stored and read back as SWIMMING: HealthKit needs a lap length for a pool swim |
 | TABLE_TENNIS                     | yes              | yes                       |                                                                                                 |
 | TAI_CHI                          | yes              |                           |                                                                                                 |
 | TENNIS                           | yes              | yes                       |                                                                                                 |
 | TRACK_AND_FIELD                  | yes              |                           |                                                                                                 |
-| TRADITIONAL_STRENGTH_TRAINING    | yes              | (yes)                     | on Android this will be stored as STRENGTH_TRAINING                                             |
+| TRADITIONAL_STRENGTH_TRAINING    | yes              |                           | on Android use STRENGTH_TRAINING                                                                |
 | UNDERWATER_DIVING                | yes              |                           |                                                                                                 |
 | VOLLEYBALL                       | yes              | yes                       |                                                                                                 |
 | WALKING                          | yes              | yes                       |                                                                                                 |
@@ -699,8 +808,8 @@ The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/
 | WATER_SPORTS                     | yes              |                           |                                                                                                 |
 | WEIGHTLIFTING                    |                  | yes                       |                                                                                                 |
 | WHEELCHAIR                       | (yes)            | yes                       | on iOS you have to choose between WHEELCHAIR_RUN_PACE or WHEELCHAIR_WALK_PACE                   |
-| WHEELCHAIR_RUN_PACE              | yes              | (yes)                     | on Android this will be stored as WHEELCHAIR                                                    |
-| WHEELCHAIR_WALK_PACE             | yes              | (yes)                     | on Android this will be stored as WHEELCHAIR                                                    |
+| WHEELCHAIR_RUN_PACE              | yes              | (yes)                     | on Android this will be stored and read back as WHEELCHAIR                                      |
+| WHEELCHAIR_WALK_PACE             | yes              | (yes)                     | on Android this will be stored and read back as WHEELCHAIR                                      |
 | WRESTLING                        | yes              |                           |                                                                                                 |
 | YOGA                             | yes              | yes                       |                                                                                                 |
 | OTHER                            | yes              | yes                       |                                                                                                 |
