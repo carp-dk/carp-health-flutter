@@ -191,7 +191,7 @@ extension HealthDataWriter {
                 [weak self] route, finishError in
                 guard let self else { return }
                 DispatchQueue.main.async {
-                    self.removeWorkoutRouteBuilder(for: builderId)
+                    _ = self.removeWorkoutRouteBuilder(for: builderId)
                     if let finishError {
                         result(
                             FlutterError(

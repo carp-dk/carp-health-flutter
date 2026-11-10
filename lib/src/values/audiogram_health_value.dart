@@ -4,18 +4,22 @@ part of '../../health.dart';
 ///
 /// Parameters:
 /// * [frequencies] - array of frequencies of the test
-/// * [leftEarSensitivities] threshold in decibel for the left ear
-/// * [rightEarSensitivities] threshold in decibel for the left ear
+/// * [leftEarSensitivities] threshold in decibel for the left ear at each frequency
+/// * [rightEarSensitivities] threshold in decibel for the right ear at each frequency
+///
+/// A frequency tested on one ear only has a null threshold for the other ear.
 @JsonSerializable(includeIfNull: false, explicitToJson: true)
 class AudiogramHealthValue extends HealthValue {
   /// Array of frequencies of the test.
   List<num> frequencies;
 
-  /// Threshold in decibel for the left ear.
-  List<num> leftEarSensitivities;
+  /// Threshold in decibel for the left ear at each of the [frequencies]; null
+  /// where the left ear was not tested at that frequency.
+  List<num?> leftEarSensitivities;
 
-  /// Threshold in decibel for the right ear.
-  List<num> rightEarSensitivities;
+  /// Threshold in decibel for the right ear at each of the [frequencies]; null
+  /// where the right ear was not tested at that frequency.
+  List<num?> rightEarSensitivities;
 
   AudiogramHealthValue({
     required this.frequencies,
@@ -26,8 +30,8 @@ class AudiogramHealthValue extends HealthValue {
   /// Create a [AudiogramHealthValue] based on a health data point from native data format.
   factory AudiogramHealthValue.fromHealthDataPoint(dynamic dataPoint) => AudiogramHealthValue(
     frequencies: List<num>.from(dataPoint['frequencies'] as List),
-    leftEarSensitivities: List<num>.from(dataPoint['leftEarSensitivities'] as List),
-    rightEarSensitivities: List<num>.from(dataPoint['rightEarSensitivities'] as List),
+    leftEarSensitivities: List<num?>.from(dataPoint['leftEarSensitivities'] as List),
+    rightEarSensitivities: List<num?>.from(dataPoint['rightEarSensitivities'] as List),
   );
 
   @override
@@ -51,5 +55,9 @@ class AudiogramHealthValue extends HealthValue {
       listEquals(rightEarSensitivities, other.rightEarSensitivities);
 
   @override
-  int get hashCode => Object.hash(frequencies, leftEarSensitivities, rightEarSensitivities);
+  int get hashCode => Object.hash(
+    Object.hashAll(frequencies),
+    Object.hashAll(leftEarSensitivities),
+    Object.hashAll(rightEarSensitivities),
+  );
 }

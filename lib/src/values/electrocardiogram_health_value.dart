@@ -80,7 +80,7 @@ class ElectrocardiogramHealthValue extends HealthValue {
       classification == other.classification;
 
   @override
-  int get hashCode => Object.hash(voltageValues, averageHeartRate, samplingFrequency, classification);
+  int get hashCode => Object.hash(Object.hashAll(voltageValues), averageHeartRate, samplingFrequency, classification);
 
   @override
   String toString() =>

@@ -120,20 +120,14 @@ extension HealthDataReader {
     private func audiogramDictionaries(_ samples: [HKAudiogramSample]) -> [NSDictionary] {
         samples.map { sample -> NSDictionary in
             var frequencies = [Double]()
-            var leftEarSensitivities = [Double]()
-            var rightEarSensitivities = [Double]()
+            // NSNull (null on the Dart side) for an ear that was not tested at that frequency.
+            var leftEarSensitivities = [Any]()
+            var rightEarSensitivities = [Any]()
             for samplePoint in sample.sensitivityPoints {
                 frequencies.append(samplePoint.frequency.doubleValue(for: HKUnit.hertz()))
-                leftEarSensitivities.append(
-                    samplePoint.leftEarSensitivity!.doubleValue(
-                        for: HKUnit.decibelHearingLevel()
-                    )
-                )
-                rightEarSensitivities.append(
-                    samplePoint.rightEarSensitivity!.doubleValue(
-                        for: HKUnit.decibelHearingLevel()
-                    )
-                )
+                let sensitivities = earSensitivities(of: samplePoint)
+                leftEarSensitivities.append(decibelsOrNull(sensitivities.left))
+                rightEarSensitivities.append(decibelsOrNull(sensitivities.right))
             }
             return [
                 "uuid": "\(sample.uuid)",
@@ -146,6 +140,25 @@ extension HealthDataReader {
                 "source_name": sample.sourceRevision.source.name,
             ]
         }
+    }
+
+    /// The sensitivities of a point's ears, nil for an ear without a test at the point's frequency.
+    func earSensitivities(
+        of point: HKAudiogramSensitivityPoint
+    ) -> (left: HKQuantity?, right: HKQuantity?) {
+        if #available(iOS 18.1, *) {
+            // HealthKit allows one test per ear and only air conduction tests so far: the tests
+            // the deprecated properties below return.
+            return (
+                point.tests.first { $0.side == .left && $0.type == .air }?.sensitivity,
+                point.tests.first { $0.side == .right && $0.type == .air }?.sensitivity
+            )
+        }
+        return (point.leftEarSensitivity, point.rightEarSensitivity)
+    }
+
+    private func decibelsOrNull(_ sensitivity: HKQuantity?) -> Any {
+        sensitivity?.doubleValue(for: HKUnit.decibelHearingLevel()) ?? NSNull()
     }
 
     private func nutritionDictionaries(_ correlations: [HKCorrelation]) -> [[String: Any?]] {

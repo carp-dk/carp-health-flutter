@@ -266,10 +266,10 @@ AudiogramHealthValue _$AudiogramHealthValueFromJson(
       .map((e) => e as num)
       .toList(),
   leftEarSensitivities: (json['leftEarSensitivities'] as List<dynamic>)
-      .map((e) => e as num)
+      .map((e) => e as num?)
       .toList(),
   rightEarSensitivities: (json['rightEarSensitivities'] as List<dynamic>)
-      .map((e) => e as num)
+      .map((e) => e as num?)
       .toList(),
 )..$type = json['__type'] as String?;
 

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		1538537FCF3E6B2D5EE731AB /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7CF05C63DD5841073CB4E39B /* Pods_RunnerTests.framework */; };
+		1C1BF8D1AEAB4B7DAB0717F5 /* WorkoutWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -18,6 +19,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		ABB05D872D6BB16700FA4740 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = ABB05D862D6BB16700FA4740 /* FlutterGeneratedPluginSwiftPackage */; };
 		ABCED1C7302F45E800E1B4CC /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = ABCED1C6302F45E800E1B4CC /* FlutterGeneratedPluginSwiftPackage */; };
+		E1D6C479530D416E8E45A741 /* AudiogramTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4901810075486EBCA0D487 /* AudiogramTests.swift */; };
 		F7F3CE40ADB3F84A132AB2AB /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 331C3466792E0AE145779DB5 /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -68,6 +70,8 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		ABEE568C2D6B9E4300551983 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutWriteTests.swift; sourceTree = "<group>"; };
+		ED4901810075486EBCA0D487 /* AudiogramTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudiogramTests.swift; sourceTree = "<group>"; };
 		F97011D03CBC7A35D177D127 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		FCEA0A19EEB97E6889BA5240 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -108,6 +112,8 @@
 			isa = PBXGroup;
 			children = (
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
+				ED4901810075486EBCA0D487 /* AudiogramTests.swift */,
+				C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -369,6 +375,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
+				E1D6C479530D416E8E45A741 /* AudiogramTests.swift in Sources */,
+				1C1BF8D1AEAB4B7DAB0717F5 /* WorkoutWriteTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

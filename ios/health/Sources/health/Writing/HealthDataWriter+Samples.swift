@@ -122,8 +122,8 @@ extension HealthDataWriter {
 
         if let categoryType = sampleType as? HKCategoryType {
             sample = HKCategorySample(
-                type: categoryType, value: Int(value), start: dateFrom,
-                end: dateTo, metadata: metadata)
+                type: categoryType, value: resolvedCategoryValue(for: type, rawValue: Int(value)),
+                start: dateFrom, end: dateTo, metadata: metadata)
         } else if let quantityType = sampleType as? HKQuantityType {
             guard let hkUnit = unitDict[unit] else {
                 print("Warning: Health data unit '\(unit)' not available on this iOS version.")
@@ -151,17 +151,8 @@ extension HealthDataWriter {
                     print("Error Saving \(type) Sample: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
-                    if success {
-                        // Return the UUID of the saved object
-                        if let savedSample = sample as? HKObject {
-                            print("Saved: \(savedSample.uuid.uuidString)")
-                            result(savedSample.uuid.uuidString) // Return UUID as String
-                        } else {
-                            result("")
-                        }
-                    }
-
-                    result("")
+                    // The UUID of the saved sample, an empty string if it was not saved
+                    result(success ? sample.uuid.uuidString : "")
                 }
             })
     }

@@ -17,40 +17,20 @@ extension HealthDataWriter {
             throw PluginError(message: "Invalid Arguments")
         }
 
-        let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
-        let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
-
-        var sensitivityPoints = [HKAudiogramSensitivityPoint]()
-
-        for index in 0 ... frequencies.count - 1 {
-            let frequency = HKQuantity(unit: HKUnit.hertz(), doubleValue: frequencies[index])
-            let dbUnit = HKUnit.decibelHearingLevel()
-            let left = HKQuantity(unit: dbUnit, doubleValue: leftEarSensitivities[index])
-            let right = HKQuantity(unit: dbUnit, doubleValue: rightEarSensitivities[index])
-            let sensitivityPoint = try HKAudiogramSensitivityPoint(
-                frequency: frequency, leftEarSensitivity: left, rightEarSensitivity: right
-            )
-            sensitivityPoints.append(sensitivityPoint)
-        }
-
         let audiogram: HKAudiogramSample
-        let metadataReceived = (arguments["metadata"] as? [String: Any]?)
-
-        if metadataReceived != nil {
-            guard let deviceName = metadataReceived?!["HKDeviceName"] as? String else { return }
-            guard let externalUUID = metadataReceived?!["HKExternalUUID"] as? String else { return }
-
-            audiogram = HKAudiogramSample(
-                sensitivityPoints: sensitivityPoints, start: dateFrom, end: dateTo,
-                metadata: [
-                    HKMetadataKeyDeviceName: deviceName, HKMetadataKeyExternalUUID: externalUUID,
-                ]
+        do {
+            audiogram = try audiogramSample(
+                frequencies: frequencies,
+                leftEarSensitivities: leftEarSensitivities,
+                rightEarSensitivities: rightEarSensitivities,
+                start: HealthUtilities.dateFromMilliseconds(startTime.doubleValue),
+                end: HealthUtilities.dateFromMilliseconds(endTime.doubleValue),
+                metadata: try audiogramMetadata(from: arguments["metadata"])
             )
-
-        } else {
-            audiogram = HKAudiogramSample(
-                sensitivityPoints: sensitivityPoints, start: dateFrom, end: dateTo, metadata: nil
-            )
+        } catch {
+            let message = (error as? PluginError)?.message ?? error.localizedDescription
+            result(FlutterError(code: "INVALID_ARGUMENT", message: message, details: nil))
+            return
         }
 
         healthStore.save(
@@ -64,5 +44,59 @@ extension HealthDataWriter {
                 }
             }
         )
+    }
+
+    /// The audiogram to save. HKAudiogramSample raises an exception (crashing the app) for points
+    /// or dates it does not accept, so they are checked here first.
+    /// - Throws: PluginError, or HealthKit's error for a frequency or sensitivity out of range
+    func audiogramSample(
+        frequencies: [Double], leftEarSensitivities: [Double], rightEarSensitivities: [Double],
+        start: Date, end: Date, metadata: [String: Any]?
+    ) throws -> HKAudiogramSample {
+        guard !frequencies.isEmpty,
+              leftEarSensitivities.count == frequencies.count,
+              rightEarSensitivities.count == frequencies.count
+        else {
+            throw PluginError(
+                message: "frequencies, leftEarSensitivities and rightEarSensitivities must be "
+                    + "non-empty and of the same length"
+            )
+        }
+        // HealthKit's limit, see HKAudiogramSample.
+        guard frequencies.count <= 30 else {
+            throw PluginError(message: "An audiogram can have at most 30 frequencies")
+        }
+        guard zip(frequencies, frequencies.dropFirst()).allSatisfy({ $0 < $1 }) else {
+            throw PluginError(message: "frequencies must be unique and in ascending order")
+        }
+        try checkSampleDates(start: start, end: end, of: HKObjectType.audiogramSampleType())
+
+        let decibels = HKUnit.decibelHearingLevel()
+        let sensitivityPoints = try frequencies.indices.map { index in
+            try HKAudiogramSensitivityPoint(
+                frequency: HKQuantity(unit: HKUnit.hertz(), doubleValue: frequencies[index]),
+                leftEarSensitivity: HKQuantity(unit: decibels, doubleValue: leftEarSensitivities[index]),
+                rightEarSensitivity: HKQuantity(unit: decibels, doubleValue: rightEarSensitivities[index])
+            )
+        }
+        return HKAudiogramSample(
+            sensitivityPoints: sensitivityPoints, start: start, end: end, metadata: metadata
+        )
+    }
+
+    /// The metadata of an audiogram: the device name and the external UUID, each optional.
+    /// - Throws: PluginError for a value that is not a String, which HealthKit does not accept
+    func audiogramMetadata(from argument: Any?) throws -> [String: Any]? {
+        guard let values = argument as? [String: Any] else { return nil }
+        var metadata = [String: Any]()
+        // The Dart side uses HealthKit's key names, "HKDeviceName" and "HKExternalUUID".
+        for key in [HKMetadataKeyDeviceName, HKMetadataKeyExternalUUID] {
+            guard let value = values[key], !(value is NSNull) else { continue }
+            guard let text = value as? String else {
+                throw PluginError(message: "metadata \(key) must be a String")
+            }
+            metadata[key] = text
+        }
+        return metadata.isEmpty ? nil : metadata
     }
 }

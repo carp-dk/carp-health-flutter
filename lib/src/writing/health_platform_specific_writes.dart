@@ -6,20 +6,29 @@ part of '../../health.dart';
 mixin HealthPlatformSpecificWrites on _HealthSupport {
   /// Saves audiogram into Apple Health. Not supported on Android.
   ///
-  /// Returns true if successful, false otherwise.
+  /// Returns true if successful, false if HealthKit could not save it.
   ///
   /// Parameters:
-  ///   * [frequencies] - array of frequencies of the test
-  ///   * [leftEarSensitivities] threshold in decibel for the left ear
-  ///   * [rightEarSensitivities] threshold in decibel for the left ear
+  ///   * [frequencies] - array of frequencies of the test, in Hz
+  ///   * [leftEarSensitivities] - threshold in decibel (dBHL) for the left ear
+  ///     at each frequency
+  ///   * [rightEarSensitivities] - threshold in decibel (dBHL) for the right
+  ///     ear at each frequency
   ///   * [startTime] - the start time when the audiogram is measured.
   ///     It must be equal to or earlier than [endTime].
   ///   * [endTime] - the end time when the audiogram is measured.
   ///     It must be equal to or later than [startTime].
   ///     Simply set [endTime] equal to [startTime] if the audiogram is measured
   ///     only at a specific point in time (default).
-  ///   * [metadata] - optional map of keys, both HKMetadataKeyExternalUUID
-  ///     and HKMetadataKeyDeviceName are required
+  ///   * [metadata] - optional HealthKit metadata: 'HKDeviceName' and
+  ///     'HKExternalUUID', each optional, with String values; other keys are
+  ///     ignored.
+  ///
+  /// Throws a [PlatformException] with code INVALID_ARGUMENT if HealthKit does
+  /// not accept the audiogram: more than 30 frequencies, frequencies that are
+  /// not unique and in ascending order, a frequency outside 0-30000 Hz or a
+  /// threshold outside -20-160 dBHL, a metadata value that is not a String, or
+  /// a [startTime]-[endTime] range longer than 4 days.
   Future<bool> writeAudiogram({
     required List<double> frequencies,
     required List<double> leftEarSensitivities,
