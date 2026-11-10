@@ -65,6 +65,8 @@ android {
 distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
 ```
 
+The plugin needs Flutter 3.44 or later and does not apply the Kotlin Gradle plugin: its Kotlin is compiled by AGP's [built-in Kotlin](https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin), or, in an app that sets `android.builtInKotlin=false`, by the Kotlin Gradle plugin that Flutter applies. The example app uses built-in Kotlin (`android.builtInKotlin=true`, Flutter 3.47 or later) and keeps `id("org.jetbrains.kotlin.android") version "2.3.20" apply false` in `settings.gradle.kts` to choose the Kotlin version (Flutter needs 2.2.20 or later).
+
 Health Connect requires the following lines in the `AndroidManifest.xml` file (see also the example app):
 
 ```xml
