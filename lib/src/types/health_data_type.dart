@@ -93,6 +93,19 @@ enum HealthDataType {
   ///  * Android: the samples of Health Connect's `CyclingPedalingCadenceRecord`.
   CYCLING_CADENCE,
 
+  /// Maximal oxygen consumption (VO2 max) in milliliters per kilogram of body
+  /// weight per minute.
+  ///
+  ///  * iOS: HealthKit's `HKQuantityTypeIdentifier.vo2Max`.
+  ///  * Android: Health Connect's `Vo2MaxRecord`; declare the `READ_VO2_MAX`
+  ///    and `WRITE_VO2_MAX` permissions. Health Connect takes values from 0 to
+  ///    100: [Health.writeHealthData] returns false for others.
+  ///
+  /// [Health.getHealthIntervalDataFromTypes] returns the average of each
+  /// interval on iOS and no data points on Android, where Health Connect has
+  /// no VO2 max aggregate.
+  VO2_MAX,
+
   MINDFULNESS,
   WATER,
   SLEEP_ASLEEP,

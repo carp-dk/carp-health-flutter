@@ -30,6 +30,12 @@ extension _WriteSampleDataActions on HealthAppState {
       recordingMethod: RecordingMethod.manual,
     );
     success &= await health.writeHealthData(
+      value: 42.5,
+      type: HealthDataType.VO2_MAX,
+      startTime: now,
+      recordingMethod: RecordingMethod.manual,
+    );
+    success &= await health.writeHealthData(
       value: 90,
       type: HealthDataType.HEART_RATE,
       startTime: earlier,

@@ -135,6 +135,7 @@ enum HealthConstants {
     static let WALKING_SPEED = "WALKING_SPEED"
     static let POWER = "POWER"
     static let CYCLING_CADENCE = "CYCLING_CADENCE"
+    static let VO2_MAX = "VO2_MAX"
     static let FLIGHTS_CLIMBED = "FLIGHTS_CLIMBED"
     static let MINDFULNESS = "MINDFULNESS"
     static let SLEEP_ASLEEP = "SLEEP_ASLEEP"
@@ -218,6 +219,7 @@ enum HealthConstants {
     static let METER_PER_SECOND = "METER_PER_SECOND"
     static let WATT = "WATT"
     static let REVOLUTION_PER_MINUTE = "REVOLUTION_PER_MINUTE"
+    static let MILLILITER_PER_KILOGRAM_PER_MINUTE = "MILLILITER_PER_KILOGRAM_PER_MINUTE"
     static let UNKNOWN_UNIT = "UNKNOWN_UNIT"
     static let NO_UNIT = "NO_UNIT"
 }

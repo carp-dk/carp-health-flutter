@@ -88,6 +88,10 @@ enum HealthDataUnit {
   /// (`count/min` in HealthKit).
   REVOLUTION_PER_MINUTE,
 
+  /// Milliliters per kilogram per minute, the unit of [HealthDataType.VO2_MAX]
+  /// (`mL/(kg*min)` in HealthKit).
+  MILLILITER_PER_KILOGRAM_PER_MINUTE,
+
   UNKNOWN_UNIT,
   NO_UNIT,
 }

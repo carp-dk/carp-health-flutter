@@ -35,6 +35,7 @@ extension HealthPlugin {
         dataQuantityTypesDict[HealthConstants.DISTANCE_SWIMMING] = HKQuantityType.quantityType(forIdentifier: .distanceSwimming)!
         dataQuantityTypesDict[HealthConstants.DISTANCE_CYCLING] = HKQuantityType.quantityType(forIdentifier: .distanceCycling)!
         dataQuantityTypesDict[HealthConstants.FLIGHTS_CLIMBED] = HKQuantityType.quantityType(forIdentifier: .flightsClimbed)!
+        dataQuantityTypesDict[HealthConstants.VO2_MAX] = HKQuantityType.quantityType(forIdentifier: .vo2Max)!
     }
 
     /// Initialize nutrition quantity types

@@ -54,6 +54,7 @@ extension HealthPlugin {
         ).unitDivided(by: .liter())
         unitDict[HealthConstants.METER_PER_SECOND] = HKUnit(from: "m/s")
         unitDict[HealthConstants.REVOLUTION_PER_MINUTE] = HKUnit(from: "count/min")
+        unitDict[HealthConstants.MILLILITER_PER_KILOGRAM_PER_MINUTE] = HKUnit(from: "mL/(kg*min)")
         unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit(from: "")
         unitDict[HealthConstants.NO_UNIT] = HKUnit(from: "")
 

@@ -223,6 +223,7 @@ class HealthDataChanges(
         is PowerRecord -> listOf(HealthConstants.POWER)
         is CyclingPedalingCadenceRecord -> listOf(HealthConstants.CYCLING_CADENCE)
         is ActivityIntensityRecord -> listOf(HealthConstants.ACTIVITY_INTENSITY)
+        is Vo2MaxRecord -> listOf(HealthConstants.VO2_MAX)
         else -> emptyList()
     }
 

@@ -141,6 +141,19 @@ class IntervalTests: XCTestCase {
   func testQuantitiesAreSummedOrAveraged() {
     XCTAssertEqual(reader.statisticsOption(for: "HEART_RATE"), .discreteAverage)
     XCTAssertEqual(reader.statisticsOption(for: "STEPS"), .cumulativeSum)
+    XCTAssertEqual(reader.statisticsOption(for: "VO2_MAX"), .discreteAverage)
+  }
+
+  func testVo2MaxIsInMillilitersPerKilogramPerMinute() throws {
+    let type = try XCTUnwrap(reader.dataQuantityTypesDict["VO2_MAX"])
+    XCTAssertEqual(reader.dataTypesDict["VO2_MAX"], type)
+    let unit = try XCTUnwrap(reader.unitDict["MILLILITER_PER_KILOGRAM_PER_MINUTE"])
+    XCTAssertTrue(type.is(compatibleWith: unit))
+    let perKilogramPerMinute = HKUnit.literUnit(with: .milli)
+      .unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: .minute()))
+    XCTAssertEqual(
+      HKQuantity(unit: unit, doubleValue: 42.5).doubleValue(for: perKilogramPerMinute), 42.5, accuracy: 1e-9
+    )
   }
 
   /// The hour buckets of [intervals] (in minutes after t0) in a read from t0 to [end] minutes
