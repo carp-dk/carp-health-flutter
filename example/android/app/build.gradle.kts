@@ -7,7 +7,8 @@ plugins {
 
 android {
     namespace = "cachet.plugins.health.health_example"
-    compileSdk = flutter.compileSdkVersion
+    // The health plugin's Health Connect client (connect-client 1.2.0-alpha06) needs API 37 and AGP 9.1.0+.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
