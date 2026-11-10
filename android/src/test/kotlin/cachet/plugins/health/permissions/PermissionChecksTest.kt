@@ -51,6 +51,7 @@ class PermissionChecksTest {
             "isHealthDataHistoryAvailable" to features::isHealthDataHistoryAvailable,
             "isHealthDataInBackgroundAvailable" to features::isHealthDataInBackgroundAvailable,
             "isSkinTemperatureAvailable" to features::isSkinTemperatureAvailable,
+            "isMindfulnessSessionAvailable" to features::isMindfulnessSessionAvailable,
         )
     }
 
@@ -89,11 +90,33 @@ class PermissionChecksTest {
                 "isHealthDataHistoryAvailable" to true,
                 "isHealthDataInBackgroundAvailable" to true,
                 "isSkinTemperatureAvailable" to true,
+                "isMindfulnessSessionAvailable" to true,
             ),
             replies,
         )
         val writeSteps = RecordingResult()
         GrantedPermissions(client(permissions, features), scope).hasPermissions(hasPermissions(1), writeSteps)
         assertEquals(false, writeSteps.value)
+    }
+
+    @Test
+    fun eachFeatureCheckAsksForItsOwnFeature() {
+        val featureOf = mapOf(
+            "isHealthDataHistoryAvailable" to HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY,
+            "isHealthDataInBackgroundAvailable" to HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND,
+            "isSkinTemperatureAvailable" to HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE,
+            "isMindfulnessSessionAvailable" to HealthConnectFeatures.FEATURE_MINDFULNESS_SESSION,
+        )
+        for ((name, available) in featureOf) {
+            // A Health Connect that has this feature only.
+            val features = object : HealthConnectFeatures {
+                override fun getFeatureStatus(feature: Int) =
+                    if (feature == available) HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+                    else HealthConnectFeatures.FEATURE_STATUS_UNAVAILABLE
+            }
+            val replies = checks(client(fakeOf { Unit }, features)).filterKeys { it in featureOf }
+                .mapValues { (_, check) -> RecordingResult().also(check).value }
+            assertEquals(name, featureOf.mapValues { (check, _) -> check == name }, replies)
+        }
     }
 }

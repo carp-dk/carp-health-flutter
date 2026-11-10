@@ -143,21 +143,22 @@ class Health
   bool isDataTypeAvailable(HealthDataType dataType) =>
       Platform.isAndroid ? dataTypeKeysAndroid.contains(dataType) : dataTypeKeysIOS.contains(dataType);
 
-  /// Check if a given data type is available on this device.
-  /// Currently only needed for Android Skin Temperature support.
+  /// Throws a [HealthException] with [HealthErrorCode.notSupported] if a given
+  /// data type is not available on this device. Only needed on Android, for
+  /// the types that depend on the Health Connect features of the device: skin
+  /// temperature ([isSkinTemperatureAvailable]) and mindfulness sessions
+  /// ([isMindfulnessSessionAvailable]).
   @override
   Future<void> _checkIfDataTypeAvailableOnDevice(HealthDataType dataType) async {
-    if (!Platform.isAndroid) return;
+    if (platformType != HealthPlatformType.googleHealthConnect) return;
 
-    if (dataType == HealthDataType.SKIN_TEMPERATURE) {
-      final available = await isSkinTemperatureAvailable();
-      if (!available) {
-        throw HealthException(
-          dataType,
-          'Not available on this Android device',
-          errorCode: HealthErrorCode.notSupported,
-        );
-      }
+    final available = switch (dataType) {
+      HealthDataType.SKIN_TEMPERATURE => await isSkinTemperatureAvailable(),
+      HealthDataType.MINDFULNESS => await isMindfulnessSessionAvailable(),
+      _ => true,
+    };
+    if (!available) {
+      throw HealthException(dataType, 'Not available on this Android device', errorCode: HealthErrorCode.notSupported);
     }
   }
 

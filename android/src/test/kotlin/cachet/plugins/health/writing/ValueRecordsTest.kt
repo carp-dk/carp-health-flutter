@@ -3,6 +3,7 @@ package cachet.plugins.health.writing
 import androidx.health.connect.client.records.BasalMetabolicRateRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.MindfulnessSessionRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
@@ -76,6 +77,16 @@ class ValueRecordsTest {
         }
         val session = valueRecord(HealthConstants.SLEEP_SESSION, start, end, 0.0, metadata) as SleepSessionRecord
         assertEquals(emptyList<SleepSessionRecord.Stage>(), session.stages)
+    }
+
+    @Test
+    fun aMindfulnessSessionIsWrittenAsAnUntypedSession() {
+        // writeData has no session type, title or notes: Health Connect's generic session.
+        val session = valueRecord(HealthConstants.MINDFULNESS, start, end, 10.0, metadata) as MindfulnessSessionRecord
+        assertEquals(Instant.ofEpochMilli(start) to Instant.ofEpochMilli(end), session.startTime to session.endTime)
+        assertEquals(MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN, session.mindfulnessSessionType)
+        assertNull(session.title)
+        assertNull(session.notes)
     }
 
     @Test

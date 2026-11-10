@@ -23,9 +23,10 @@ mixin HealthDataWrites on _HealthSupport {
   ///    (on iOS this must be manual or automatic)
   ///
   /// Values for Sleep and Headache are ignored and will be automatically assigned
-  /// the default value. On Android each sleep value written here is a sleep
-  /// session of its own: write a night with its stages with
-  /// [Health.writeSleepSession].
+  /// the default value, and so are values for [HealthDataType.MINDFULNESS]: a
+  /// mindfulness session is the time from [startTime] to [endTime]. On Android
+  /// each sleep value written here is a sleep session of its own: write a night
+  /// with its stages with [Health.writeSleepSession].
   ///
   /// Throws an [ArgumentError] for a type with a write method of its own:
   /// [HealthDataType.WORKOUT] ([Health.writeWorkoutData]),
@@ -37,19 +38,23 @@ mixin HealthDataWrites on _HealthSupport {
   /// HealthKit needs). Throws a [HealthException] with
   /// [HealthErrorCode.notSupported] for a type this platform does not have,
   /// such as [HealthDataType.INSULIN_DELIVERY] on Android, and on iOS for
-  /// [HealthDataType.SLEEP_UNKNOWN]: HealthKit has no unknown sleep value.
+  /// [HealthDataType.SLEEP_UNKNOWN]: HealthKit has no unknown sleep value. On
+  /// Android it does so too for [HealthDataType.MINDFULNESS] and
+  /// [HealthDataType.SKIN_TEMPERATURE] on a device whose Health Connect does
+  /// not have them (see [Health.isMindfulnessSessionAvailable] and
+  /// [Health.isSkinTemperatureAvailable]).
   /// Throws an [ArgumentError] if [endTime] is before [startTime]. On Android,
   /// throws a [PlatformException] with code INVALID_ARGUMENT if [endTime]
   /// equals [startTime] to the millisecond (also when it is not given) for
   /// [HealthDataType.STEPS], [HealthDataType.DISTANCE_DELTA],
   /// [HealthDataType.ACTIVE_ENERGY_BURNED],
   /// [HealthDataType.TOTAL_CALORIES_BURNED], [HealthDataType.WATER],
-  /// [HealthDataType.FLIGHTS_CLIMBED], [HealthDataType.SKIN_TEMPERATURE] and
-  /// the sleep types. On iOS, throws a [PlatformException] with code
-  /// INVALID_ARGUMENT, before anything is saved, for a [unit] the type cannot
-  /// use, a category value the type does not have, or a sample longer than
-  /// HealthKit allows for the type (4 days for most types) or ending in the
-  /// year 4001 or later.
+  /// [HealthDataType.FLIGHTS_CLIMBED], [HealthDataType.SKIN_TEMPERATURE],
+  /// [HealthDataType.MINDFULNESS] and the sleep types. On iOS, throws a
+  /// [PlatformException] with code INVALID_ARGUMENT, before anything is saved,
+  /// for a [unit] the type cannot use, a category value the type does not
+  /// have, or a sample longer than HealthKit allows for the type (4 days for
+  /// most types) or ending in the year 4001 or later.
   @override
   Future<bool> writeHealthData({
     required double value,

@@ -118,6 +118,17 @@ class HealthDataOperations(
     }
 
     /**
+     * Checks if the Health Connect installed on the device has mindfulness sessions. Health Connect
+     * added them after its first release, so this depends on its version, not on the plugin's.
+     *
+     * @param call Method call from Flutter (unused)
+     * @param result Flutter result callback returning boolean availability status
+     */
+    fun isMindfulnessSessionAvailable(call: MethodCall, result: Result) {
+        features.isMindfulnessSessionAvailable(result)
+    }
+
+    /**
      * Deletes all health records of a specified type within a given time range. Performs bulk
      * deletion based on data type and time window.
      *

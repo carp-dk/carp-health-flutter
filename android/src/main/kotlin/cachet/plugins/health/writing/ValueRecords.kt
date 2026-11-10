@@ -15,6 +15,7 @@ import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
 import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.MenstruationFlowRecord
+import androidx.health.connect.client.records.MindfulnessSessionRecord
 import androidx.health.connect.client.records.OxygenSaturationRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RespiratoryRateRecord
@@ -72,6 +73,7 @@ private val typesWithDuration = setOf(
     HealthConstants.FLIGHTS_CLIMBED,
     HealthConstants.SKIN_TEMPERATURE,
     HealthConstants.SLEEP_SESSION,
+    HealthConstants.MINDFULNESS,
 ) + sleepStageTypes.keys
 
 /**
@@ -181,6 +183,11 @@ internal fun valueRecord(type: String, startTime: Long, endTime: Long, value: Do
             startTime = start, startZoneOffset = null, endTime = end, endZoneOffset = null,
             stages = listOf(SleepSessionRecord.Stage(start, end, sleepStageTypes.getValue(type))),
             metadata = metadata,
+        )
+        // A session is its time span, as HealthKit's mindful session, and writeData has no session type.
+        HealthConstants.MINDFULNESS -> MindfulnessSessionRecord(
+            startTime = start, startZoneOffset = null, endTime = end, endZoneOffset = null, metadata = metadata,
+            mindfulnessSessionType = MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
         )
         in dedicatedWriteMethods -> {
             Log.e("FLUTTER_HEALTH::ERROR", "You must use the [${dedicatedWriteMethods.getValue(type)}] API")

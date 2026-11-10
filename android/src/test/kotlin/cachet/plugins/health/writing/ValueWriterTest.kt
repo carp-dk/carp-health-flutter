@@ -62,7 +62,7 @@ class ValueWriterTest {
     fun aValueWithADurationThatEndsWhenItStartsRepliesAnInvalidArgumentError() {
         // The plugin's own check, before the record is built, as on every Android version before. It used
         // to throw out of onMethodCall, which Flutter replied as the generic code 'error'.
-        for (type in listOf(HealthConstants.STEPS, HealthConstants.SLEEP_DEEP)) {
+        for (type in listOf(HealthConstants.STEPS, HealthConstants.SLEEP_DEEP, HealthConstants.MINDFULNESS)) {
             for (endTime in listOf(start, start - 1)) {
                 val call = write(type, start, endTime, 10.0)
                 for (method in listOf(writer::writeData, writer::writeDataUUID)) {

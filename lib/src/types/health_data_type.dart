@@ -93,7 +93,14 @@ enum HealthDataType {
   ///  * Android: the samples of Health Connect's `CyclingPedalingCadenceRecord`.
   CYCLING_CADENCE,
 
+  /// Mindfulness sessions, such as meditation, in minutes: the value of a
+  /// session is the minutes from its start to its end.
+  ///
+  ///  * iOS: HealthKit's `HKCategoryTypeIdentifier.mindfulSession`.
+  ///  * Android: Health Connect's `MindfulnessSessionRecord`, on devices whose
+  ///    Health Connect has them ([Health.isMindfulnessSessionAvailable]).
   MINDFULNESS,
+
   WATER,
   SLEEP_ASLEEP,
   SLEEP_AWAKE_IN_BED,

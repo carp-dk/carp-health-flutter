@@ -142,6 +142,9 @@ class HealthDataConverter {
                     ChronoUnit.MINUTES.between(record.startTime, record.endTime)
                 )
             )
+            is MindfulnessSessionRecord -> listOf(createIntervalRecord(
+                metadata, record.startTime, record.endTime, ChronoUnit.MINUTES.between(record.startTime, record.endTime)
+            ))
             
             is MenstruationFlowRecord -> listOf(
                 createInstantRecord(metadata, record.time, record.flow)

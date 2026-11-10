@@ -1,8 +1,8 @@
 part of '../../health.dart';
 
 /// Part of [Health]: the optional Health Connect features (reading health data
-/// history, reading in the background, and skin temperature), and the
-/// permissions for the two reads. Android only.
+/// history, reading in the background, skin temperature and mindfulness
+/// sessions), and the permissions for the two reads. Android only.
 // ignore: library_private_types_in_public_api
 mixin HealthConnectFeatures on _HealthSupport {
   /// Checks if the Health Data History feature is available.
@@ -139,6 +139,34 @@ mixin HealthConnectFeatures on _HealthSupport {
       return available ?? false;
     } catch (e) {
       debugPrint('$runtimeType - Exception in isSkinTemperatureAvailable(): $e');
+      return false;
+    }
+  }
+
+  /// Checks whether the Health Connect on this Android device has mindfulness
+  /// sessions ([HealthDataType.MINDFULNESS]). Health Connect added them after
+  /// its first release, so this depends on the Health Connect version on the
+  /// device. Where it does not have them, reading or writing
+  /// [HealthDataType.MINDFULNESS] throws a [HealthException] with
+  /// [HealthErrorCode.notSupported].
+  ///
+  /// See this for more info: https://developer.android.com/reference/androidx/health/connect/client/HealthConnectFeatures#FEATURE_MINDFULNESS_SESSION()
+  ///
+  /// Returns true on iOS, where HealthKit has mindful sessions, and false if
+  /// Health Connect is not available or an error occurs.
+  Future<bool> isMindfulnessSessionAvailable() async {
+    if (platformType == HealthPlatformType.appleHealth) return true;
+
+    try {
+      final status = await getHealthConnectSdkStatus();
+      if (status != HealthConnectSdkStatus.sdkAvailable) {
+        return false;
+      }
+
+      final available = await Health._channel.invokeMethod<bool>('isMindfulnessSessionAvailable');
+      return available ?? false;
+    } catch (e) {
+      debugPrint('$runtimeType - Exception in isMindfulnessSessionAvailable(): $e');
       return false;
     }
   }
