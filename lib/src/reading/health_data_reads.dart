@@ -50,6 +50,17 @@ mixin HealthDataReads on _HealthPageReads {
   /// the stages of a sleep session come together) and newest first on iOS (by
   /// end time), without duplicates.
   ///
+  /// With a [limit], at most that many of the newest points of each type come
+  /// back, newest end time first, for example the latest height or weight,
+  /// without reading every page of the range. Null or 0 means no limit, and a
+  /// negative [limit] throws an [ArgumentError]. On Android a limited read is
+  /// one Health Connect call for the [limit] records that start last in the
+  /// range (at most 5000). It does not look for sleep sessions and records of
+  /// a series, such as heart rate, that began before [startTime], and applies
+  /// [recordingMethodsToFilter] to the records read, so fewer than [limit]
+  /// points can come back although the range holds more (iOS applies the
+  /// filter in its query).
+  ///
   /// Sleep data points are returned when they start at or after [startTime]
   /// and before [endTime], so reads of consecutive ranges return each of them
   /// once: a [HealthDataType.SLEEP_SESSION] (Android) when the session starts
@@ -76,7 +87,10 @@ mixin HealthDataReads on _HealthPageReads {
     required DateTime startTime,
     required DateTime endTime,
     List<RecordingMethod> recordingMethodsToFilter = const [],
+    int? limit,
   }) async {
+    if (limit != null) RangeError.checkNotNegative(limit, 'limit');
+    final newest = limit == 0 ? null : limit;
     final mode = isolateMode;
     final size = pageSize;
     _checkPreferredUnits(types, preferredUnits);
@@ -93,6 +107,22 @@ mixin HealthDataReads on _HealthPageReads {
           deviceId: read.deviceId,
           pageSize: size,
           mode: mode,
+          limit: newest,
+        );
+        dataPoints.addAll(page.points);
+        continue;
+      }
+      if (newest != null) {
+        final page = await _readNewest(
+          type,
+          startTime,
+          endTime,
+          recordingMethodsToFilter,
+          preferredUnits?[type],
+          deviceId: read.deviceId,
+          pageSize: size,
+          mode: mode,
+          limit: newest,
         );
         dataPoints.addAll(page.points);
         continue;

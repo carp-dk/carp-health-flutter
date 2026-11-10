@@ -34,6 +34,8 @@ internal class LegacyDataReader(
         val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
         val healthConnectData = mutableListOf<Map<String, Any?>>()
         val recordingMethodsToFilter = call.argument<List<Int>>("recordingMethodsToFilter")!!
+        // With a 'limit', only the records that start last, as getDataPage reads them.
+        val limit = call.recordLimit()
 
         Log.i(
             "FLUTTER_HEALTH",
@@ -52,7 +54,8 @@ internal class LegacyDataReader(
                         endTime,
                         recordingMethodsToFilter,
                         healthConnectData,
-                        grantedPermissions
+                        grantedPermissions,
+                        limit
                     )
                     result.success(healthConnectData)
                     return@launch
@@ -62,11 +65,12 @@ internal class LegacyDataReader(
                 if (classType != null &&
                     grantedPermissions.contains(HealthPermission.getReadPermission(classType))
                 ) {
-                    val records = readAllRecords(classType, startTime, endTime)
+                    val records = readRecords(classType, startTime, endTime, limit)
                     val recordIds = records.mapTo(HashSet()) { it.metadata.id }
                     // The records that began before the range and reach into it, as getDataPage reads them.
                     val earlier =
                         when {
+                            limit != null -> emptyList()
                             classType in HealthDataConverter.seriesTypes ->
                                 lookback.readLookbackRecords(classType, startTime, LEGACY_PROBE_RECORDS, recordIds)
                             isSleepStageType(dataType) -> sleepLookback.readLookbackSessions(startTime, recordIds)
@@ -94,11 +98,14 @@ internal class LegacyDataReader(
         }
     }
 
-    private suspend fun readAllRecords(
+    /** The records in the range, or with a [limit] the [limit] that start last ([readNewestRecords]). */
+    private suspend fun readRecords(
         classType: KClass<out Record>,
         startTime: Instant,
         endTime: Instant,
+        limit: Int?,
     ): List<Record> {
+        if (limit != null) return healthConnectClient.readNewestRecords(classType, startTime, endTime, limit)
         val records = mutableListOf<Record>()
         var pageToken: String? = null
         do {
@@ -122,6 +129,7 @@ internal class LegacyDataReader(
         recordingMethodsToFilter: List<Int>,
         healthConnectData: MutableList<Map<String, Any?>>,
         grantedPermissions: Set<String>,
+        limit: Int?,
     ) {
         val workoutPermission = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
         if (!grantedPermissions.contains(workoutPermission)) {
@@ -132,7 +140,7 @@ internal class LegacyDataReader(
             return
         }
 
-        val sessions = readAllRecords(ExerciseSessionRecord::class, startTime, endTime)
+        val sessions = readRecords(ExerciseSessionRecord::class, startTime, endTime, limit)
             .filterIsInstance<ExerciseSessionRecord>()
         routes.appendWorkoutRoutes(sessions, recordingMethodsToFilter, healthConnectData)
     }

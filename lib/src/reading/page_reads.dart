@@ -6,8 +6,9 @@ mixin _HealthPageReads on _HealthReadSupport {
   /// Reads [type] one native page at a time, as described for
   /// [Health.getHealthDataPages]. [newestFirst] selects HealthKit's order from
   /// before 14.0.0 (newest end date first) for [Health.getHealthDataFromTypes];
-  /// Health Connect ignores it. Once [cancellation] is set, no further platform
-  /// call is made.
+  /// Health Connect ignores it. A [limit] is sent for [_readNewest]: Health
+  /// Connect then replies with the [limit] records that start last as the only
+  /// page. Once [cancellation] is set, no further platform call is made.
   Stream<HealthDataPage> _readPages(
     HealthDataType type,
     DateTime startTime,
@@ -18,16 +19,18 @@ mixin _HealthPageReads on _HealthReadSupport {
     required int pageSize,
     required HealthIsolateMode mode,
     required bool newestFirst,
+    int? limit,
     _ReadCancellation? cancellation,
   }) async* {
     final request = _ParseRequest(type, unit?.name ?? dataTypeToUnit[type]?.name, deviceId);
-    // The arguments of the native getData method before 14.0.0.
+    // The arguments of the native getData method before 14.0.0, whose iOS side also read 'limit'.
     final legacyArgs = <String, dynamic>{
       'dataTypeKey': type.name,
       'dataUnitKey': request.unitName,
       'startTime': startTime.millisecondsSinceEpoch,
       'endTime': endTime.millisecondsSinceEpoch,
       'recordingMethodsToFilter': recordingMethodsToFilter.map((e) => e.toInt()).toList(),
+      'limit': ?limit,
     };
     String? token;
     var first = true;
@@ -91,9 +94,56 @@ mixin _HealthPageReads on _HealthReadSupport {
     }
   }
 
+  /// The newest [limit] points of [type] as its one and last page, for
+  /// [Health.getHealthDataFromTypes]: pages of at most [limit] points are read
+  /// newest first until [limit] points are in. A page can hold more (the
+  /// samples of a series record on Android, samples that end at the same time
+  /// on iOS), so the points are sorted by end time, newest first, and cut to
+  /// [limit]. Once [cancellation] is set, no further platform call is made.
+  Future<HealthDataPage> _readNewest(
+    HealthDataType type,
+    DateTime startTime,
+    DateTime endTime,
+    List<RecordingMethod> recordingMethodsToFilter,
+    HealthDataUnit? unit, {
+    required String deviceId,
+    required int pageSize,
+    required HealthIsolateMode mode,
+    required int limit,
+    _ReadCancellation? cancellation,
+  }) async {
+    final points = <HealthDataPoint>[];
+    var readPermissionDenied = false;
+    final pages = _readPages(
+      type,
+      startTime,
+      endTime,
+      recordingMethodsToFilter,
+      unit,
+      deviceId: deviceId,
+      pageSize: limit < pageSize ? limit : pageSize,
+      mode: mode,
+      newestFirst: true,
+      limit: limit,
+      cancellation: cancellation,
+    );
+    await for (final page in pages) {
+      points.addAll(page.points);
+      readPermissionDenied |= page.readPermissionDenied;
+      if (points.length >= limit) break;
+    }
+    return HealthDataPage(
+      type: type,
+      points: _newest(points, limit),
+      isLastPageForType: true,
+      readPermissionDenied: readPermissionDenied,
+    );
+  }
+
   /// Calculate the BMI using the last observed height and weight values, as
-  /// the one and last page of [HealthDataType.BODY_MASS_INDEX]. Once
-  /// [cancellation] is set, no further height or weight page is read.
+  /// the one and last page of [HealthDataType.BODY_MASS_INDEX]. With a
+  /// [limit], only the latest height and the newest [limit] weights are read.
+  /// Once [cancellation] is set, no further height or weight page is read.
   Future<HealthDataPage> _computeAndroidBMI(
     DateTime startTime,
     DateTime endTime,
@@ -101,11 +151,28 @@ mixin _HealthPageReads on _HealthReadSupport {
     required String deviceId,
     required int pageSize,
     required HealthIsolateMode mode,
+    int? limit,
     _ReadCancellation? cancellation,
   }) async {
     const dataType = HealthDataType.BODY_MASS_INDEX;
     var readPermissionDenied = false;
-    Future<List<HealthDataPoint>> readAll(HealthDataType type) async {
+    Future<List<HealthDataPoint>> readAll(HealthDataType type, int? limit) async {
+      if (limit != null) {
+        final page = await _readNewest(
+          type,
+          startTime,
+          endTime,
+          recordingMethodsToFilter,
+          null,
+          deviceId: deviceId,
+          pageSize: pageSize,
+          mode: mode,
+          limit: limit,
+          cancellation: cancellation,
+        );
+        readPermissionDenied |= page.readPermissionDenied;
+        return page.points;
+      }
       final points = <HealthDataPoint>[];
       final pages = _readPages(
         type,
@@ -126,7 +193,7 @@ mixin _HealthPageReads on _HealthReadSupport {
       return points;
     }
 
-    final heights = await readAll(HealthDataType.HEIGHT);
+    final heights = await readAll(HealthDataType.HEIGHT, limit == null ? null : 1);
     if (heights.isEmpty) {
       return HealthDataPage(
         type: dataType,
@@ -135,7 +202,7 @@ mixin _HealthPageReads on _HealthReadSupport {
         readPermissionDenied: readPermissionDenied,
       );
     }
-    final weights = await readAll(HealthDataType.WEIGHT);
+    final weights = await readAll(HealthDataType.WEIGHT, limit);
 
     // The latest height; of heights measured at the same time, the last one read.
     final height = heights.reduce((latest, next) => next.dateFrom.isBefore(latest.dateFrom) ? latest : next);
@@ -167,4 +234,15 @@ mixin _HealthPageReads on _HealthReadSupport {
       readPermissionDenied: readPermissionDenied,
     );
   }
+}
+
+/// The [limit] points of [points] that end last, newest first. Points that end
+/// at the same time keep their order.
+List<HealthDataPoint> _newest(List<HealthDataPoint> points, int limit) {
+  final byEnd = points.indexed.toList()
+    ..sort((a, b) {
+      final order = b.$2.dateTo.compareTo(a.$2.dateTo);
+      return order != 0 ? order : a.$1.compareTo(b.$1);
+    });
+  return [for (final (_, point) in byEnd.take(limit)) point];
 }

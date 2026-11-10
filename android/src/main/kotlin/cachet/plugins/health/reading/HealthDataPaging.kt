@@ -101,6 +101,8 @@ internal class DataPageRequest(
     val pageSize: Int,
     val token: DataPageToken?,
     val sliceToken: SliceToken? = null,
+    /** Read only the records that start last, as the one page ([readNewestRecords]); null for all. */
+    val limit: Int? = null,
 ) {
     /** The Health Connect record type to read. */
     val recordType: KClass<out Record> = recordTypeFor(dataType)
@@ -148,6 +150,7 @@ internal class DataPageRequest(
                     ?: DEFAULT_PAGE_SIZE,
                 token = if (sliced) null else DataPageToken.decode(pageToken),
                 sliceToken = if (sliced) SliceToken.decode(pageToken) else null,
+                limit = call.recordLimit(),
             )
         }
     }
