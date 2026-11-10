@@ -67,5 +67,7 @@ dependencies {
     implementation "androidx.fragment:fragment-ktx:1.8.9"
 
     testImplementation "junit:junit:4.13.2"
+    // ArchTaskExecutor, to pass the lifecycle library's main thread check in JVM tests.
+    testImplementation "androidx.arch.core:core-runtime:2.2.0"
 
 }

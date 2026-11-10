@@ -2,17 +2,25 @@ package cachet.plugins.health
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.arch.core.executor.ArchTaskExecutor
+import androidx.arch.core.executor.TaskExecutor
 import androidx.core.app.ActivityOptionsCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.savedstate.SavedStateRegistryController
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -59,6 +67,24 @@ class HealthPermissionRequestsTest {
             assertNull(name, result.code)
         }
         assertNull(requests.mResult)
+    }
+
+    @Test
+    fun aComponentActivityThatHasStartedGetsNoLauncherAndRequestsReplyFalse() = onMainThread {
+        val created = componentActivity(Lifecycle.State.CREATED)
+        val requests = HealthPermissionRequests({ created }, { error("unused") })
+        requests.registerLauncher(created)
+        assertNotNull(requests.healthConnectRequestPermissionsLauncher)
+
+        // As when a FlutterFragment with a cached engine is added to a running activity.
+        val resumed = componentActivity(Lifecycle.State.RESUMED)
+        // Used to throw IllegalStateException out of onAttachedToActivity, which crashed the app.
+        requests.registerLauncher(resumed)
+        assertNull(requests.healthConnectRequestPermissionsLauncher)
+        val result = RecordingResult()
+        requests.requestAuthorization(requestSteps, result)
+        assertEquals(1, result.replies)
+        assertEquals(false, result.value)
     }
 
     @Test
@@ -153,6 +179,45 @@ class HealthPermissionRequestsTest {
             requests.onHealthConnectPermissionCallback(setOf(readSteps))
         }
         assertNull(requests.mResult)
+    }
+
+    /**
+     * A ComponentActivity whose lifecycle is at [state]. ON_CREATE needs the saved state that
+     * onCreate restores first, and onCreate itself needs more of Android than the JVM tests have.
+     * The private field that holds the saved state is found by its type, as its name changed in
+     * androidx.activity 1.9.
+     */
+    private fun componentActivity(state: Lifecycle.State): ComponentActivity {
+        val activity = ActivityWithoutApplication()
+        val savedState = ComponentActivity::class.java.declaredFields
+            .single { it.type == SavedStateRegistryController::class.java }
+        savedState.isAccessible = true
+        (savedState.get(activity) as SavedStateRegistryController).performRestore(null)
+        (activity.lifecycle as LifecycleRegistry).currentState = state
+        return activity
+    }
+
+    /**
+     * A ComponentActivity whose view models need no Application, which the activities of the JVM
+     * tests do not have: ON_CREATE restores the saved state handles, which are a view model.
+     */
+    private class ActivityWithoutApplication : ComponentActivity() {
+        private val store = ViewModelStore()
+        override val viewModelStore: ViewModelStore get() = store
+    }
+
+    /** Runs [test] with the lifecycle library taking this thread for the main thread, as it checks. */
+    private fun onMainThread(test: () -> Unit) {
+        ArchTaskExecutor.getInstance().setDelegate(object : TaskExecutor() {
+            override fun executeOnDiskIO(runnable: Runnable) = runnable.run()
+            override fun postToMainThread(runnable: Runnable) = runnable.run()
+            override fun isMainThread() = true
+        })
+        try {
+            test()
+        } finally {
+            ArchTaskExecutor.getInstance().setDelegate(null)
+        }
     }
 
     /** The launcher of the permission dialog, which records the permissions it is launched with. */

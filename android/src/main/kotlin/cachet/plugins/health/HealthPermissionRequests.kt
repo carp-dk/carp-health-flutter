@@ -35,8 +35,10 @@ internal class HealthPermissionRequests(
 
     /**
      * Registers the launcher of the permission dialog with [activity]. The launcher needs a
-     * ComponentActivity, such as FlutterFragmentActivity. Any other activity, such as the default
-     * FlutterActivity, gets no launcher and an error naming the fix, and permission requests
+     * ComponentActivity, such as FlutterFragmentActivity, that has not started yet. Any other
+     * activity, such as the default FlutterActivity, gets no launcher and an error naming the fix,
+     * and so does one the plugin is attached to once it has started (for example when a
+     * FlutterFragment with a cached engine is added to a running activity). Permission requests
      * then return false.
      */
     fun registerLauncher(activity: Activity?) {
@@ -57,10 +59,24 @@ internal class HealthPermissionRequests(
         val requestPermissionActivityContract =
                 PermissionController.createRequestPermissionResultContract()
 
+        // An activity that has started throws IllegalStateException, which would escape
+        // onAttachedToActivity and crash the app.
         healthConnectRequestPermissionsLauncher =
-                componentActivity.registerForActivityResult(
-                        requestPermissionActivityContract
-                ) { granted -> onHealthConnectPermissionCallback(granted) }
+                try {
+                    componentActivity.registerForActivityResult(
+                            requestPermissionActivityContract
+                    ) { granted -> onHealthConnectPermissionCallback(granted) }
+                } catch (e: IllegalStateException) {
+                    Log.e(
+                            "FLUTTER_HEALTH",
+                            "Cannot register the Health Connect permission launcher with " +
+                                    "${componentActivity.javaClass.name}, so Health Connect " +
+                                    "permissions cannot be requested: ${e.message} Attach the " +
+                                    "Flutter engine to the activity before it starts, for " +
+                                    "example by adding the FlutterFragment in onCreate."
+                    )
+                    null
+                }
     }
 
     /** Drops the launcher of the detached activity. */
