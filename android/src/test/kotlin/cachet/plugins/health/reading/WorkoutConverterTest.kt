@@ -70,6 +70,17 @@ class WorkoutConverterTest {
         for (request in requests) assertEquals(setOf(DataOrigin(watch)), request.dataOriginFilter)
     }
 
+    @Test
+    fun aTotalIsReadOnlyWithPermissionToReadIt() {
+        // An app that may read distances only: Google Play asks apps not to request more than they use.
+        val workout = readRun(DistanceRecord::class)
+
+        assertEquals(listOf(DistanceRecord::class), requests.map { it.recordType })
+        assertEquals(3000.0, workout["totalDistance"])
+        assertNull(workout["totalEnergyBurned"])
+        assertNull(workout["totalSteps"])
+    }
+
     /** The workout that [run] reads as, with permission to read the [readable] record types. */
     private fun readRun(vararg readable: KClass<out Record>): Map<String, Any?> {
         val granted = readable.mapTo(HashSet()) { HealthPermission.getReadPermission(it) }
