@@ -37,6 +37,7 @@ extension HealthDataWriter {
             result(false)
             return
         }
+        guard validateSampleDates(start: dateFrom, end: dateTo, of: [sampleType], result: result) else { return }
 
         let sample: HKObject
 
@@ -117,6 +118,7 @@ extension HealthDataWriter {
             result("")
             return
         }
+        guard validateSampleDates(start: dateFrom, end: dateTo, of: [sampleType], result: result) else { return }
 
         let sample: HKObject
 
@@ -181,6 +183,7 @@ extension HealthDataWriter {
         guard let categoryType = HKSampleType.categoryType(forIdentifier: .mindfulSession) else {
             throw PluginError(message: "Invalid Mindfulness Session Type")
         }
+        guard validateSampleDates(start: dateFrom, end: dateTo, of: [categoryType], result: result) else { return }
 
         // The duration is tracked by the start and end dates, not by the value
         let sample = HKCategorySample(

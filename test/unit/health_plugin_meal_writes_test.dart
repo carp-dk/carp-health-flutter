@@ -51,5 +51,21 @@ void main() {
       expect(args['carbs'], 60);
       expect(args['protein'], 20);
     });
+
+    test('sends thiamin under the key both platforms read', () async {
+      ctx.channel.when('writeMeal', true);
+
+      await ctx.health.writeMeal(
+        mealType: MealType.BREAKFAST,
+        startTime: HealthFixtures.start,
+        endTime: HealthFixtures.end,
+        b1Thiamin: 0.001,
+      );
+
+      final args = Map<String, dynamic>.from(ctx.channel.lastCallFor('writeMeal')!.arguments as Map);
+      // The key NutritionHealthValue reads too, so a meal reads back with its thiamin.
+      expect(args['b1_thiamine'], 0.001);
+      expect(args.containsKey('b1_thiamin'), isFalse);
+    });
   });
 }

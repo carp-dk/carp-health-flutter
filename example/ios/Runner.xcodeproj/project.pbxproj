@@ -21,6 +21,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		ABB05D872D6BB16700FA4740 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = ABB05D862D6BB16700FA4740 /* FlutterGeneratedPluginSwiftPackage */; };
 		ABCED1C7302F45E800E1B4CC /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = ABCED1C6302F45E800E1B4CC /* FlutterGeneratedPluginSwiftPackage */; };
+		BEA7968C4EE40913C41030B9 /* SampleDatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */; };
 		E1D6C479530D416E8E45A741 /* AudiogramTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4901810075486EBCA0D487 /* AudiogramTests.swift */; };
 		F7F3CE40ADB3F84A132AB2AB /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 331C3466792E0AE145779DB5 /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
@@ -74,6 +75,7 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		ABEE568C2D6B9E4300551983 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDatesTests.swift; sourceTree = "<group>"; };
 		C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutWriteTests.swift; sourceTree = "<group>"; };
 		ED4901810075486EBCA0D487 /* AudiogramTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudiogramTests.swift; sourceTree = "<group>"; };
 		F97011D03CBC7A35D177D127 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
 				2A1208A9E4F2542C9DB5C2ED /* IntervalTests.swift */,
 				ED4901810075486EBCA0D487 /* AudiogramTests.swift */,
+				BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */,
 				C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */,
 				5C8C35C444C54B37C22386BE /* WorkoutTypeTests.swift */,
 			);
@@ -383,6 +386,7 @@
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
 				2BD5D95B309ADB489BDF574E /* IntervalTests.swift in Sources */,
 				E1D6C479530D416E8E45A741 /* AudiogramTests.swift in Sources */,
+				BEA7968C4EE40913C41030B9 /* SampleDatesTests.swift in Sources */,
 				1C1BF8D1AEAB4B7DAB0717F5 /* WorkoutWriteTests.swift in Sources */,
 				5DDC8B9553DD970548CEEFEB /* WorkoutTypeTests.swift in Sources */,
 			);

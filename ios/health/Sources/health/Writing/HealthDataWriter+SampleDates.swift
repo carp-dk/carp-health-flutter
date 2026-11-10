@@ -1,3 +1,4 @@
+import Flutter
 import HealthKit
 
 extension HealthDataWriter {
@@ -18,6 +19,22 @@ extension HealthDataWriter {
                 message: "A \(type.identifier) sample can last at most "
                     + "\(Int(type.maximumAllowedDuration)) seconds"
             )
+        }
+    }
+
+    /// Checks the time range of the samples a write is about to create, one or more of each of
+    /// [types], and replies an INVALID_ARGUMENT error for a range one of the types does not accept.
+    /// - Returns: false after replying the error: the write must then stop without replying again
+    func validateSampleDates(start: Date, end: Date, of types: [HKSampleType], result: FlutterResult) -> Bool {
+        do {
+            for type in types {
+                try checkSampleDates(start: start, end: end, of: type)
+            }
+            return true
+        } catch {
+            let message = (error as? PluginError)?.message ?? error.localizedDescription
+            result(FlutterError(code: "INVALID_ARGUMENT", message: message, details: nil))
+            return false
         }
     }
 }

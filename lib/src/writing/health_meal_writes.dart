@@ -128,7 +128,7 @@ mixin HealthMealWrites on _HealthSupport {
       'fat': fatTotal,
       'caffeine': caffeine,
       'vitamin_a': vitaminA,
-      'b1_thiamin': b1Thiamin,
+      'b1_thiamine': b1Thiamin,
       'b2_riboflavin': b2Riboflavin,
       'b3_niacin': b3Niacin,
       'b5_pantothenic_acid': b5PantothenicAcid,

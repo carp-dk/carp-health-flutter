@@ -28,6 +28,7 @@ extension HealthDataWriter {
         guard let categoryType = HKSampleType.categoryType(forIdentifier: .menstrualFlow) else {
             throw PluginError(message: "Invalid Menstrual Flow Type")
         }
+        guard validateSampleDates(start: dateTime, end: dateTime, of: [categoryType], result: result) else { return }
 
         let metadata =
             [

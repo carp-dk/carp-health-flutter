@@ -19,6 +19,7 @@ extension HealthDataWriter {
         let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
 
         let type = HKSampleType.quantityType(forIdentifier: .insulinDelivery)!
+        guard validateSampleDates(start: dateFrom, end: dateTo, of: [type], result: result) else { return }
         let quantity = HKQuantity(unit: HKUnit.internationalUnit(), doubleValue: units)
         let metadata = [HKMetadataKeyInsulinDeliveryReason: reason]
 

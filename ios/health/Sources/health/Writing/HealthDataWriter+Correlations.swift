@@ -24,17 +24,23 @@ extension HealthDataWriter {
             HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry),
         ]
 
+        let systolicType = HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!
+        let diastolicType = HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!
+        let bpCorrelationType = HKCorrelationType.correlationType(forIdentifier: .bloodPressure)!
+        guard validateSampleDates(
+            start: dateFrom, end: dateTo, of: [systolicType, diastolicType, bpCorrelationType], result: result
+        ) else { return }
+
         let systolic_sample = HKQuantitySample(
-            type: HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!,
+            type: systolicType,
             quantity: HKQuantity(unit: HKUnit.millimeterOfMercury(), doubleValue: systolic),
             start: dateFrom, end: dateTo, metadata: metadata
         )
         let diastolic_sample = HKQuantitySample(
-            type: HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!,
+            type: diastolicType,
             quantity: HKQuantity(unit: HKUnit.millimeterOfMercury(), doubleValue: diastolic),
             start: dateFrom, end: dateTo, metadata: metadata
         )
-        let bpCorrelationType = HKCorrelationType.correlationType(forIdentifier: .bloodPressure)!
         let bpCorrelation = Set(arrayLiteral: systolic_sample, diastolic_sample)
         let blood_pressure_sample = HKCorrelation(
             type: bpCorrelationType, start: dateFrom, end: dateTo, objects: bpCorrelation
@@ -59,35 +65,48 @@ extension HealthDataWriter {
     ///   - result: Flutter result callback
     func writeMeal(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
         guard let arguments = call.arguments as? NSDictionary,
-              let name = (arguments["name"] as? String?),
               let startTime = (arguments["start_time"] as? NSNumber),
               let endTime = (arguments["end_time"] as? NSNumber),
-              let mealType = (arguments["meal_type"] as? String?),
               let recordingMethod = arguments["recordingMethod"] as? Int
         else {
             throw PluginError(message: "Invalid Arguments")
         }
+        // Optional: Dart sends null (NSNull) when they are not set.
+        let name = arguments["name"] as? String
+        let mealType = arguments["meal_type"] as? String
 
         let dateFrom = HealthUtilities.dateFromMilliseconds(startTime.doubleValue)
         let dateTo = HealthUtilities.dateFromMilliseconds(endTime.doubleValue)
-
-        let mealTypeString = mealType ?? "UNKNOWN"
 
         let isManualEntry = recordingMethod == HealthConstants.RecordingMethod.manual.rawValue
 
         var metadata =
             [
-                "HKFoodMeal": mealTypeString,
+                "HKFoodMeal": mealType ?? "UNKNOWN",
                 HKMetadataKeyWasUserEntered: NSNumber(value: isManualEntry),
             ] as [String: Any]
-        if name != nil {
-            metadata[HKMetadataKeyFoodType] = "\(name!)"
+        if let name {
+            metadata[HKMetadataKeyFoodType] = name
         }
+
+        // The meal and a sample of each nutrient the call sets, all over the meal's time range.
+        let foodType = HKCorrelationType.correlationType(forIdentifier: .food)!
+        let nutrientTypes: [HKSampleType] = HealthConstants.NUTRITION_KEYS.compactMap { key, identifier in
+            arguments[key] is Double ? HKSampleType.quantityType(forIdentifier: identifier) : nil
+        }
+        // HealthKit raises an exception (crashing the app) for a meal without samples.
+        guard !nutrientTypes.isEmpty else {
+            let message = "A meal needs at least one nutrient value (HealthKit has no type for fatTransMonoenoic)"
+            result(FlutterError(code: "INVALID_ARGUMENT", message: message, details: nil))
+            return
+        }
+        guard validateSampleDates(
+            start: dateFrom, end: dateTo, of: nutrientTypes + [foodType], result: result
+        ) else { return }
 
         var nutrition = Set<HKSample>()
         for (key, identifier) in HealthConstants.NUTRITION_KEYS {
-            let value = arguments[key] as? Double
-            guard let unwrappedValue = value else { continue }
+            guard let unwrappedValue = arguments[key] as? Double else { continue }
             let unit =
                 key == "calories"
                     ? HKUnit.kilocalorie()
@@ -101,11 +120,8 @@ extension HealthDataWriter {
         }
 
         if #available(iOS 15.0, *) {
-            let type = HKCorrelationType.correlationType(
-                forIdentifier: HKCorrelationTypeIdentifier.food
-            )!
             let meal = HKCorrelation(
-                type: type, start: dateFrom, end: dateTo, objects: nutrition, metadata: metadata
+                type: foodType, start: dateFrom, end: dateTo, objects: nutrition, metadata: metadata
             )
 
             healthStore.save(
