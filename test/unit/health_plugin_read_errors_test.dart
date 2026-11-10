@@ -4,6 +4,7 @@ import 'package:health/health.dart';
 
 import '../support/error_matchers.dart';
 import '../support/fixtures.dart';
+import '../support/health_on_ios.dart';
 import '../support/health_test_context.dart';
 import '../support/read_helpers.dart';
 
@@ -151,6 +152,30 @@ void main() {
       await expectLater(ctx.pages(types), emitsInOrder([emitsError(notSupported), emitsDone]));
       await expectLater(
         ctx.health.getHealthIntervalDataFromTypes(
+          startDate: HealthFixtures.start,
+          endDate: HealthFixtures.end,
+          types: types,
+          interval: 60,
+        ),
+        throwsA(notSupported),
+      );
+      expect(ctx.channel.calls, isEmpty);
+    });
+
+    test('TOTAL_CALORIES_BURNED, which HealthKit does not have, fails an iOS read before anything is read', () async {
+      final health = HealthOnIOS();
+      const types = [HealthDataType.STEPS, HealthDataType.TOTAL_CALORIES_BURNED];
+      final notSupported = isA<HealthException>()
+          .having((e) => e.errorCode, 'errorCode', HealthErrorCode.notSupported)
+          .having((e) => e.dataType, 'dataType', HealthDataType.TOTAL_CALORIES_BURNED);
+
+      expect(health.isDataTypeAvailable(HealthDataType.TOTAL_CALORIES_BURNED), isFalse);
+      await expectLater(
+        health.getHealthDataFromTypes(types: types, startTime: HealthFixtures.start, endTime: HealthFixtures.end),
+        throwsA(notSupported),
+      );
+      await expectLater(
+        health.getHealthIntervalDataFromTypes(
           startDate: HealthFixtures.start,
           endDate: HealthFixtures.end,
           types: types,

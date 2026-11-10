@@ -36,8 +36,11 @@ mixin HealthDataWrites on _HealthSupport {
   /// ([Health.writeMenstruationFlow], which takes the start-of-cycle flag
   /// HealthKit needs). Throws a [HealthException] with
   /// [HealthErrorCode.notSupported] for a type this platform does not have,
-  /// such as [HealthDataType.INSULIN_DELIVERY] on Android, and on iOS for
+  /// such as [HealthDataType.INSULIN_DELIVERY] on Android and
+  /// [HealthDataType.TOTAL_CALORIES_BURNED] on iOS, and on iOS for
   /// [HealthDataType.SLEEP_UNKNOWN]: HealthKit has no unknown sleep value.
+  /// On iOS, throws an [ArgumentError] for a type HealthKit lets apps only
+  /// read, listed in [Health.requestAuthorization].
   /// Throws an [ArgumentError] if [endTime] is before [startTime]. On Android,
   /// throws a [PlatformException] with code INVALID_ARGUMENT if [endTime]
   /// equals [startTime] to the millisecond (also when it is not given) for
@@ -71,15 +74,6 @@ mixin HealthDataWrites on _HealthSupport {
     endTime ??= startTime;
     if (startTime.isAfter(endTime)) {
       throw ArgumentError("startTime must be equal or earlier than endTime");
-    }
-    if ({
-          HealthDataType.HIGH_HEART_RATE_EVENT,
-          HealthDataType.LOW_HEART_RATE_EVENT,
-          HealthDataType.IRREGULAR_HEART_RATE_EVENT,
-          HealthDataType.ELECTROCARDIOGRAM,
-        }.contains(type) &&
-        Platform.isIOS) {
-      throw ArgumentError("$type - iOS does not support writing this data type in HealthKit");
     }
     // Read only on both platforms
     if ({HealthDataType.POWER, HealthDataType.CYCLING_CADENCE}.contains(type)) {
@@ -164,15 +158,6 @@ mixin HealthDataWrites on _HealthSupport {
       throw ArgumentError("startTime must be equal or earlier than endTime");
     }
 
-    if ({
-          HealthDataType.HIGH_HEART_RATE_EVENT,
-          HealthDataType.LOW_HEART_RATE_EVENT,
-          HealthDataType.IRREGULAR_HEART_RATE_EVENT,
-          HealthDataType.ELECTROCARDIOGRAM,
-        }.contains(type) &&
-        Platform.isIOS) {
-      throw ArgumentError("$type - iOS does not support writing this data type in HealthKit");
-    }
     // Read only on both platforms
     if ({HealthDataType.POWER, HealthDataType.CYCLING_CADENCE}.contains(type)) {
       throw ArgumentError("$type - writing this data type is not supported");
@@ -216,9 +201,9 @@ mixin HealthDataWrites on _HealthSupport {
   }
 
   /// Throws for a [type] that [writeHealthData] and [writeHealthDataUUID] do
-  /// not write: an [ArgumentError] for a type with a write method of its own,
-  /// and a [HealthException] with [HealthErrorCode.notSupported] for a type
-  /// this platform cannot write.
+  /// not write: an [ArgumentError] for a type with a write method of its own
+  /// or that HealthKit lets apps only read, and a [HealthException] with
+  /// [HealthErrorCode.notSupported] for a type this platform cannot write.
   void _checkWritable(HealthDataType type) {
     if (type == HealthDataType.WORKOUT) {
       throw ArgumentError("Adding workouts should be done using the writeWorkoutData method.");
@@ -248,6 +233,9 @@ mixin HealthDataWrites on _HealthSupport {
     // writeSleepSession keeps an unknown stage as time in bed instead.
     if (type == HealthDataType.SLEEP_UNKNOWN && platformType == HealthPlatformType.appleHealth) {
       throw HealthException(type, 'HealthKit has no unknown sleep value', errorCode: HealthErrorCode.notSupported);
+    }
+    if (_readOnlyTypesIOS.contains(type) && platformType == HealthPlatformType.appleHealth) {
+      throw ArgumentError("$type - iOS does not support writing this data type in HealthKit");
     }
   }
 

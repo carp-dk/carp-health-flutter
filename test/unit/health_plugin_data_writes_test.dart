@@ -146,6 +146,20 @@ void main() {
       expect(ctx.channel.calls, isEmpty);
     });
 
+    test('reject TOTAL_CALORIES_BURNED on iOS, where HealthKit does not have it', () async {
+      expect(dataTypeKeysIOS, isNot(contains(HealthDataType.TOTAL_CALORIES_BURNED)));
+      final notSupported = isA<HealthException>()
+          .having((e) => e.errorCode, 'errorCode', HealthErrorCode.notSupported)
+          .having((e) => e.dataType, 'dataType', HealthDataType.TOTAL_CALORIES_BURNED);
+
+      await expectBothThrow(HealthOnIOS(), HealthDataType.TOTAL_CALORIES_BURNED, notSupported);
+      expect(ctx.channel.calls, isEmpty);
+    });
+
+    test('write TOTAL_CALORIES_BURNED on Android', () async {
+      await expectBothSent(HealthDataType.TOTAL_CALORIES_BURNED);
+    });
+
     test('write menstruation flow on Android, where Health Connect needs no start-of-cycle flag', () async {
       await expectBothSent(HealthDataType.MENSTRUATION_FLOW);
     });

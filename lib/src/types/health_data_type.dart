@@ -93,6 +93,147 @@ enum HealthDataType {
   ///  * Android: the samples of Health Connect's `CyclingPedalingCadenceRecord`.
   CYCLING_CADENCE,
 
+  /// Maximal oxygen consumption (VO2 max) in milliliters per kilogram of body
+  /// weight per minute.
+  ///
+  ///  * iOS: HealthKit's `HKQuantityTypeIdentifier.vo2Max`.
+  ///  * Android: Health Connect's `Vo2MaxRecord`; declare the `READ_VO2_MAX`
+  ///    and `WRITE_VO2_MAX` permissions. Health Connect takes values from 0 to
+  ///    100: [Health.writeHealthData] returns false for others.
+  ///
+  /// [Health.getHealthIntervalDataFromTypes] returns the average of each
+  /// interval on iOS and no data points on Android, where Health Connect has
+  /// no VO2 max aggregate.
+  VO2_MAX,
+
+  // HealthKit quantity types, iOS only. On an iOS version before the one named,
+  // reads of a type fail with HealthErrorCode.notSupported.
+  /// HealthKit's `timeInDaylight`, iOS 17 and later.
+  TIME_IN_DAYLIGHT,
+
+  /// HealthKit's `walkingDoubleSupportPercentage`.
+  WALKING_DOUBLE_SUPPORT_PERCENTAGE,
+
+  /// HealthKit's `walkingStepLength`.
+  WALKING_STEP_LENGTH,
+
+  /// HealthKit's `walkingAsymmetryPercentage`. Read only: requesting write
+  /// access throws an [ArgumentError].
+  WALKING_ASYMMETRY_PERCENTAGE,
+
+  /// HealthKit's `appleWalkingSteadiness`. Read only: requesting write access
+  /// throws an [ArgumentError].
+  APPLE_WALKING_STEADINESS,
+
+  /// HealthKit's `stairAscentSpeed`.
+  STAIR_ASCENT_SPEED,
+
+  /// HealthKit's `stairDescentSpeed`.
+  STAIR_DESCENT_SPEED,
+
+  /// HealthKit's `sixMinuteWalkTestDistance`.
+  SIX_MINUTE_WALK_TEST_DISTANCE,
+
+  /// HealthKit's `runningPower`, iOS 16 and later.
+  RUNNING_POWER,
+
+  /// HealthKit's `runningSpeed`, iOS 16 and later.
+  RUNNING_SPEED,
+
+  /// HealthKit's `runningStrideLength`, iOS 16 and later.
+  RUNNING_STRIDE_LENGTH,
+
+  /// HealthKit's `runningVerticalOscillation`, iOS 16 and later.
+  RUNNING_VERTICAL_OSCILLATION,
+
+  /// HealthKit's `runningGroundContactTime`, iOS 16 and later.
+  RUNNING_GROUND_CONTACT_TIME,
+
+  /// HealthKit's `heartRateRecoveryOneMinute`, iOS 16 and later.
+  HEART_RATE_RECOVERY_ONE_MINUTE,
+
+  /// HealthKit's `physicalEffort`, iOS 17 and later.
+  PHYSICAL_EFFORT,
+
+  /// HealthKit's `environmentalAudioExposure`.
+  ENVIRONMENTAL_AUDIO_EXPOSURE,
+
+  /// HealthKit's `headphoneAudioExposure`.
+  HEADPHONE_AUDIO_EXPOSURE,
+
+  /// HealthKit's `numberOfTimesFallen`.
+  NUMBER_OF_TIMES_FALLEN,
+
+  /// HealthKit's `basalBodyTemperature`.
+  BASAL_BODY_TEMPERATURE,
+
+  /// HealthKit's `peakExpiratoryFlowRate`.
+  PEAK_EXPIRATORY_FLOW,
+
+  /// HealthKit's `forcedVitalCapacity`.
+  FORCED_VITAL_CAPACITY,
+
+  /// HealthKit's `inhalerUsage`.
+  INHALER_USAGE,
+
+  /// HealthKit's `bloodAlcoholContent`.
+  BLOOD_ALCOHOL_CONTENT,
+
+  /// HealthKit's `numberOfAlcoholicBeverages`.
+  NUMBER_OF_ALCOHOLIC_BEVERAGES,
+
+  /// HealthKit's `pushCount`.
+  PUSH_COUNT,
+
+  /// HealthKit's `swimmingStrokeCount`.
+  SWIMMING_STROKE_COUNT,
+
+  /// HealthKit's `distanceWheelchair`.
+  DISTANCE_WHEELCHAIR,
+
+  /// HealthKit's `distanceDownhillSnowSports`.
+  DISTANCE_DOWNHILL_SNOW_SPORTS,
+
+  /// HealthKit's `distanceCrossCountrySkiing`, iOS 18 and later.
+  DISTANCE_CROSS_COUNTRY_SKIING,
+
+  /// HealthKit's `distancePaddleSports`, iOS 18 and later.
+  DISTANCE_PADDLE_SPORTS,
+
+  /// HealthKit's `distanceRowing`, iOS 18 and later.
+  DISTANCE_ROWING,
+
+  /// HealthKit's `distanceSkatingSports`, iOS 18 and later.
+  DISTANCE_SKATING_SPORTS,
+
+  /// HealthKit's `cyclingSpeed`, iOS 17 and later.
+  CYCLING_SPEED,
+
+  /// HealthKit's `cyclingFunctionalThresholdPower`, iOS 17 and later.
+  CYCLING_FUNCTIONAL_THRESHOLD_POWER,
+
+  /// HealthKit's `crossCountrySkiingSpeed`, iOS 18 and later.
+  CROSS_COUNTRY_SKIING_SPEED,
+
+  /// HealthKit's `paddleSportsSpeed`, iOS 18 and later.
+  PADDLE_SPORTS_SPEED,
+
+  /// HealthKit's `rowingSpeed`, iOS 18 and later.
+  ROWING_SPEED,
+
+  /// HealthKit's `environmentalSoundReduction`, iOS 16 and later.
+  ENVIRONMENTAL_SOUND_REDUCTION,
+
+  /// HealthKit's `workoutEffortScore`, iOS 18 and later.
+  WORKOUT_EFFORT_SCORE,
+
+  /// HealthKit's `estimatedWorkoutEffortScore`, iOS 18 and later.
+  ESTIMATED_WORKOUT_EFFORT_SCORE,
+
+  /// HealthKit's `appleSleepingBreathingDisturbances`, iOS 18 and later.
+  /// Read only: requesting write access throws an [ArgumentError].
+  APPLE_SLEEPING_BREATHING_DISTURBANCES,
+
   MINDFULNESS,
   WATER,
   SLEEP_ASLEEP,
@@ -145,6 +286,10 @@ enum HealthDataType {
   ELECTROCARDIOGRAM,
 
   // Health Connect
+
+  /// Energy burned, active and basal, in kilocalories: Health Connect's
+  /// `TotalCaloriesBurnedRecord`. Android only, as HealthKit has no total: on
+  /// iOS, read [ACTIVE_ENERGY_BURNED] and [BASAL_ENERGY_BURNED].
   TOTAL_CALORIES_BURNED,
   ACTIVITY_INTENSITY,
   SKIN_TEMPERATURE,

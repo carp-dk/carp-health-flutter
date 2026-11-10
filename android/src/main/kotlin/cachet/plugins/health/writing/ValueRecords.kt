@@ -24,6 +24,7 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.records.Vo2MaxRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.BloodGlucose
@@ -130,6 +131,9 @@ internal fun valueRecord(type: String, startTime: Long, endTime: Long, value: Do
         )
         HealthConstants.RESPIRATORY_RATE ->
             RespiratoryRateRecord(time = start, zoneOffset = null, rate = value, metadata = metadata)
+        HealthConstants.VO2_MAX -> Vo2MaxRecord(
+            time = start, zoneOffset = null, vo2MillilitersPerMinuteKilogram = value, metadata = metadata,
+        )
         HealthConstants.MENSTRUATION_FLOW ->
             MenstruationFlowRecord(time = start, zoneOffset = null, flow = value.toInt(), metadata = metadata)
         HealthConstants.STEPS -> StepsRecord(

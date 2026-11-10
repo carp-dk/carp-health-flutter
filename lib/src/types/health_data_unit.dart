@@ -88,6 +88,22 @@ enum HealthDataUnit {
   /// (`count/min` in HealthKit).
   REVOLUTION_PER_MINUTE,
 
+  /// Milliliters per kilogram per minute, the unit of [HealthDataType.VO2_MAX]
+  /// (`mL/(kg*min)` in HealthKit).
+  MILLILITER_PER_KILOGRAM_PER_MINUTE,
+
+  /// Liters per minute, the unit of [HealthDataType.PEAK_EXPIRATORY_FLOW].
+  LITER_PER_MINUTE,
+
+  /// Kilocalories per kilogram of body weight per hour, the unit of
+  /// [HealthDataType.PHYSICAL_EFFORT] (`kcal/(kg*hr)` in HealthKit).
+  KILOCALORIE_PER_HOUR_KILOGRAM,
+
+  /// HealthKit's unitless `appleEffortScore` (iOS 18 and later), the unit of
+  /// [HealthDataType.WORKOUT_EFFORT_SCORE] and
+  /// [HealthDataType.ESTIMATED_WORKOUT_EFFORT_SCORE].
+  APPLE_EFFORT_SCORE,
+
   UNKNOWN_UNIT,
   NO_UNIT,
 }

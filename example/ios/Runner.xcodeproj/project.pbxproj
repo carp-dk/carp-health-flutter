@@ -7,12 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0E3F7D801117CBC6C32E0A67 /* WorkoutDetailsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 123FFBB743A574631D14D4CA /* WorkoutDetailsTests.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		1538537FCF3E6B2D5EE731AB /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7CF05C63DD5841073CB4E39B /* Pods_RunnerTests.framework */; };
 		1C1BF8D1AEAB4B7DAB0717F5 /* WorkoutWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */; };
 		2BD5D95B309ADB489BDF574E /* IntervalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1208A9E4F2542C9DB5C2ED /* IntervalTests.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		3C72125C521309DF7AAFFA08 /* QuantityTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B88F658E336E119F90A92789 /* QuantityTypeTests.swift */; };
 		4EAFA3DAD1C000503243AA27 /* SleepSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D3F8FFC6601A2556937D45 /* SleepSessionTests.swift */; };
 		5DDC8B9553DD970548CEEFEB /* WorkoutTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C8C35C444C54B37C22386BE /* WorkoutTypeTests.swift */; };
 		66EEEAF9D8E25EF4E93451E2 /* SampleConversionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF624DF0E199E679D6C3F89D /* SampleConversionTests.swift */; };
@@ -54,6 +56,7 @@
 
 /* Begin PBXFileReference section */
 		080FC4BE7B2926E42EFB9EF5 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
+		123FFBB743A574631D14D4CA /* WorkoutDetailsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutDetailsTests.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		2A1208A9E4F2542C9DB5C2ED /* IntervalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTests.swift; sourceTree = "<group>"; };
@@ -79,6 +82,7 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		ABEE568C2D6B9E4300551983 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		B88F658E336E119F90A92789 /* QuantityTypeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuantityTypeTests.swift; sourceTree = "<group>"; };
 		BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDatesTests.swift; sourceTree = "<group>"; };
 		C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutWriteTests.swift; sourceTree = "<group>"; };
 		C5D3F8FFC6601A2556937D45 /* SleepSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionTests.swift; sourceTree = "<group>"; };
@@ -125,6 +129,8 @@
 			children = (
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
 				2A1208A9E4F2542C9DB5C2ED /* IntervalTests.swift */,
+				B88F658E336E119F90A92789 /* QuantityTypeTests.swift */,
+				123FFBB743A574631D14D4CA /* WorkoutDetailsTests.swift */,
 				ED4901810075486EBCA0D487 /* AudiogramTests.swift */,
 				BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */,
 				C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */,
@@ -394,6 +400,8 @@
 			files = (
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
 				2BD5D95B309ADB489BDF574E /* IntervalTests.swift in Sources */,
+				3C72125C521309DF7AAFFA08 /* QuantityTypeTests.swift in Sources */,
+				0E3F7D801117CBC6C32E0A67 /* WorkoutDetailsTests.swift in Sources */,
 				E1D6C479530D416E8E45A741 /* AudiogramTests.swift in Sources */,
 				BEA7968C4EE40913C41030B9 /* SampleDatesTests.swift in Sources */,
 				1C1BF8D1AEAB4B7DAB0717F5 /* WorkoutWriteTests.swift in Sources */,
