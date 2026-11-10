@@ -58,10 +58,33 @@ class QuantityTypeTests: XCTestCase {
     "APPLE_SLEEPING_BREATHING_DISTURBANCES": ("AppleSleepingBreathingDisturbances", "COUNT"),
   ]
 
+  /// The first iOS version that has the type, for the types newer than iOS 15, the oldest the
+  /// plugin supports. Before that version the plugin does not register the type.
+  private let firstIOSVersion: [String: Int] = [
+    "RUNNING_POWER": 16, "RUNNING_SPEED": 16, "RUNNING_STRIDE_LENGTH": 16, "RUNNING_VERTICAL_OSCILLATION": 16,
+    "RUNNING_GROUND_CONTACT_TIME": 16, "HEART_RATE_RECOVERY_ONE_MINUTE": 16, "ENVIRONMENTAL_SOUND_REDUCTION": 16,
+    "TIME_IN_DAYLIGHT": 17, "PHYSICAL_EFFORT": 17, "CYCLING_SPEED": 17, "CYCLING_FUNCTIONAL_THRESHOLD_POWER": 17,
+    "DISTANCE_CROSS_COUNTRY_SKIING": 18, "DISTANCE_PADDLE_SPORTS": 18, "DISTANCE_ROWING": 18,
+    "DISTANCE_SKATING_SPORTS": 18, "CROSS_COUNTRY_SKIING_SPEED": 18, "PADDLE_SPORTS_SPEED": 18, "ROWING_SPEED": 18,
+    "WORKOUT_EFFORT_SCORE": 18, "ESTIMATED_WORKOUT_EFFORT_SCORE": 18, "APPLE_SLEEPING_BREATHING_DISTURBANCES": 18,
+  ]
+
+  /// Whether the iOS the tests run on has the type.
+  private func isAvailable(_ key: String) -> Bool {
+    let version = OperatingSystemVersion(majorVersion: firstIOSVersion[key] ?? 15, minorVersion: 0, patchVersion: 0)
+    return ProcessInfo.processInfo.isOperatingSystemAtLeast(version)
+  }
+
   func testEveryTypeIsReadInItsUnit() throws {
-    // The tests run on iOS 18 or later, which has all of them.
     XCTAssertEqual(types.count, 41)
+    XCTAssertTrue(Set(firstIOSVersion.keys).isSubset(of: types.keys))
     for (key, expected) in types {
+      guard isAvailable(key) else {
+        // Not registered on an older iOS, so reads of the type fail with notSupported.
+        XCTAssertNil(plugin.dataTypesDict[key], key)
+        XCTAssertNil(plugin.dataQuantityTypesDict[key], key)
+        continue
+      }
       let quantityType = try XCTUnwrap(plugin.dataQuantityTypesDict[key], key)
       XCTAssertEqual(quantityType.identifier, "HKQuantityTypeIdentifier" + expected.identifier, key)
       XCTAssertEqual(plugin.dataTypesDict[key], quantityType, key)
@@ -78,10 +101,12 @@ class QuantityTypeTests: XCTestCase {
       workoutActivityTypeMap: plugin.workoutActivityTypeMap,
       characteristicsTypesDict: plugin.characteristicsTypesDict
     )
-    for key in ["PUSH_COUNT", "TIME_IN_DAYLIGHT", "NUMBER_OF_TIMES_FALLEN", "DISTANCE_ROWING"] {
+    let sums = ["PUSH_COUNT", "TIME_IN_DAYLIGHT", "NUMBER_OF_TIMES_FALLEN", "DISTANCE_ROWING"]
+    let averages = ["RUNNING_SPEED", "ENVIRONMENTAL_AUDIO_EXPOSURE", "WORKOUT_EFFORT_SCORE", "PHYSICAL_EFFORT"]
+    for key in sums where isAvailable(key) {
       XCTAssertEqual(reader.statisticsOption(for: key), .cumulativeSum, key)
     }
-    for key in ["RUNNING_SPEED", "ENVIRONMENTAL_AUDIO_EXPOSURE", "WORKOUT_EFFORT_SCORE", "PHYSICAL_EFFORT"] {
+    for key in averages where isAvailable(key) {
       XCTAssertEqual(reader.statisticsOption(for: key), .discreteAverage, key)
     }
   }
