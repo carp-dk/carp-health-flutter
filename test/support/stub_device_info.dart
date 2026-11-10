@@ -37,11 +37,16 @@ class StubDeviceInfoPlugin implements DeviceInfoPlugin {
       'supported64BitAbis': <String>[],
       'supportedAbis': <String>[],
       'tags': 'stub-tags',
+      'time': 0,
       'type': 'stub-type',
       'isPhysicalDevice': true,
+      'freeDiskSize': 128000000000,
+      'totalDiskSize': 256000000000,
       'systemFeatures': <String>[],
       'serialNumber': 'stub-serial',
       'isLowRamDevice': false,
+      'physicalRamSize': 8192,
+      'availableRamSize': 4096,
     }),
   );
 
