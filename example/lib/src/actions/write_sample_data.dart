@@ -121,6 +121,8 @@ extension _WriteSampleDataActions on HealthAppState {
       totalDistance: 2430,
       totalEnergyBurned: 400,
     );
+    // a pool swim with its laps, before the workout above
+    success &= await writePoolSwim(earlier);
     success &= await health.writeBloodPressure(
       systolic: 90,
       diastolic: 80,

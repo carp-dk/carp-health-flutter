@@ -12,6 +12,7 @@ part of '../../health.dart';
 /// * [totalStepsUnit] - the unit of the total steps
 /// * [totalFlightsClimbed] - the flights of stairs climbed during the workout (iOS only)
 /// * [totalSwimmingStrokeCount] - the swimming strokes of the workout (iOS only)
+/// * [swimming] - the pool length and laps of a swimming workout
 /// * [duration], [avgMets], [elevationAscended], [elevationDescended],
 ///   [indoorWorkout], [weatherTemperature], [weatherHumidity], [averageSpeed],
 ///   [maximumSpeed] and [workoutEvents] - what HealthKit records about the
@@ -59,8 +60,15 @@ class WorkoutHealthValue extends HealthValue {
   int? totalFlightsClimbed;
 
   /// The total number of swimming strokes during the workout: HealthKit's total for the workout,
-  /// `null` when it has none. iOS only, always `null` on Android.
+  /// `null` when it has none, as written by the `totalSwimmingStrokeCount` of [Health.writeWorkoutData].
+  /// iOS only, always `null` on Android.
   int? totalSwimmingStrokeCount;
+
+  /// The pool length and laps of a swimming workout, see [SwimmingDetails]: `null` for other workouts, and for a
+  /// swim with neither a known pool length nor laps. iOS reads them for HealthKit swims (the lap length and the lap
+  /// events of the workout), and Android for Health Connect pool and open water swims (the laps of the session and
+  /// the swimming segments over them).
+  SwimmingDetails? swimming;
 
   /// The average intensity of the workout in METs (metabolic equivalents),
   /// in kilocalories per kilogram of body weight per hour (iOS only).
@@ -115,6 +123,7 @@ class WorkoutHealthValue extends HealthValue {
     this.totalStepsUnit,
     this.totalFlightsClimbed,
     this.totalSwimmingStrokeCount,
+    this.swimming,
     this.avgMets,
     this.elevationAscended,
     this.elevationDescended,
@@ -151,6 +160,7 @@ class WorkoutHealthValue extends HealthValue {
     totalSwimmingStrokeCount: dataPoint['totalSwimmingStrokeCount'] != null
         ? (dataPoint['totalSwimmingStrokeCount'] as num).toInt()
         : null,
+    swimming: SwimmingDetails._ofWorkout(dataPoint['swimming']),
     avgMets: dataPoint['avgMets'] as num?,
     elevationAscended: dataPoint['elevationAscended'] as num?,
     elevationDescended: dataPoint['elevationDescended'] as num?,
@@ -183,6 +193,7 @@ class WorkoutHealthValue extends HealthValue {
            totalStepsUnit: ${totalStepsUnit?.name},
            totalFlightsClimbed: $totalFlightsClimbed,
            totalSwimmingStrokeCount: $totalSwimmingStrokeCount,
+           swimming: $swimming,
            avgMets: $avgMets,
            elevationAscended: $elevationAscended,
            elevationDescended: $elevationDescended,
@@ -206,6 +217,7 @@ class WorkoutHealthValue extends HealthValue {
       totalStepsUnit == other.totalStepsUnit &&
       totalFlightsClimbed == other.totalFlightsClimbed &&
       totalSwimmingStrokeCount == other.totalSwimmingStrokeCount &&
+      swimming == other.swimming &&
       avgMets == other.avgMets &&
       elevationAscended == other.elevationAscended &&
       elevationDescended == other.elevationDescended &&
@@ -228,6 +240,7 @@ class WorkoutHealthValue extends HealthValue {
     totalStepsUnit,
     totalFlightsClimbed,
     totalSwimmingStrokeCount,
+    swimming,
     avgMets,
     elevationAscended,
     elevationDescended,

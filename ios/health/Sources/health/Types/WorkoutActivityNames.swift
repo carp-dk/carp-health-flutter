@@ -51,9 +51,10 @@ struct WorkoutActivityNames {
     }
 
     /// The metadata a workout written as [name] gets for the keys the caller's metadata does not
-    /// set, so that it reads as [name] again. SWIMMING_POOL gets none: HealthKit only accepts a pool
-    /// swim with a lap length (HKMetadataKeyLapLength), which writes do not take, so it reads as
-    /// SWIMMING. Nor does ROCK_CLIMBING, which HealthKit has no metadata for.
+    /// set, so that it reads as [name] again. SWIMMING_POOL gets none here: HealthKit only accepts
+    /// a pool swim with a lap length (HKMetadataKeyLapLength), so a write adds the pool location
+    /// with the lap length when it has a pool length (SwimmingWorkout.metadata) and reads as
+    /// SWIMMING without one. Nor does ROCK_CLIMBING, which HealthKit has no metadata for.
     static func defaultMetadata(for name: String) -> [String: Any] {
         switch name {
         case "SWIMMING_OPEN_WATER":

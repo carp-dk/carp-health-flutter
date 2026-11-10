@@ -29,6 +29,12 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///  - [startZoneOffset] and [endZoneOffset] The offsets from UTC of the local time at the start and at the end
   ///    of the workout, at most 18 hours either way; without them the records get Health Connect's default.
   ///    *ONLY FOR HEALTH CONNECT* Ignored on iOS.
+  ///  - [swimming] The pool length and laps of a [HealthWorkoutActivityType.SWIMMING_POOL] or
+  ///    [HealthWorkoutActivityType.SWIMMING_OPEN_WATER] workout, or on iOS a [HealthWorkoutActivityType.SWIMMING] one;
+  ///    the pool length only for SWIMMING_POOL. [SwimmingDetails] says what each platform stores and reads back.
+  ///  - [totalSwimmingStrokeCount] The number of strokes of a swim, HealthKit's total for the workout, which reads back
+  ///    as [WorkoutHealthValue.totalSwimmingStrokeCount].
+  ///    *ONLY FOR IOS* Ignored on Android: Health Connect has no record of strokes.
   ///
   /// A workout written with the [clientRecordId] (on iOS the [WorkoutMetadata.syncIdentifier]) of a workout
   /// this app wrote before replaces that workout if its version is greater, and is not added as a copy. On
@@ -37,10 +43,14 @@ mixin HealthWorkoutWrites on _HealthSupport {
   /// the one written before. Delete them with [Health.deleteByClientRecordId] for [HealthDataType.WORKOUT],
   /// [HealthDataType.DISTANCE_DELTA] and [HealthDataType.TOTAL_CALORIES_BURNED].
   ///
-  /// Throws an [ArgumentError] if only one of [clientRecordId] and [clientRecordVersion] is given, or only one
-  /// of [WorkoutMetadata.syncIdentifier] and [WorkoutMetadata.syncVersion], or a zone offset of more than 18
-  /// hours. Throws a [HealthException] with [HealthErrorCode.notSupported] for an [activityType] this platform
-  /// has no workout type for, such as [HealthWorkoutActivityType.ARCHERY] on Android.
+  /// Throws an [ArgumentError], before anything is written, if only one of [clientRecordId] and
+  /// [clientRecordVersion] is given, or only one of [WorkoutMetadata.syncIdentifier] and
+  /// [WorkoutMetadata.syncVersion], or a zone offset of more than 18 hours; if [swimming] or
+  /// [totalSwimmingStrokeCount] is given for a workout that is not a swim, or [totalSwimmingStrokeCount] is negative;
+  /// if a [SwimmingDetails.poolLength] is given for a workout that is not a SWIMMING_POOL, or is not more than 0 and
+  /// at most 1000 meters; or if a lap does not start before it ends, is not inside the workout, starts before the lap
+  /// before it or overlaps it. Throws a [HealthException] with [HealthErrorCode.notSupported] for an [activityType]
+  /// this platform has no workout type for, such as [HealthWorkoutActivityType.ARCHERY] on Android.
   Future<bool> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
@@ -56,6 +66,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
     double? clientRecordVersion,
     Duration? startZoneOffset,
     Duration? endZoneOffset,
+    SwimmingDetails? swimming,
+    int? totalSwimmingStrokeCount,
   }) async {
     final args = await _workoutArguments(
       activityType: activityType,
@@ -72,6 +84,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
       clientRecordVersion: clientRecordVersion,
       startZoneOffset: startZoneOffset,
       endZoneOffset: endZoneOffset,
+      swimming: swimming,
+      totalSwimmingStrokeCount: totalSwimmingStrokeCount,
     );
     return await Health._channel.invokeMethod('writeWorkoutData', args) == true;
   }
@@ -98,6 +112,9 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///  - [clientRecordId], [clientRecordVersion], [startZoneOffset] and [endZoneOffset] As in [writeWorkoutData],
   ///    which says how to write a workout again without adding a copy.
   ///    *ONLY FOR HEALTH CONNECT* Ignored on iOS.
+  ///  - [swimming] The pool length and laps of a swim, as in [writeWorkoutData]. See [SwimmingDetails].
+  ///  - [totalSwimmingStrokeCount] The number of strokes of a swim, as in [writeWorkoutData].
+  ///    *ONLY FOR IOS* Ignored on Android.
   ///
   /// Throws what [writeWorkoutData] throws.
   Future<String?> writeWorkoutDataUUID({
@@ -115,6 +132,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
     double? clientRecordVersion,
     Duration? startZoneOffset,
     Duration? endZoneOffset,
+    SwimmingDetails? swimming,
+    int? totalSwimmingStrokeCount,
   }) async {
     final args = await _workoutArguments(
       activityType: activityType,
@@ -131,6 +150,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
       clientRecordVersion: clientRecordVersion,
       startZoneOffset: startZoneOffset,
       endZoneOffset: endZoneOffset,
+      swimming: swimming,
+      totalSwimmingStrokeCount: totalSwimmingStrokeCount,
     );
 
     String uuid = '${await Health._channel.invokeMethod('writeWorkoutDataUUID', args)}';
@@ -156,6 +177,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
     required double? clientRecordVersion,
     required Duration? startZoneOffset,
     required Duration? endZoneOffset,
+    required SwimmingDetails? swimming,
+    required int? totalSwimmingStrokeCount,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
@@ -175,6 +198,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
         throw ArgumentError.value(offset, 'zone offset', 'must be at most 18 hours');
       }
     }
+    final swimmingArguments = _swimmingArguments(activityType, start, end, swimming, totalSwimmingStrokeCount);
     return {
       'activityType': activityType.name,
       'startTime': start.millisecondsSinceEpoch,
@@ -190,6 +214,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
       if (clientRecordVersion != null) 'clientRecordVersion': clientRecordVersion,
       if (startZoneOffset != null) 'startZoneOffsetSeconds': startZoneOffset.inSeconds,
       if (endZoneOffset != null) 'endZoneOffsetSeconds': endZoneOffset.inSeconds,
+      ...swimmingArguments,
     };
   }
 

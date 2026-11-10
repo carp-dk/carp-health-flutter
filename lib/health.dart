@@ -51,6 +51,7 @@ part 'src/values/numeric_health_value.dart';
 part 'src/values/nutrition_health_value.dart';
 part 'src/values/nutrition_health_value_fields.dart';
 part 'src/values/skin_temperature_health_value.dart';
+part 'src/values/swimming_details.dart';
 part 'src/values/workout_event.dart';
 part 'src/values/workout_health_value.dart';
 part 'src/values/workout_route_health_value.dart';
@@ -65,6 +66,7 @@ part 'src/writing/health_sleep_writes.dart';
 part 'src/writing/health_workout_routes.dart';
 part 'src/writing/health_workout_writes.dart';
 part 'src/writing/sleep_session_stage.dart';
+part 'src/writing/swimming_workout_arguments.dart';
 part 'src/writing/workout_activity_types.dart';
 part 'src/writing/workout_metadata.dart';
 

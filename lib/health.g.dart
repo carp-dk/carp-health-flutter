@@ -586,6 +586,48 @@ const _$SkinTemperatureMeasurementLocationEnumMap = {
   SkinTemperatureMeasurementLocation.wrist: 'wrist',
 };
 
+SwimmingLap _$SwimmingLapFromJson(Map<String, dynamic> json) => SwimmingLap(
+  startTime: DateTime.parse(json['startTime'] as String),
+  endTime: DateTime.parse(json['endTime'] as String),
+  strokeStyle:
+      $enumDecodeNullable(_$SwimmingStrokeStyleEnumMap, json['strokeStyle']) ??
+      SwimmingStrokeStyle.unknown,
+);
+
+Map<String, dynamic> _$SwimmingLapToJson(SwimmingLap instance) =>
+    <String, dynamic>{
+      'startTime': instance.startTime.toIso8601String(),
+      'endTime': instance.endTime.toIso8601String(),
+      'strokeStyle': _$SwimmingStrokeStyleEnumMap[instance.strokeStyle]!,
+    };
+
+const _$SwimmingStrokeStyleEnumMap = {
+  SwimmingStrokeStyle.unknown: 'unknown',
+  SwimmingStrokeStyle.mixed: 'mixed',
+  SwimmingStrokeStyle.freestyle: 'freestyle',
+  SwimmingStrokeStyle.backstroke: 'backstroke',
+  SwimmingStrokeStyle.breaststroke: 'breaststroke',
+  SwimmingStrokeStyle.butterfly: 'butterfly',
+  SwimmingStrokeStyle.kickboard: 'kickboard',
+  SwimmingStrokeStyle.other: 'other',
+};
+
+SwimmingDetails _$SwimmingDetailsFromJson(Map<String, dynamic> json) =>
+    SwimmingDetails(
+      poolLength: (json['poolLength'] as num?)?.toDouble(),
+      laps:
+          (json['laps'] as List<dynamic>?)
+              ?.map((e) => SwimmingLap.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+
+Map<String, dynamic> _$SwimmingDetailsToJson(SwimmingDetails instance) =>
+    <String, dynamic>{
+      'poolLength': ?instance.poolLength,
+      'laps': instance.laps.map((e) => e.toJson()).toList(),
+    };
+
 WorkoutEvent _$WorkoutEventFromJson(Map<String, dynamic> json) => WorkoutEvent(
   type: $enumDecode(_$WorkoutEventTypeEnumMap, json['type']),
   start: DateTime.parse(json['start'] as String),
@@ -636,6 +678,9 @@ WorkoutHealthValue _$WorkoutHealthValueFromJson(Map<String, dynamic> json) =>
       totalFlightsClimbed: (json['totalFlightsClimbed'] as num?)?.toInt(),
       totalSwimmingStrokeCount: (json['totalSwimmingStrokeCount'] as num?)
           ?.toInt(),
+      swimming: json['swimming'] == null
+          ? null
+          : SwimmingDetails.fromJson(json['swimming'] as Map<String, dynamic>),
       avgMets: json['avgMets'] as num?,
       elevationAscended: json['elevationAscended'] as num?,
       elevationDescended: json['elevationDescended'] as num?,
@@ -664,6 +709,7 @@ Map<String, dynamic> _$WorkoutHealthValueToJson(WorkoutHealthValue instance) =>
       'totalStepsUnit': ?_$HealthDataUnitEnumMap[instance.totalStepsUnit],
       'totalFlightsClimbed': ?instance.totalFlightsClimbed,
       'totalSwimmingStrokeCount': ?instance.totalSwimmingStrokeCount,
+      'swimming': ?instance.swimming?.toJson(),
       'avgMets': ?instance.avgMets,
       'elevationAscended': ?instance.elevationAscended,
       'elevationDescended': ?instance.elevationDescended,

@@ -44,9 +44,10 @@ extension HealthDataWriter {
     }
 
     /// The workout writeWorkoutData and writeWorkoutDataUUID save, or nil after replying an
-    /// INVALID_ARGUMENT error for a time range or total that HKWorkout does not accept (it raises
-    /// an exception for those, crashing the app). A name that shares its HealthKit type with a
-    /// more general name, e.g. RUNNING_TREADMILL, adds the metadata that tells the two apart.
+    /// INVALID_ARGUMENT error for a time range, total or swim (swimmingWorkout) that HKWorkout does
+    /// not accept (it raises an exception for those, crashing the app). A name that shares its
+    /// HealthKit type with a more general name, e.g. RUNNING_TREADMILL or SWIMMING_POOL with a pool
+    /// length, adds the metadata that tells the two apart.
     /// - Throws: PluginError when activityType, startTime or endTime is missing or unknown
     func workout(from call: FlutterMethodCall, result: @escaping FlutterResult) throws -> HKWorkout? {
         guard let arguments = call.arguments as? NSDictionary,
@@ -65,6 +66,7 @@ extension HealthDataWriter {
 
         let totalEnergyBurned: HKQuantity?
         let totalDistance: HKQuantity?
+        let swim: SwimmingWorkout
         do {
             try checkSampleDates(start: dateFrom, end: dateTo, of: HKObjectType.workoutType())
             totalEnergyBurned = try workoutTotal(
@@ -75,12 +77,26 @@ extension HealthDataWriter {
                 arguments, valueKey: "totalDistance", unitKey: "totalDistanceUnit",
                 compatibleWith: HKUnit.meter()
             )
+            swim = try swimmingWorkout(from: arguments, activityType: activityType, start: dateFrom, end: dateTo)
         } catch {
             let message = (error as? PluginError)?.message ?? error.localizedDescription
             result(FlutterError(code: "INVALID_ARGUMENT", message: message, details: nil))
             return nil
         }
 
+        let metadata = workoutMetadata(
+            from: arguments["metadata"],
+            defaults: WorkoutActivityNames.defaultMetadata(for: activityType).merging(swim.metadata) { $1 }
+        )
+        // Only this initializer takes laps and a stroke count. It derives the duration from the
+        // events, which laps do not shorten.
+        if !swim.laps.isEmpty || swim.totalStrokeCount != nil {
+            return HKWorkout(
+                activityType: activityTypeValue, start: dateFrom, end: dateTo, workoutEvents: swim.laps,
+                totalEnergyBurned: totalEnergyBurned, totalDistance: totalDistance,
+                totalSwimmingStrokeCount: swim.totalStrokeCount, device: nil, metadata: metadata
+            )
+        }
         return HKWorkout(
             activityType: activityTypeValue,
             start: dateFrom,
@@ -88,9 +104,7 @@ extension HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned,
             totalDistance: totalDistance,
-            metadata: workoutMetadata(
-                from: arguments["metadata"], defaults: WorkoutActivityNames.defaultMetadata(for: activityType)
-            )
+            metadata: metadata
         )
     }
 

@@ -56,10 +56,12 @@ class HealthDataWriter(
     /**
      * Writes a workout session with optional distance and calorie data. Creates an
      * ExerciseSessionRecord, with a DistanceRecord and a TotalCaloriesBurnedRecord if those totals
-     * are provided.
+     * are provided. The session of a pool or open water swim holds its laps, with their stroke styles
+     * as segments.
      *
      * @param call Method call containing 'activityType', 'startTime', 'endTime', 'totalEnergyBurned',
-     * 'totalDistance', 'recordingMethod', 'title' and optionally 'deviceType'
+     * 'totalDistance', 'recordingMethod', 'title' and optionally 'deviceType' and 'swimming' (the pool
+     * length and laps of a swim, [swimmingLaps])
      * @param result Flutter result callback returning boolean success status
      */
     fun writeWorkoutData(call: MethodCall, result: Result) {

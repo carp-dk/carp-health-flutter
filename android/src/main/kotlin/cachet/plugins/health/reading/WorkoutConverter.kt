@@ -24,7 +24,8 @@ internal class WorkoutConverter(
      * Handles special processing for workout/exercise session data.
      * Enriches workout records with associated distance, energy, and step data
      * by querying the related records that the workout's app wrote within the
-     * workout time period.
+     * workout time period. Pool and open water swims also get their laps
+     * ([swimmingDetails]).
      *
      * @param records List of ExerciseSessionRecord objects
      * @param recordingMethodsToFilter Recording methods to exclude (empty list means no filtering)
@@ -134,6 +135,7 @@ internal class WorkoutConverter(
                     "source_id" to "",
                     "source_name" to record.metadata.dataOrigin.packageName,
                     "device_model" to record.metadata.device?.model,
+                    "swimming" to swimmingDetails(record),
                 ),
             )
         }

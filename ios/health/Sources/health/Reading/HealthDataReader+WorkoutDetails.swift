@@ -7,8 +7,9 @@ extension HealthDataReader {
     )
 
     /// What a workout's map has besides its name and totals (WorkoutHealthValue on the Dart side):
-    /// its duration without pauses in seconds, the values of its metadata and its events. A value
-    /// the workout does not have is sent as null.
+    /// its duration without pauses in seconds, the values of its metadata, its events and, for a
+    /// swim, its pool length and laps (swimmingDetails). A value the workout does not have is sent
+    /// as null.
     func workoutDetails(of workout: HKWorkout) -> [String: Any] {
         func quantity(_ key: String, in unit: HKUnit) -> Any {
             Self.quantity(workout.metadata, key, in: unit) as Any
@@ -24,6 +25,7 @@ extension HealthDataReader {
             "averageSpeed": quantity(HKMetadataKeyAverageSpeed, in: Self.metersPerSecond),
             "maximumSpeed": quantity(HKMetadataKeyMaximumSpeed, in: Self.metersPerSecond),
             "workoutEvents": workout.workoutEvents?.map(Self.workoutEventDictionary) as Any,
+            "swimming": Self.swimmingDetails(of: workout) as Any,
         ]
     }
 

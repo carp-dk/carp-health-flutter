@@ -20,7 +20,9 @@ import java.time.ZoneOffset
 /**
  * Writes a workout as an exercise session, with its distance and energy burned as records of their
  * own, for writeWorkoutData and writeWorkoutDataUUID. The 'metadata' argument (WorkoutMetadata) is
- * HealthKit workout metadata, which Health Connect has no equivalent for, so it is ignored here.
+ * HealthKit workout metadata, which Health Connect has no equivalent for, so it is ignored here, and so
+ * is 'totalSwimmingStrokeCount': Health Connect has no record of swimming strokes. The laps of a swim
+ * ('swimming') are laps of its session, with their stroke styles as segments ([swimmingLaps]).
  */
 internal class WorkoutWriter(
     private val healthConnectClient: HealthConnectClient,
@@ -77,8 +79,10 @@ internal class WorkoutWriter(
  * 'clientRecordId' and its 'clientRecordVersion', the session has that client record id and the
  * distance and energy records `<id>:distance` and `<id>:calories`, all with that version, so that
  * Health Connect replaces them when the workout is written again with a greater version. The
- * 'startZoneOffsetSeconds' and 'endZoneOffsetSeconds' are the zone offsets of all of them. Throws
- * IllegalArgumentException if the workout does not end after it starts ([requireStartBeforeEnd]).
+ * 'startZoneOffsetSeconds' and 'endZoneOffsetSeconds' are the zone offsets of all of them. The session
+ * of a pool or open water swim has the laps and stroke segments of its 'swimming' argument
+ * ([swimmingLaps]). Throws IllegalArgumentException if the workout does not end after it starts
+ * ([requireStartBeforeEnd]) or its swimming details are not valid ([swimmingLaps]).
  */
 internal fun workoutRecords(call: MethodCall, exerciseType: Int): List<Record> {
     val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
@@ -94,6 +98,8 @@ internal fun workoutRecords(call: MethodCall, exerciseType: Int): List<Record> {
     fun metadata(suffix: String = "") =
         buildMetadata(recordingMethod, clientRecordId?.let { it + suffix }, clientRecordVersion, deviceType)
 
+    val swimming = swimmingLaps(call, exerciseType, startTime, endTime)
+
     val records = mutableListOf<Record>(
         ExerciseSessionRecord(
             startTime = startTime,
@@ -102,6 +108,8 @@ internal fun workoutRecords(call: MethodCall, exerciseType: Int): List<Record> {
             endZoneOffset = endZoneOffset,
             exerciseType = exerciseType,
             title = call.argument<String>("title") ?: call.argument<String>("activityType"),
+            segments = swimming.segments,
+            laps = swimming.laps,
             metadata = metadata(),
         ),
     )

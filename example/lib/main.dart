@@ -13,6 +13,7 @@ part 'src/actions/health_connect_setup.dart';
 part 'src/actions/permissions.dart';
 part 'src/actions/read_data.dart';
 part 'src/actions/skin_temperature.dart';
+part 'src/actions/write_pool_swim.dart';
 part 'src/actions/write_sample_data.dart';
 part 'src/actions/write_single_records.dart';
 part 'src/actions/write_workout_route.dart';

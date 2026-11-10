@@ -27,8 +27,10 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		ABB05D872D6BB16700FA4740 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = ABB05D862D6BB16700FA4740 /* FlutterGeneratedPluginSwiftPackage */; };
 		ABCED1C7302F45E800E1B4CC /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = ABCED1C6302F45E800E1B4CC /* FlutterGeneratedPluginSwiftPackage */; };
+		B4FB5A65C20B5F7F2C3BA3CD /* SwimmingReadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD3D6159F740B8D525AE79A /* SwimmingReadTests.swift */; };
 		BEA7968C4EE40913C41030B9 /* SampleDatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */; };
 		E1D6C479530D416E8E45A741 /* AudiogramTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4901810075486EBCA0D487 /* AudiogramTests.swift */; };
+		F7B9F715ACDD7A178178296B /* SwimmingWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0358A6883A74493C0537D28 /* SwimmingWriteTests.swift */; };
 		F7F3CE40ADB3F84A132AB2AB /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 331C3466792E0AE145779DB5 /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -83,6 +85,7 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		9BD3D6159F740B8D525AE79A /* SwimmingReadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwimmingReadTests.swift; sourceTree = "<group>"; };
 		ABEE568C2D6B9E4300551983 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		B88F658E336E119F90A92789 /* QuantityTypeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuantityTypeTests.swift; sourceTree = "<group>"; };
 		BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDatesTests.swift; sourceTree = "<group>"; };
@@ -90,6 +93,7 @@
 		C5D3F8FFC6601A2556937D45 /* SleepSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSessionTests.swift; sourceTree = "<group>"; };
 		DF624DF0E199E679D6C3F89D /* SampleConversionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleConversionTests.swift; sourceTree = "<group>"; };
 		ED4901810075486EBCA0D487 /* AudiogramTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudiogramTests.swift; sourceTree = "<group>"; };
+		F0358A6883A74493C0537D28 /* SwimmingWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwimmingWriteTests.swift; sourceTree = "<group>"; };
 		F97011D03CBC7A35D177D127 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		FCEA0A19EEB97E6889BA5240 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -141,6 +145,8 @@
 				DF624DF0E199E679D6C3F89D /* SampleConversionTests.swift */,
 				C5D3F8FFC6601A2556937D45 /* SleepSessionTests.swift */,
 				2E25BE1FB5CACFC9D8886597 /* CategoryValueTests.swift */,
+				F0358A6883A74493C0537D28 /* SwimmingWriteTests.swift */,
+				9BD3D6159F740B8D525AE79A /* SwimmingReadTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -413,6 +419,8 @@
 				66EEEAF9D8E25EF4E93451E2 /* SampleConversionTests.swift in Sources */,
 				4EAFA3DAD1C000503243AA27 /* SleepSessionTests.swift in Sources */,
 				84C91D9AF8D58797EAA50814 /* CategoryValueTests.swift in Sources */,
+				F7B9F715ACDD7A178178296B /* SwimmingWriteTests.swift in Sources */,
+				B4FB5A65C20B5F7F2C3BA3CD /* SwimmingReadTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

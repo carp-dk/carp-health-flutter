@@ -8,6 +8,7 @@ import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.response.ChangesResponse
+import cachet.plugins.health.reading.swimmingDetails
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import kotlinx.coroutines.CoroutineScope
@@ -228,6 +229,10 @@ class HealthDataChanges(
         else -> emptyList()
     }
 
+    /**
+     * The workout data point of a changed [record], with its swimming laps ([swimmingDetails]) but no
+     * totals: those are records of their own, with changes of their own.
+     */
     private fun convertWorkoutRecord(record: ExerciseSessionRecord): Map<String, Any?> {
         val workoutType = workoutTypeName(record.exerciseType)
 
@@ -247,6 +252,7 @@ class HealthDataChanges(
             "source_name" to record.metadata.dataOrigin.packageName,
             "device_model" to record.metadata.device?.model,
             "recording_method" to record.metadata.recordingMethod,
+            "swimming" to swimmingDetails(record),
         )
     }
 }

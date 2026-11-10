@@ -46,7 +46,7 @@ class WorkoutDetailsTests: XCTestCase {
     let details = reader.workoutDetails(of: workout(metadata: nil)) as NSDictionary
     for key in [
       "avgMets", "elevationAscended", "elevationDescended", "indoorWorkout", "weatherTemperature",
-      "weatherHumidity", "averageSpeed", "maximumSpeed", "workoutEvents",
+      "weatherHumidity", "averageSpeed", "maximumSpeed", "workoutEvents", "swimming",
     ] {
       XCTAssertTrue(details[key] is NSNull, key)
     }
