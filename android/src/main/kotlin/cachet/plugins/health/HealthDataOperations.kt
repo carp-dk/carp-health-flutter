@@ -15,7 +15,8 @@ import kotlinx.coroutines.CoroutineScope
  * deletion. Manages the administrative aspects of Health Connect integration; the permission
  * dialog is [HealthPermissionRequests].
  *
- * Calls run on the plugin's scope, on the main thread.
+ * Calls run on the plugin's scope, on the main thread. A permission or feature check that Health
+ * Connect fails replies the error through [HealthErrors].
  */
 class HealthDataOperations(
     private val healthConnectClient: HealthConnectClient,
@@ -52,10 +53,10 @@ class HealthDataOperations(
 
     /**
      * Revokes all previously granted Health Connect permissions for this application. Completely
-     * removes app access to Health Connect data.
+     * removes app access to Health Connect data once the app restarts.
      *
      * @param call Method call from Flutter (unused)
-     * @param result Flutter result callback returning success status
+     * @param result Flutter result callback returning true once Health Connect took the revocation
      */
     fun revokePermissions(call: MethodCall, result: Result) {
         grantedPermissions.revokePermissions(result)

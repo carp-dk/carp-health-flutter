@@ -13,7 +13,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-/** Writes a meal as a nutrition record, for writeMeal. Nutrients are in grams, energy in kcal. */
+/**
+ * Writes a meal as a nutrition record, for writeMeal. Nutrients are in grams, energy in kcal. Replies
+ * false if the meal does not end after it starts ([requireStartBeforeEnd]) or Health Connect rejects
+ * it.
+ */
 internal class MealWriter(
     private val healthConnectClient: HealthConnectClient,
     private val scope: CoroutineScope,
@@ -69,6 +73,7 @@ internal class MealWriter(
 
         scope.launch {
             try {
+                requireStartBeforeEnd(startTime, endTime)
                 // Built here: a value out of Health Connect's range fails the write, not the call.
                 val record = NutritionRecord(
                     name = name,

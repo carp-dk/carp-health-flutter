@@ -125,27 +125,27 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             }
 
             // Permissions
-            "hasPermissions" -> dataOperations.hasPermissions(call, result)
+            "hasPermissions" -> runCheck(call, result) { hasPermissions(call, result) }
             "requestAuthorization" -> permissionRequests.requestAuthorization(call, result)
-            "revokePermissions" -> dataOperations.revokePermissions(call, result)
+            "revokePermissions" -> runCheck(call, result) { revokePermissions(call, result) }
 
             // History permissions
             "isHealthDataHistoryAvailable" ->
-                    dataOperations.isHealthDataHistoryAvailable(call, result)
+                    runCheck(call, result) { isHealthDataHistoryAvailable(call, result) }
             "isHealthDataHistoryAuthorized" ->
-                    dataOperations.isHealthDataHistoryAuthorized(call, result)
+                    runCheck(call, result) { isHealthDataHistoryAuthorized(call, result) }
             "requestHealthDataHistoryAuthorization" ->
                     permissionRequests.requestHealthDataHistoryAuthorization(call, result)
 
             // Background permissions
             "isHealthDataInBackgroundAvailable" ->
-                    dataOperations.isHealthDataInBackgroundAvailable(call, result)
+                    runCheck(call, result) { isHealthDataInBackgroundAvailable(call, result) }
             "isHealthDataInBackgroundAuthorized" ->
-                    dataOperations.isHealthDataInBackgroundAuthorized(call, result)
+                    runCheck(call, result) { isHealthDataInBackgroundAuthorized(call, result) }
             "requestHealthDataInBackgroundAuthorization" ->
                     permissionRequests.requestHealthDataInBackgroundAuthorization(call, result)
             "isSkinTemperatureAvailable" ->
-                    dataOperations.isSkinTemperatureAvailable(call, result)
+                    runCheck(call, result) { isSkinTemperatureAvailable(call, result) }
 
             // Reading data
             "getData" -> dataReader.getData(call, result)
@@ -171,14 +171,25 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             "insertWorkoutRouteData" -> dataWriter.insertWorkoutRouteData(call, result)
             "finishWorkoutRoute" -> dataWriter.finishWorkoutRoute(call, result)
             "discardWorkoutRoute" -> dataWriter.discardWorkoutRoute(call, result)
-            // TODO: Add support for multiple speed for iOS as well
-            // "writeMultipleSpeed" -> dataWriter.writeMultipleSpeedData(call, result)
 
             // Deleting data
             "delete" -> dataOperations.deleteData(call, result)
             "deleteByUUID" -> dataOperations.deleteByUUID(call, result)
             "deleteByClientRecordId" -> dataOperations.deleteByClientRecordId(call, result)
             else -> result.notImplemented()
+        }
+    }
+
+    /**
+     * Runs a permission or feature check of [dataOperations], which replies once Health Connect has
+     * answered (or failed). What throws before that, such as malformed arguments or a Health Connect
+     * that was unavailable when the plugin was attached (no [dataOperations]), is reported here.
+     */
+    private fun runCheck(call: MethodCall, result: Result, check: HealthDataOperations.() -> Unit) {
+        try {
+            dataOperations.check()
+        } catch (e: Exception) {
+            HealthErrors.report(result, e, call.method)
         }
     }
 

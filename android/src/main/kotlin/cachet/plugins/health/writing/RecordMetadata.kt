@@ -4,11 +4,12 @@ import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
 import io.flutter.plugin.common.MethodCall
 
-// The 'recordingMethod' argument as the writers read it: 1 manual entry, 2 automatically recorded,
-// 3 actively recorded, and any other value (0 is sent for unknown) an unknown recording method.
-internal const val RECORDING_METHOD_MANUAL_ENTRY = 1
-internal const val RECORDING_METHOD_AUTOMATICALLY_RECORDED = 2
-internal const val RECORDING_METHOD_ACTIVELY_RECORDED = 3
+// The 'recordingMethod' argument is RecordingMethod.toInt(), which uses Health Connect's values, as
+// reads report them: 1 actively recorded, 2 automatically recorded, 3 manual entry, and any other
+// value (0 is sent for unknown) an unknown recording method.
+internal const val RECORDING_METHOD_ACTIVELY_RECORDED = Metadata.RECORDING_METHOD_ACTIVELY_RECORDED
+internal const val RECORDING_METHOD_AUTOMATICALLY_RECORDED = Metadata.RECORDING_METHOD_AUTOMATICALLY_RECORDED
+internal const val RECORDING_METHOD_MANUAL_ENTRY = Metadata.RECORDING_METHOD_MANUAL_ENTRY
 
 /**
  * The metadata of a record written with [recordingMethod]. Automatically and actively recorded

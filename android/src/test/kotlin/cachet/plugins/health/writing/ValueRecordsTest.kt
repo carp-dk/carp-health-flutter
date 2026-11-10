@@ -10,6 +10,7 @@ import cachet.plugins.health.HealthConstants
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ValueRecordsTest {
@@ -75,5 +76,27 @@ class ValueRecordsTest {
         }
         val session = valueRecord(HealthConstants.SLEEP_SESSION, start, end, 0.0, metadata) as SleepSessionRecord
         assertEquals(emptyList<SleepSessionRecord.Stage>(), session.stages)
+    }
+
+    @Test
+    fun aRecordWithADurationMustEndAfterItStarts() {
+        val time = Instant.ofEpochMilli(start)
+        requireStartBeforeEnd(time, time.plusMillis(1))
+        for (endTime in listOf(time, time.minusMillis(1))) {
+            val error = assertThrows(IllegalArgumentException::class.java) { requireStartBeforeEnd(time, endTime) }
+            assertEquals("startTime must be before endTime.", error.message)
+        }
+    }
+
+    @Test
+    fun valuesMustEndAfterTheyStartForTheTypesConnectClientRequiredItFor() {
+        // connect-client checks this itself before Android 14, as in these tests, and before 1.2.0-alpha03
+        // it did on every version. The plugin's own check keeps that rule on Android 14+.
+        for (type in HealthConstants.mapToType.keys) {
+            val required = runCatching { valueRecord(type, start, start, 1.0, metadata) }.exceptionOrNull()
+            val checked = runCatching { requireStartBeforeEnd(type, start, start) }.exceptionOrNull()
+            assertEquals(type, required?.message, checked?.message)
+            requireStartBeforeEnd(type, start, end)
+        }
     }
 }

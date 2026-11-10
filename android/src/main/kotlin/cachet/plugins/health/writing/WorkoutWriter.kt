@@ -44,7 +44,8 @@ internal class WorkoutWriter(
 
     /**
      * Inserts the records of the workout in [call] and hands the response to [onInserted]. Replies
-     * [failureReply] instead if the activity type is not supported or the insert fails.
+     * [failureReply] instead if the activity type is not supported, the workout does not end after it
+     * starts ([requireStartBeforeEnd]) or Health Connect rejects the records or the insert.
      */
     private fun write(
         call: MethodCall,
@@ -71,6 +72,7 @@ internal class WorkoutWriter(
 
         scope.launch {
             try {
+                requireStartBeforeEnd(startTime, endTime)
                 val records = workoutRecords(
                     exerciseType, title, startTime, endTime, totalDistance, totalEnergyBurned, metadata,
                 )

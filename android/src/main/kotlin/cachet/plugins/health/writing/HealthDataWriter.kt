@@ -12,7 +12,7 @@ import kotlinx.coroutines.CoroutineScope
  *
  * Writes run on the plugin's scope, on the main thread. A write that Health Connect rejects replies
  * false (an empty string where the reply is a UUID), not an error; only the workout route methods
- * reply errors (ARGUMENT_ERROR, ROUTE_ERROR).
+ * reply errors (ARGUMENT_ERROR, ROUTE_ERROR, INVALID_ARGUMENT).
  */
 class HealthDataWriter(
     private val healthConnectClient: HealthConnectClient,
@@ -24,7 +24,6 @@ class HealthDataWriter(
     private val bloodPressure = BloodPressureWriter(healthConnectClient, scope)
     private val meals = MealWriter(healthConnectClient, scope)
     private val activityIntensity = ActivityIntensityWriter(healthConnectClient, scope)
-    private val speed = SpeedWriter(healthConnectClient, scope)
 
     /**
      * Writes a single health data record to Health Connect. Supports most basic health metrics with
@@ -131,20 +130,6 @@ class HealthDataWriter(
     }
 
     /**
-     * Writes speed/velocity data with multiple samples to Health Connect. Creates a SpeedRecord
-     * containing time-series speed measurements captured during activities like running, cycling,
-     * or walking. Each sample represents the user's instantaneous speed at a specific moment within
-     * the recording period.
-     *
-     * @param call Method call containing 'startTime', 'endTime', 'recordingMethod', optionally
-     * 'deviceType', and 'samples': speed measurements, each a map with 'time' and 'speed' (m/s)
-     * @param result Flutter result callback returning boolean success status
-     */
-    fun writeMultipleSpeedData(call: MethodCall, result: Result) {
-        speed.writeMultipleSpeedData(call, result)
-    }
-
-    /**
      * Starts collecting the locations of a workout route.
      *
      * @param result Flutter result callback returning the id of the route builder
@@ -156,9 +141,11 @@ class HealthDataWriter(
     /**
      * Adds locations to a workout route that was started and is not finished yet.
      *
-     * @param call Method call containing 'builderId' and 'locations', each a map with 'latitude',
-     * 'longitude', 'timestamp' and optionally 'altitude', 'horizontalAccuracy', 'verticalAccuracy'
-     * @param result Flutter result callback returning true, or an ARGUMENT_ERROR or ROUTE_ERROR
+     * @param call Method call containing 'builderId' and 'locations', each a map with the numbers
+     * 'latitude', 'longitude', 'timestamp' and optionally 'altitude', 'horizontalAccuracy',
+     * 'verticalAccuracy'
+     * @param result Flutter result callback returning true, an ARGUMENT_ERROR or ROUTE_ERROR for the
+     * builder, or INVALID_ARGUMENT for a location that lacks a value or has one that is not a number
      */
     fun insertWorkoutRouteData(call: MethodCall, result: Result) {
         routes.insertWorkoutRouteData(call, result)

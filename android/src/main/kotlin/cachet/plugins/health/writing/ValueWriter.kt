@@ -24,7 +24,8 @@ internal class ValueWriter(
         write(call, result, failureReply = "") { response ->
             val insertedUUID = firstInsertedId(response)
             if (insertedUUID.isNotEmpty()) {
-                Log.i("FLUTTER_HEALTH::SUCCESS", "[Health Connect] Workout $insertedUUID was successfully added!")
+                val type = call.argument<String>("dataTypeKey")
+                Log.i("FLUTTER_HEALTH::SUCCESS", "[Health Connect] $type $insertedUUID was successfully added!")
             }
             result.success(insertedUUID)
         }
@@ -32,7 +33,9 @@ internal class ValueWriter(
 
     /**
      * Inserts the record of the value in [call] and hands the response to [onInserted]. Replies
-     * [failureReply] instead if writeData does not write the data type or the insert fails.
+     * [failureReply] instead if writeData does not write the data type, or Health Connect rejects the
+     * value or the insert. Throws IllegalArgumentException, failing the call, for a value of a type
+     * with a duration that does not end after it starts ([requireStartBeforeEnd]).
      */
     private fun write(
         call: MethodCall,
@@ -55,7 +58,16 @@ internal class ValueWriter(
         )
 
         val metadata = buildMetadata(recordingMethod, clientRecordId, clientRecordVersion?.toLong(), deviceType)
-        val record = valueRecord(type, startTime, endTime, value, metadata)
+        requireStartBeforeEnd(type, startTime, endTime)
+        val record = try {
+            valueRecord(type, startTime, endTime, value, metadata)
+        } catch (e: IllegalArgumentException) {
+            // Health Connect checks the value while the record is built, on Android 14+ also what it checked
+            // on insert before: a value it rejects fails the write, not the call, as a rejected insert does.
+            Log.e("FLUTTER_HEALTH::ERROR", "Error writing $type: ${e.message}")
+            result.success(failureReply)
+            return
+        }
         if (record == null) {
             result.success(failureReply)
             return

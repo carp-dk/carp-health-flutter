@@ -60,10 +60,41 @@ private val dedicatedWriteMethods = mapOf(
     HealthConstants.ACTIVITY_INTENSITY to "writeActivityIntensity",
 )
 
+// The data types written as records that must end after they start ([requireStartBeforeEnd]). Heart
+// rate and speed are series, which may end when they start.
+private val typesWithDuration = setOf(
+    HealthConstants.STEPS,
+    HealthConstants.ACTIVE_ENERGY_BURNED,
+    HealthConstants.TOTAL_CALORIES_BURNED,
+    HealthConstants.DISTANCE_DELTA,
+    HealthConstants.WATER,
+    HealthConstants.FLIGHTS_CLIMBED,
+    HealthConstants.SKIN_TEMPERATURE,
+    HealthConstants.SLEEP_SESSION,
+) + sleepStageTypes.keys
+
+/**
+ * Throws IllegalArgumentException unless [start] is before [end], for a record that must end after
+ * it starts. connect-client checked this on every Android version until 1.2.0-alpha03; since then
+ * Android 14+ leaves it to the platform, which stores records that end when they start, and such
+ * records make whole reads fail in apps on older connect-client versions (#513). The writers check it
+ * themselves, so such a write fails on every Android version, as before.
+ */
+internal fun requireStartBeforeEnd(start: Instant, end: Instant) {
+    require(start.isBefore(end)) { "startTime must be before endTime." }
+}
+
+/** [requireStartBeforeEnd] for a value of [type] from [startTime] to [endTime] (epoch milliseconds). */
+internal fun requireStartBeforeEnd(type: String, startTime: Long, endTime: Long) {
+    if (type in typesWithDuration) requireStartBeforeEnd(Instant.ofEpochMilli(startTime), Instant.ofEpochMilli(endTime))
+}
+
 /**
  * The record of one [value] of the data type [type], or null (with an error in the log) for a type
  * that writeData does not write. Instantaneous types are recorded at [startTime] (epoch
- * milliseconds); series types hold one sample at [startTime].
+ * milliseconds); series types hold one sample at [startTime]. Throws IllegalArgumentException for a
+ * value Health Connect rejects while the record is built (on Android 14+ the platform checks it);
+ * check the times with [requireStartBeforeEnd] first.
  */
 internal fun valueRecord(type: String, startTime: Long, endTime: Long, value: Double, metadata: Metadata): Record? {
     val start = Instant.ofEpochMilli(startTime)

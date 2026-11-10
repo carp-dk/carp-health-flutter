@@ -12,9 +12,7 @@ internal fun firstInsertedId(response: InsertRecordsResponse): String {
     return id
 }
 
-/** Logs that adding [what] (e.g. "the workout") to Health Connect failed with [error]. */
+/** Logs that adding [what] (e.g. "the workout") to Health Connect failed with [error], and its stack trace. */
 internal fun logAddFailed(what: String, error: Exception) {
-    Log.w("FLUTTER_HEALTH::ERROR", "[Health Connect] There was an error adding $what")
-    Log.w("FLUTTER_HEALTH::ERROR", error.message ?: "unknown error")
-    Log.w("FLUTTER_HEALTH::ERROR", error.stackTrace.toString())
+    Log.w("FLUTTER_HEALTH::ERROR", "[Health Connect] There was an error adding $what", error)
 }
