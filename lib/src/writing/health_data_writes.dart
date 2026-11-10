@@ -24,9 +24,11 @@ mixin HealthDataWrites on _HealthSupport {
   ///
   /// Values for Sleep and Headache are ignored and will be automatically assigned
   /// the default value, and so are values for [HealthDataType.MINDFULNESS]: a
-  /// mindfulness session is the time from [startTime] to [endTime]. On Android
-  /// each sleep value written here is a sleep session of its own: write a night
-  /// with its stages with [Health.writeSleepSession].
+  /// mindfulness session is the time from [startTime] to [endTime], written
+  /// without a type (write one with its type and title with
+  /// [Health.writeMindfulnessSession]). On Android each sleep value written
+  /// here is a sleep session of its own: write a night with its stages with
+  /// [Health.writeSleepSession].
   ///
   /// Throws an [ArgumentError] for a type with a write method of its own:
   /// [HealthDataType.WORKOUT] ([Health.writeWorkoutData]),

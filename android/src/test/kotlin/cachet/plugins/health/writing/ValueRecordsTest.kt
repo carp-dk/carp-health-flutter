@@ -81,12 +81,31 @@ class ValueRecordsTest {
 
     @Test
     fun aMindfulnessSessionIsWrittenAsAnUntypedSession() {
-        // writeData has no session type, title or notes: Health Connect's generic session.
+        // writeHealthData sends no session type, title or notes: Health Connect's generic session.
         val session = valueRecord(HealthConstants.MINDFULNESS, start, end, 10.0, metadata) as MindfulnessSessionRecord
         assertEquals(Instant.ofEpochMilli(start) to Instant.ofEpochMilli(end), session.startTime to session.endTime)
         assertEquals(MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN, session.mindfulnessSessionType)
         assertNull(session.title)
         assertNull(session.notes)
+    }
+
+    @Test
+    fun aMindfulnessSessionIsWrittenWithItsTypeTitleAndNotes() {
+        // The names of the Dart MindfulnessSessionType, in Health Connect's order.
+        assertEquals(
+            listOf("UNKNOWN", "MEDITATION", "BREATHING", "MUSIC", "MOVEMENT", "UNGUIDED"),
+            HealthConstants.mindfulnessSessionTypeMap.entries.sortedBy { it.value }.map { it.key },
+        )
+        for ((name, sessionType) in HealthConstants.mindfulnessSessionTypeMap) {
+            val session = valueRecord(
+                HealthConstants.MINDFULNESS, start, end, 10.0, metadata, name, "Morning practice", "Calm",
+            ) as MindfulnessSessionRecord
+            assertEquals(name, sessionType, session.mindfulnessSessionType)
+            assertEquals("Morning practice" to "Calm", session.title to session.notes)
+        }
+        // Other types have no session.
+        val weight = valueRecord(HealthConstants.WEIGHT, start, end, 72.5, metadata, "BREATHING", "Morning", "Calm")
+        assertEquals(WeightRecord::class, weight?.let { it::class })
     }
 
     @Test

@@ -257,13 +257,15 @@ extension _WriteSampleDataActions on HealthAppState {
       debugPrint('Skipping WATER_TEMPERATURE, UNDERWATER_DEPTH, and UV_INDEX writes on iOS < 16.');
     }
 
-    if (Platform.isIOS) {
-      // Mindfulness value should be counted based on start and end time
-      success &= await health.writeHealthData(
-        value: 10,
-        type: HealthDataType.MINDFULNESS,
+    // A mindfulness session is the time from its start to its end. On Android it
+    // needs a Health Connect that has mindfulness sessions, and it keeps the
+    // session type and title, which iOS does not store.
+    if (await health.isMindfulnessSessionAvailable()) {
+      success &= await health.writeMindfulnessSession(
         startTime: earlier,
         endTime: now,
+        sessionType: MindfulnessSessionType.BREATHING,
+        title: 'Morning practice',
         recordingMethod: RecordingMethod.automatic,
       );
     }

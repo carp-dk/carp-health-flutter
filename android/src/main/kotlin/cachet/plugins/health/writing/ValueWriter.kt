@@ -10,8 +10,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Writes one value of a data type ([valueRecord]), for writeData and writeDataUUID; writeBloodOxygen
- * and writeMenstruationFlow are writeData calls too.
+ * Writes one value of a data type ([valueRecord]), for writeData and writeDataUUID; writeBloodOxygen,
+ * writeMenstruationFlow and writeMindfulnessSession are writeData calls too.
  */
 internal class ValueWriter(
     private val healthConnectClient: HealthConnectClient,
@@ -52,6 +52,10 @@ internal class ValueWriter(
         val clientRecordVersion: Double? = call.argument<Double>("clientRecordVersion")
         val recordingMethod = call.argument<Int>("recordingMethod")!!
         val deviceType: Int? = call.argument<Int>("deviceType")
+        // The session of writeMindfulnessSession, for MINDFULNESS.
+        val sessionType: String? = call.argument("mindfulnessSessionType")
+        val title: String? = call.argument("title")
+        val notes: String? = call.argument("notes")
 
         Log.i(
             "FLUTTER_HEALTH",
@@ -68,7 +72,7 @@ internal class ValueWriter(
             return
         }
         val record = try {
-            valueRecord(type, startTime, endTime, value, metadata)
+            valueRecord(type, startTime, endTime, value, metadata, sessionType, title, notes)
         } catch (e: IllegalArgumentException) {
             // Health Connect checks the value while the record is built, on Android 14+ also what it checked
             // on insert before: a value it rejects fails the write, not the call, as a rejected insert does.

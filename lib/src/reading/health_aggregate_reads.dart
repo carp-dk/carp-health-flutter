@@ -19,6 +19,9 @@ mixin HealthAggregateReads on _HealthReadSupport {
   ///    [HealthDataType.SLEEP_SESSION] there;
   ///  * for [HealthDataType.ACTIVITY_INTENSITY] (Android), the intensity
   ///    minutes Health Connect computes (`INTENSITY_MINUTES_TOTAL`);
+  ///  * for [HealthDataType.MINDFULNESS] (Android), the minutes of the
+  ///    mindfulness sessions Health Connect computes
+  ///    (`MINDFULNESS_DURATION_TOTAL`);
   ///  * the average for any other type. For heart rate, that is the average
   ///    beats per minute: HealthKit weights the samples by the time they
   ///    cover, Health Connect takes the mean of the samples.
@@ -31,8 +34,9 @@ mixin HealthAggregateReads on _HealthReadSupport {
   ///    [HealthDataType.WEIGHT], [HealthDataType.HEIGHT],
   ///    [HealthDataType.POWER], [HealthDataType.CYCLING_CADENCE] and
   ///    [HealthDataType.SKIN_TEMPERATURE] (averages), and
-  ///    [HealthDataType.ACTIVITY_INTENSITY] do. Any other type returns no data
-  ///    points, even if it has data;
+  ///    [HealthDataType.ACTIVITY_INTENSITY] and [HealthDataType.MINDFULNESS]
+  ///    (minutes) do. Any other type returns no data points, even if it has
+  ///    data;
   ///  * on iOS, the sleep types and the quantity types do, except
   ///    [HealthDataType.APPLE_MOVE_TIME], [HealthDataType.APPLE_STAND_TIME],
   ///    [HealthDataType.ATRIAL_FIBRILLATION_BURDEN],

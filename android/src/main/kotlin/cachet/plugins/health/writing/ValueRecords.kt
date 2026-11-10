@@ -95,11 +95,23 @@ internal fun requireStartBeforeEnd(type: String, startTime: Long, endTime: Long)
 /**
  * The record of one [value] of the data type [type], or null (with an error in the log) for a type
  * that writeData does not write. Instantaneous types are recorded at [startTime] (epoch
- * milliseconds); series types hold one sample at [startTime]. Throws IllegalArgumentException for a
- * value Health Connect rejects while the record is built (on Android 14+ the platform checks it);
- * check the times with [requireStartBeforeEnd] first.
+ * milliseconds); series types hold one sample at [startTime]. A MINDFULNESS session is the time from
+ * [startTime] to [endTime] without a value, of [sessionType] (a key of
+ * [HealthConstants.mindfulnessSessionTypeMap], UNKNOWN if null) with [title] and [notes]; other types
+ * ignore these three. Throws IllegalArgumentException for a value Health Connect rejects while the
+ * record is built (on Android 14+ the platform checks it); check the times with
+ * [requireStartBeforeEnd] first.
  */
-internal fun valueRecord(type: String, startTime: Long, endTime: Long, value: Double, metadata: Metadata): Record? {
+internal fun valueRecord(
+    type: String,
+    startTime: Long,
+    endTime: Long,
+    value: Double,
+    metadata: Metadata,
+    sessionType: String? = null,
+    title: String? = null,
+    notes: String? = null,
+): Record? {
     val start = Instant.ofEpochMilli(startTime)
     val end = Instant.ofEpochMilli(endTime)
     return when (type) {
@@ -184,10 +196,12 @@ internal fun valueRecord(type: String, startTime: Long, endTime: Long, value: Do
             stages = listOf(SleepSessionRecord.Stage(start, end, sleepStageTypes.getValue(type))),
             metadata = metadata,
         )
-        // A session is its time span, as HealthKit's mindful session, and writeData has no session type.
         HealthConstants.MINDFULNESS -> MindfulnessSessionRecord(
             startTime = start, startZoneOffset = null, endTime = end, endZoneOffset = null, metadata = metadata,
-            mindfulnessSessionType = MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+            mindfulnessSessionType = HealthConstants.mindfulnessSessionTypeMap[sessionType]
+                ?: MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+            title = title,
+            notes = notes,
         )
         in dedicatedWriteMethods -> {
             Log.e("FLUTTER_HEALTH::ERROR", "You must use the [${dedicatedWriteMethods.getValue(type)}] API")

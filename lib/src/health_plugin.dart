@@ -24,8 +24,9 @@ part of '../health.dart';
 ///    [getHealthIntervalDataFromTypes] method.
 ///  * Reading total step counts using the [getTotalStepsInInterval] method.
 ///  * Writing different types of specialized health data like the [writeWorkoutData],
-///    [writeSleepSession], [writeBloodPressure], [writeBloodOxygen], [writeAudiogram], [writeMeal],
-///    [writeMenstruationFlow], [writeInsulinDelivery], [writeActivityIntensity] methods.
+///    [writeSleepSession], [writeMindfulnessSession], [writeBloodPressure], [writeBloodOxygen],
+///    [writeAudiogram], [writeMeal], [writeMenstruationFlow], [writeInsulinDelivery],
+///    [writeActivityIntensity] methods.
 ///
 /// On **Android**, this plugin relies on the Google Health Connect (GHC) SDK.
 /// Since Health Connect is not installed on SDK level < 34, the plugin has a
@@ -53,6 +54,7 @@ class Health
         HealthPlatformSpecificWrites,
         HealthMealWrites,
         HealthSleepWrites,
+        HealthMindfulnessWrites,
         HealthDataDeletion,
         HealthWorkoutWrites,
         HealthWorkoutRoutes {

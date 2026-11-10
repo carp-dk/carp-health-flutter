@@ -10,6 +10,7 @@ import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.MindfulnessSessionRecord
 import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SleepSessionRecord
@@ -57,6 +58,7 @@ class AggregateValueTest {
         PowerRecord.POWER_AVG to (Power.watts(215.0) to 215.0),
         CyclingPedalingCadenceRecord.RPM_AVG to (90.5 to 90.5),
         ActivityIntensityRecord.INTENSITY_MINUTES_TOTAL to (Duration.ofMinutes(30).plusSeconds(30) to 30.5),
+        MindfulnessSessionRecord.MINDFULNESS_DURATION_TOTAL to (Duration.ofMinutes(12).plusSeconds(45) to 12.75),
         SkinTemperatureRecord.TEMPERATURE_DELTA_AVG to (TemperatureDelta.celsius(0.3) to 0.3),
     )
 
@@ -101,6 +103,23 @@ class AggregateValueTest {
     @Test
     fun heartRateIntervalsAreAverageBeatsPerMinute() {
         assertEquals(HeartRateRecord.BPM_AVG, HealthConstants.mapToAggregateMetric["HEART_RATE"])
+    }
+
+    @Test
+    fun mindfulnessIntervalsAreTheMinutesOfTheSessions() {
+        val total = MindfulnessSessionRecord.MINDFULNESS_DURATION_TOTAL
+        assertEquals(total, HealthConstants.mapToAggregateMetric[HealthConstants.MINDFULNESS])
+        val reply = getIntervalData(HealthConstants.MINDFULNESS) { method, _ ->
+            check(method == "aggregateGroupByDuration") { "Unexpected call of $method" }
+            // Health Connect holds durations in milliseconds.
+            val sessions = AggregationResult(
+                mapOf(total.metricKey to Duration.ofMinutes(15).plusSeconds(30).toMillis()),
+                emptyMap(),
+                setOf(DataOrigin("com.example.meditation")),
+            )
+            listOf(AggregationResultGroupedByDuration(sessions, start, start.plus(Duration.ofHours(1)), ZoneOffset.UTC))
+        }
+        assertEquals(listOf(15.5), (reply as List<*>).map { (it as Map<*, *>)["value"] })
     }
 
     @Test
