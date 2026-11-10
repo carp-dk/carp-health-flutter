@@ -86,13 +86,17 @@ extension HealthDataReader {
         }
     }
 
+    /// The name a read gives [workout] (HealthWorkoutActivityType on the Dart side): the name of its
+    /// type, refined by its metadata, e.g. RUNNING_TREADMILL for an indoor run.
+    func workoutActivityName(of workout: HKWorkout) -> String? {
+        workoutActivityNames.name(of: workout.workoutActivityType, metadata: workout.metadata)
+    }
+
     private func workoutDictionaries(_ samples: [HKWorkout]) -> [NSDictionary] {
         samples.map { sample -> NSDictionary in
             [
                 "uuid": "\(sample.uuid)",
-                "workoutActivityType": workoutActivityTypeMap.first(where: {
-                    $0.value == sample.workoutActivityType
-                })?.key as Any,
+                "workoutActivityType": workoutActivityName(of: sample) as Any,
                 "totalEnergyBurned": sample.totalEnergyBurned?.doubleValue(
                     for: HKUnit.kilocalorie()
                 ) as Any,
@@ -107,7 +111,7 @@ extension HealthDataReader {
                     (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                     ? HealthConstants.RecordingMethod.manual.rawValue
                     : HealthConstants.RecordingMethod.automatic.rawValue,
-                "workout_type": HKWorkoutActivityType.toString(sample.workoutActivityType),
+                "workout_type": workoutActivityName(of: sample) ?? "OTHER",
                 "total_distance": sample.totalDistance != nil
                     ? Int(sample.totalDistance!.doubleValue(for: HKUnit.meter())) : 0,
                 "total_energy_burned": sample.totalEnergyBurned != nil

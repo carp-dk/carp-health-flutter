@@ -45,9 +45,10 @@ extension HealthDataWriter {
 
     /// The workout writeWorkoutData and writeWorkoutDataUUID save, or nil after replying an
     /// INVALID_ARGUMENT error for a time range or total that HKWorkout does not accept (it raises
-    /// an exception for those, crashing the app).
+    /// an exception for those, crashing the app). A name that shares its HealthKit type with a
+    /// more general name, e.g. RUNNING_TREADMILL, adds the metadata that tells the two apart.
     /// - Throws: PluginError when activityType, startTime or endTime is missing or unknown
-    private func workout(from call: FlutterMethodCall, result: @escaping FlutterResult) throws -> HKWorkout? {
+    func workout(from call: FlutterMethodCall, result: @escaping FlutterResult) throws -> HKWorkout? {
         guard let arguments = call.arguments as? NSDictionary,
               let activityType = (arguments["activityType"] as? String),
               let startTime = (arguments["startTime"] as? NSNumber),
@@ -87,7 +88,9 @@ extension HealthDataWriter {
             duration: dateTo.timeIntervalSince(dateFrom),
             totalEnergyBurned: totalEnergyBurned,
             totalDistance: totalDistance,
-            metadata: workoutMetadata(from: arguments["metadata"])
+            metadata: workoutMetadata(
+                from: arguments["metadata"], defaults: WorkoutActivityNames.defaultMetadata(for: activityType)
+            )
         )
     }
 

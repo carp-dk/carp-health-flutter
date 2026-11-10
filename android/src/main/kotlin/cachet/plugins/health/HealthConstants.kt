@@ -186,6 +186,8 @@ object HealthConstants {
     /**
      * Maps workout/exercise type strings to Health Connect ExerciseSessionRecord types.
      * Comprehensive mapping of all supported exercise activities for workout tracking.
+     * Several names share an exercise type (e.g. CARDIO_DANCE, DANCING and SOCIAL_DANCE): reads
+     * report the generic one ([workoutTypeName]).
      * 
      * @return Map<String, Int> Workout type strings to Health Connect exercise type constants
      */
@@ -250,7 +252,4 @@ object HealthConstants {
         "YOGA" to ExerciseSessionRecord.EXERCISE_TYPE_YOGA,
         "OTHER" to ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT,
     )
-
-    val workoutTypeReverseMap: Map<Int, String> =
-        workoutTypeMap.entries.associate { (key, value) -> value to key }
 }

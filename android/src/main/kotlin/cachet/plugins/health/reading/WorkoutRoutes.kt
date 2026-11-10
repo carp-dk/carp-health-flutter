@@ -6,8 +6,8 @@ import androidx.health.connect.client.records.ExerciseRouteResult.Data
 import androidx.health.connect.client.records.ExerciseRouteResult.NoData
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.Record
-import cachet.plugins.health.HealthConstants
 import cachet.plugins.health.HealthRecordingFilter
+import cachet.plugins.health.workoutTypeName
 
 /** Converts the routes of exercise sessions to workout route data points. */
 internal class WorkoutRoutes(private val recordingFilter: HealthRecordingFilter) {
@@ -75,9 +75,7 @@ internal class WorkoutRoutes(private val recordingFilter: HealthRecordingFilter)
 
         val metadata = mutableMapOf<String, Any?>(
             "workout_uuid" to session.metadata.id,
-            "workout_activity_type" to (
-                HealthConstants.workoutTypeReverseMap[session.exerciseType] ?: "OTHER"
-            ),
+            "workout_activity_type" to workoutTypeName(session.exerciseType),
             "workout_start_time" to session.startTime.toEpochMilli(),
             "workout_end_time" to session.endTime.toEpochMilli(),
             "route_point_count" to routePoints.size,
@@ -99,9 +97,7 @@ internal class WorkoutRoutes(private val recordingFilter: HealthRecordingFilter)
         val metadata = mapOf(
             "workout_uuid" to session.metadata.id,
             "route_requires_consent" to true,
-            "workout_activity_type" to (
-                HealthConstants.workoutTypeReverseMap[session.exerciseType] ?: "OTHER"
-            ),
+            "workout_activity_type" to workoutTypeName(session.exerciseType),
             "workout_start_time" to session.startTime.toEpochMilli(),
             "workout_end_time" to session.endTime.toEpochMilli(),
         )

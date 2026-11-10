@@ -9,8 +9,8 @@ import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-import cachet.plugins.health.HealthConstants
 import cachet.plugins.health.HealthRecordingFilter
+import cachet.plugins.health.workoutTypeName
 import kotlin.reflect.KClass
 
 internal const val WORKOUT = "WORKOUT"
@@ -114,11 +114,7 @@ internal class WorkoutConverter(
             healthConnectData.add(
                 mapOf<String, Any?>(
                     "uuid" to record.metadata.id,
-                    "workoutActivityType" to
-                            (HealthConstants.workoutTypeMap
-                                .filterValues { it == record.exerciseType }
-                                .keys
-                                .firstOrNull() ?: "OTHER"),
+                    "workoutActivityType" to workoutTypeName(record.exerciseType),
                     "totalDistance" to if (totalDistance == 0.0) null else totalDistance,
                     "totalDistanceUnit" to "METER",
                     "totalEnergyBurned" to if (totalEnergyBurned == 0.0) null else totalEnergyBurned,

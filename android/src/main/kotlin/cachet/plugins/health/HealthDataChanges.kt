@@ -227,8 +227,7 @@ class HealthDataChanges(
     }
 
     private fun convertWorkoutRecord(record: ExerciseSessionRecord): Map<String, Any?> {
-        val workoutType =
-            HealthConstants.workoutTypeReverseMap[record.exerciseType] ?: "OTHER"
+        val workoutType = workoutTypeName(record.exerciseType)
 
         return mapOf(
             "uuid" to record.metadata.id,

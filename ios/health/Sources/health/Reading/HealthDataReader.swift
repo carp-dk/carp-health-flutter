@@ -32,7 +32,8 @@ class HealthDataReader {
     let dataTypesDict: [String: HKSampleType]
     let dataQuantityTypesDict: [String: HKQuantityType]
     let unitDict: [String: HKUnit]
-    let workoutActivityTypeMap: [String: HKWorkoutActivityType]
+    /// The names reads give workouts, built once from the workoutActivityTypeMap passed to init.
+    let workoutActivityNames: WorkoutActivityNames
     let characteristicsTypesDict: [String: HKCharacteristicType]
 
     /// - Parameters:
@@ -54,7 +55,7 @@ class HealthDataReader {
         self.dataTypesDict = dataTypesDict
         self.dataQuantityTypesDict = dataQuantityTypesDict
         self.unitDict = unitDict
-        self.workoutActivityTypeMap = workoutActivityTypeMap
+        workoutActivityNames = WorkoutActivityNames(workoutActivityTypeMap)
         self.characteristicsTypesDict = characteristicsTypesDict
     }
 

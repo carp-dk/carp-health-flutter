@@ -96,7 +96,7 @@ enum HealthWorkoutActivityType {
   PARAGLIDING,
   ROCK_CLIMBING, // on iOS this is the same as CLIMBING
   ROWING_MACHINE,
-  RUNNING_TREADMILL, // on iOS this is the same as RUNNING
+  RUNNING_TREADMILL, // on iOS an indoor RUNNING workout, read back as RUNNING_TREADMILL
   SCUBA_DIVING,
   SKIING,
   SNOWSHOEING,
