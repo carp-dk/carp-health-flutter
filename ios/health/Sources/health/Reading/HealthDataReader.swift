@@ -13,20 +13,6 @@ class HealthDataReader {
         HealthConstants.ELECTROCARDIOGRAM: 10,
         HealthConstants.WORKOUT_ROUTE: 10,
     ]
-    /// Category value each sleep / headache data type reads.
-    static let categoryValues: [String: Int] = [
-        HealthConstants.SLEEP_IN_BED: 0,
-        HealthConstants.SLEEP_ASLEEP: 1,
-        HealthConstants.SLEEP_AWAKE: 2,
-        HealthConstants.SLEEP_LIGHT: 3,
-        HealthConstants.SLEEP_DEEP: 4,
-        HealthConstants.SLEEP_REM: 5,
-        HealthConstants.HEADACHE_UNSPECIFIED: 0,
-        HealthConstants.HEADACHE_NOT_PRESENT: 1,
-        HealthConstants.HEADACHE_MILD: 2,
-        HealthConstants.HEADACHE_MODERATE: 3,
-        HealthConstants.HEADACHE_SEVERE: 4,
-    ]
 
     let healthStore: HKHealthStore
     let dataTypesDict: [String: HKSampleType]

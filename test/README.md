@@ -16,6 +16,7 @@ This folder contains the reusable test harness, fixtures, and templates for the 
 
 **Platform Notes**
 - Many APIs are platform-gated. For iOS/Android-only behavior, keep the unit test focused on arguments and parsing.
+- The tests run on a desktop host, where `Health.platformType` is Health Connect and `Health.isDataTypeAvailable` has the iOS data types. Checks that depend on `platformType` run as on iOS with `HealthOnIOS` from `test/support/health_on_ios.dart`, and checks that depend on the Android data types run with `HealthOnAndroid` from `test/support/health_on_android.dart`. `Platform.isAndroid` and `Platform.isIOS` stay false in both.
 - Validate platform-specific behavior in `example/integration_test` on a real device or emulator.
 
 **Coverage Checklist**

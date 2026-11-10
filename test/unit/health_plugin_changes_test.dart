@@ -2,17 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 
 import '../support/fixtures.dart';
+import '../support/health_on_ios.dart';
 import '../support/health_test_context.dart';
-import '../support/stub_device_info.dart';
-
-/// [Health] on iOS, where Health Connect's changes API does not exist. The
-/// tests run on a desktop host, where [Health.platformType] is Health Connect.
-class _HealthOnIOS extends Health {
-  _HealthOnIOS() : super(deviceInfo: StubDeviceInfoPlugin());
-
-  @override
-  HealthPlatformType get platformType => HealthPlatformType.appleHealth;
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -70,7 +61,7 @@ void main() {
     });
 
     test('getChangesToken and getChanges return null on iOS, without a platform call', () async {
-      final health = _HealthOnIOS();
+      final health = HealthOnIOS();
 
       expect(await health.getChangesToken(types: [HealthDataType.STEPS]), isNull);
       expect(await health.getChanges(changesToken: 'token-1'), isNull);

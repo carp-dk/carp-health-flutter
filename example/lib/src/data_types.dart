@@ -41,6 +41,7 @@ const List<HealthDataType> dataTypesIOS = [
   HealthDataType.SLEEP_LIGHT,
   HealthDataType.SLEEP_DEEP,
   HealthDataType.SLEEP_REM,
+  HealthDataType.SLEEP_UNKNOWN,
   HealthDataType.WATER,
   HealthDataType.EXERCISE_TIME,
   HealthDataType.WORKOUT,

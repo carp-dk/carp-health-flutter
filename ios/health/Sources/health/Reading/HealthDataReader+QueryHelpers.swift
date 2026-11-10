@@ -27,8 +27,8 @@ extension HealthDataReader {
             predicates.append(NSPredicate(format: "metadata.%K != YES", HKMetadataKeyWasUserEntered))
         }
         // Sleep stages and headache severities share one category type; filter by value in the query.
-        if let value = HealthDataReader.categoryValues[dataTypeKey] {
-            predicates.append(NSPredicate(format: "%K == %@", HKPredicateKeyPathCategoryValue, NSNumber(value: value)))
+        if let values = CategoryValues(dataTypeKey) {
+            predicates.append(values.predicate)
         }
         return predicates.count == 1 ? predicates[0] : NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
     }

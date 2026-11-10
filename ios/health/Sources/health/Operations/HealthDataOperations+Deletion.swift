@@ -36,17 +36,13 @@ extension HealthDataOperations {
             return
         }
 
-        let samplePredicate = HKQuery.predicateForSamples(
-            withStart: dateFrom, end: dateTo, options: .strictStartDate
-        )
-        let ownerPredicate = HKQuery.predicateForObjects(from: HKSource.default())
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        // Sleep stages and headache severities share one category type: only the type's values go.
+        let values = CategoryValues(dataTypeKey)
 
         let deleteQuery = HKSampleQuery(
             sampleType: dataType,
-            predicate: NSCompoundPredicate(andPredicateWithSubpredicates: [
-                samplePredicate, ownerPredicate,
-            ]),
+            predicate: deletePredicate(values, from: dateFrom, to: dateTo),
             limit: HKObjectQueryNoLimit,
             sortDescriptors: [sortDescriptor]
         ) { [weak self] _, samplesOrNil, error in
@@ -61,9 +57,14 @@ extension HealthDataOperations {
                 }
                 return
             }
+            // The query already filters by value; this keeps other values safe if HealthKit did not.
+            let samples = samplesOrNil.filter { sample in
+                guard let values, let categorySample = sample as? HKCategorySample else { return true }
+                return values.contains(categorySample.value)
+            }
 
             // Chcek if there are any samples to delete
-            if samplesOrNil.isEmpty {
+            if samples.isEmpty {
                 print("Info: No \(dataType) samples found in the specified date range.")
                 DispatchQueue.main.async {
                     result(true)
@@ -72,7 +73,7 @@ extension HealthDataOperations {
             }
 
             // Delete the retrieved objects from the HealthKit store
-            healthStore.delete(samplesOrNil) { success, error in
+            healthStore.delete(samples) { success, error in
                 if let err = error {
                     print("Error deleting \(dataType) Sample: \(err.localizedDescription)")
                 }
@@ -83,6 +84,19 @@ extension HealthDataOperations {
         }
 
         healthStore.execute(deleteQuery)
+    }
+
+    /// The predicate of the samples delete removes: the app's own samples that start in the range
+    /// and, of a data type that shares its category type with others, have its [values].
+    func deletePredicate(_ values: CategoryValues?, from dateFrom: Date, to dateTo: Date) -> NSPredicate {
+        var predicates = [
+            HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate),
+            HKQuery.predicateForObjects(from: HKSource.default()),
+        ]
+        if let values {
+            predicates.append(values.predicate)
+        }
+        return NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
     }
 
     /// Delete health data by UUID

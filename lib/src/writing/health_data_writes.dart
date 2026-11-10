@@ -23,6 +23,18 @@ mixin HealthDataWrites on _HealthSupport {
   ///
   /// Values for Sleep and Headache are ignored and will be automatically assigned
   /// the default value.
+  ///
+  /// Throws an [ArgumentError] for a type with a write method of its own:
+  /// [HealthDataType.WORKOUT] ([Health.writeWorkoutData]),
+  /// [HealthDataType.ACTIVITY_INTENSITY] ([Health.writeActivityIntensity])
+  /// and, on iOS, [HealthDataType.INSULIN_DELIVERY]
+  /// ([Health.writeInsulinDelivery], which takes the delivery reason HealthKit
+  /// needs) and [HealthDataType.MENSTRUATION_FLOW]
+  /// ([Health.writeMenstruationFlow], which takes the start-of-cycle flag
+  /// HealthKit needs). Throws a [HealthException] with
+  /// [HealthErrorCode.notSupported] for a type this platform does not have,
+  /// such as [HealthDataType.INSULIN_DELIVERY] on Android, and on iOS for
+  /// [HealthDataType.SLEEP_UNKNOWN]: HealthKit has no unknown sleep value.
   @override
   Future<bool> writeHealthData({
     required double value,
@@ -40,16 +52,7 @@ mixin HealthDataWrites on _HealthSupport {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
 
-    if (type == HealthDataType.WORKOUT) {
-      throw ArgumentError("Adding workouts should be done using the writeWorkoutData method.");
-    }
-    if (type == HealthDataType.ACTIVITY_INTENSITY) {
-      throw ArgumentError("Adding activity intensity data should be done using the writeActivityIntensity method.");
-    }
-    // If not implemented on platform, throw an exception
-    if (!isDataTypeAvailable(type)) {
-      throw HealthException(type, 'Not available on platform $platformType', errorCode: HealthErrorCode.notSupported);
-    }
+    _checkWritable(type);
     endTime ??= startTime;
     if (startTime.isAfter(endTime)) {
       throw ArgumentError("startTime must be equal or earlier than endTime");
@@ -120,6 +123,8 @@ mixin HealthDataWrites on _HealthSupport {
   ///
   /// Values for Sleep and Headache are ignored and will be automatically assigned
   /// the default value.
+  ///
+  /// Throws for the same types as [writeHealthData].
   Future<String?> writeHealthDataUUID({
     required double value,
     HealthDataUnit? unit,
@@ -135,13 +140,7 @@ mixin HealthDataWrites on _HealthSupport {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
 
-    if (type == HealthDataType.WORKOUT) {
-      throw ArgumentError("Adding workouts should be done using the writeWorkoutData method.");
-    }
-    // If not implemented on platform, throw an exception
-    if (!isDataTypeAvailable(type)) {
-      throw HealthException(type, 'Not available on platform $platformType', errorCode: HealthErrorCode.notSupported);
-    }
+    _checkWritable(type);
 
     endTime ??= startTime;
     if (startTime.isAfter(endTime)) {
@@ -197,6 +196,42 @@ mixin HealthDataWrites on _HealthSupport {
     debugPrint("Added health data point: $uuid");
 
     return uuid;
+  }
+
+  /// Throws for a [type] that [writeHealthData] and [writeHealthDataUUID] do
+  /// not write: an [ArgumentError] for a type with a write method of its own,
+  /// and a [HealthException] with [HealthErrorCode.notSupported] for a type
+  /// this platform cannot write.
+  void _checkWritable(HealthDataType type) {
+    if (type == HealthDataType.WORKOUT) {
+      throw ArgumentError("Adding workouts should be done using the writeWorkoutData method.");
+    }
+    if (type == HealthDataType.ACTIVITY_INTENSITY) {
+      throw ArgumentError("Adding activity intensity data should be done using the writeActivityIntensity method.");
+    }
+    // HealthKit raises an exception (crashing the app) for an insulin delivery without a delivery
+    // reason, and for a menstrual flow without the start-of-cycle flag. Health Connect has no insulin
+    // delivery (not supported below) and no such flag, so Android writes menstruation flow here too.
+    if (type == HealthDataType.INSULIN_DELIVERY && platformType == HealthPlatformType.appleHealth) {
+      throw ArgumentError(
+        "Adding insulin delivery on iOS should be done using the writeInsulinDelivery method, "
+        "which takes the delivery reason HealthKit needs.",
+      );
+    }
+    if (type == HealthDataType.MENSTRUATION_FLOW && platformType == HealthPlatformType.appleHealth) {
+      throw ArgumentError(
+        "Adding menstruation flow on iOS should be done using the writeMenstruationFlow method, "
+        "which takes the start-of-cycle flag HealthKit needs.",
+      );
+    }
+    // If not implemented on platform, throw an exception
+    if (!isDataTypeAvailable(type)) {
+      throw HealthException(type, 'Not available on platform $platformType', errorCode: HealthErrorCode.notSupported);
+    }
+    // writeSleepSession keeps an unknown stage as time in bed instead.
+    if (type == HealthDataType.SLEEP_UNKNOWN && platformType == HealthPlatformType.appleHealth) {
+      throw HealthException(type, 'HealthKit has no unknown sleep value', errorCode: HealthErrorCode.notSupported);
+    }
   }
 
   /// Assigns numbers to specific [HealthDataType]s.

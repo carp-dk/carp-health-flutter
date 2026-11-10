@@ -2,17 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 
 import '../support/fixtures.dart';
+import '../support/health_on_android.dart';
 import '../support/health_test_context.dart';
-import '../support/stub_device_info.dart';
-
-/// A [Health] with the data types of Android, for the sleep types only Health
-/// Connect has: the test host has the iOS ones.
-class _AndroidTypesHealth extends Health {
-  _AndroidTypesHealth() : super(deviceInfo: StubDeviceInfoPlugin());
-
-  @override
-  bool isDataTypeAvailable(HealthDataType dataType) => dataTypeKeysAndroid.contains(dataType);
-}
 
 /// A reply of the native getIntervalData method as both platforms send it: an
 /// hour-long interval from [HealthFixtures.start] on for each of [values].
@@ -86,7 +77,7 @@ void main() {
         HealthDataType.SLEEP_UNKNOWN,
       ];
 
-      final points = await readHours(types, health: _AndroidTypesHealth());
+      final points = await readHours(types, health: HealthOnAndroid());
 
       expect(_values(points), [for (final type in types) (type, 10.0)]);
     });
@@ -103,7 +94,7 @@ void main() {
     test('of activity intensity is the intensity minutes Health Connect computed', () async {
       ctx.channel.when('getIntervalData', _intervals([12.5]));
 
-      final points = await readHours([HealthDataType.ACTIVITY_INTENSITY], health: _AndroidTypesHealth());
+      final points = await readHours([HealthDataType.ACTIVITY_INTENSITY], health: HealthOnAndroid());
 
       expect(_values(points), [(HealthDataType.ACTIVITY_INTENSITY, 12.5)]);
     });

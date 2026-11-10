@@ -19,11 +19,13 @@ extension HealthDataReader {
         )
 
         // Sleep types are categories, not quantities: their value is the time their samples cover.
-        if let valueTest = sleepValueTest(for: dataTypeKey) {
+        // (The headache types are categories of another type, without interval data.)
+        if dataTypesDict[dataTypeKey]?.identifier == HKCategoryTypeIdentifier.sleepAnalysis.rawValue,
+           let values = CategoryValues(dataTypeKey)
+        {
             getSleepIntervalData(
                 dataTypeKey: dataTypeKey, unitKey: dataUnitKey, start: startDate.intValue, end: endDate.intValue,
-                interval: intervalInSecond, includeManualEntry: includeManualEntry, valueTest: valueTest,
-                result: result
+                interval: intervalInSecond, includeManualEntry: includeManualEntry, values: values, result: result
             )
             return
         }

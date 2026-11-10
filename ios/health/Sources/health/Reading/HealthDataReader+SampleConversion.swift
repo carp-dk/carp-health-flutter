@@ -65,8 +65,8 @@ extension HealthDataReader {
     private func categoryDictionaries(_ samples: [HKCategorySample], dataTypeKey: String) -> [NSDictionary] {
         // The query already filters by value; this keeps the result right for any other caller.
         var categorySamples = samples
-        if let value = HealthDataReader.categoryValues[dataTypeKey] {
-            categorySamples = categorySamples.filter { $0.value == value }
+        if let values = CategoryValues(dataTypeKey) {
+            categorySamples = categorySamples.filter { values.contains($0.value) }
         }
 
         return categorySamples.map { sample -> NSDictionary in

@@ -192,13 +192,7 @@ public class HealthPlugin: NSObject, FlutterPlugin {
             }
 
         case "delete":
-            do {
-                healthDataOperations.delete(call: call, result: result)
-            } catch {
-                result(FlutterError(code: "DELETE_ERROR",
-                                    message: "Error deleting data: \(error.localizedDescription)",
-                                    details: nil))
-            }
+            healthDataOperations.delete(call: call, result: result)
 
         case "deleteByUUID":
             do {

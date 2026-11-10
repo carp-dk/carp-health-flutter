@@ -37,12 +37,16 @@ extension HealthDataWriter {
             result(false)
             return
         }
+        guard validateWritable(type, result: result) else { return }
         guard validateSampleDates(start: dateFrom, end: dateTo, of: [sampleType], result: result) else { return }
 
         let sample: HKObject
 
         if let categoryType = sampleType as? HKCategoryType {
-            let safeValue = resolvedCategoryValue(for: type, rawValue: Int(value))
+            // HealthKit raises an exception (crashing the app) for a value the type does not have.
+            guard let safeValue = validCategoryValue(value, of: type, for: categoryType, result: result) else {
+                return
+            }
             sample = HKCategorySample(
                 type: categoryType, value: safeValue, start: dateFrom,
                 end: dateTo, metadata: metadata
@@ -118,13 +122,17 @@ extension HealthDataWriter {
             result("")
             return
         }
+        guard validateWritable(type, result: result) else { return }
         guard validateSampleDates(start: dateFrom, end: dateTo, of: [sampleType], result: result) else { return }
 
         let sample: HKObject
 
         if let categoryType = sampleType as? HKCategoryType {
+            guard let safeValue = validCategoryValue(value, of: type, for: categoryType, result: result) else {
+                return
+            }
             sample = HKCategorySample(
-                type: categoryType, value: resolvedCategoryValue(for: type, rawValue: Int(value)),
+                type: categoryType, value: safeValue,
                 start: dateFrom, end: dateTo, metadata: metadata)
         } else if let quantityType = sampleType as? HKQuantityType {
             guard let hkUnit = unitDict[unit] else {
@@ -210,35 +218,5 @@ extension HealthDataWriter {
     /// The error writeData and writeDataUUID reply with when [unit] cannot express [type], as reads do.
     private func incompatibleUnitError(unit: String, type: String) -> FlutterError {
         FlutterError(code: "INVALID_ARGUMENT", message: "Unit \(unit) cannot be used for \(type)", details: nil)
-    }
-
-    /// Returns a category value that is valid for the current iOS version.
-    /// Sleep "stages" (light/deep/rem) are iOS 16+ and need fallback on older versions.
-    private func resolvedCategoryValue(for type: String, rawValue: Int) -> Int {
-        switch type {
-        case HealthConstants.SLEEP_IN_BED:
-            return HKCategoryValueSleepAnalysis.inBed.rawValue
-        case HealthConstants.SLEEP_ASLEEP:
-            return HKCategoryValueSleepAnalysis.asleep.rawValue
-        case HealthConstants.SLEEP_AWAKE:
-            return HKCategoryValueSleepAnalysis.awake.rawValue
-        case HealthConstants.SLEEP_LIGHT:
-            if #available(iOS 16.0, *) {
-                return HKCategoryValueSleepAnalysis.asleepCore.rawValue
-            }
-            return HKCategoryValueSleepAnalysis.asleep.rawValue
-        case HealthConstants.SLEEP_DEEP:
-            if #available(iOS 16.0, *) {
-                return HKCategoryValueSleepAnalysis.asleepDeep.rawValue
-            }
-            return HKCategoryValueSleepAnalysis.asleep.rawValue
-        case HealthConstants.SLEEP_REM:
-            if #available(iOS 16.0, *) {
-                return HKCategoryValueSleepAnalysis.asleepREM.rawValue
-            }
-            return HKCategoryValueSleepAnalysis.asleep.rawValue
-        default:
-            return rawValue
-        }
     }
 }

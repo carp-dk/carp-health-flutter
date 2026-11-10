@@ -17,16 +17,6 @@ struct IntervalBucket: Equatable {
 }
 
 extension HealthDataReader {
-    /// The test of the sleep analysis values a sleep data type covers: those of the samples
-    /// getHealthDataFromTypes reads for it. nil for any other data type, such as the headache
-    /// severities, which are category values of another type.
-    func sleepValueTest(for dataTypeKey: String) -> ((Int) -> Bool)? {
-        guard dataTypesDict[dataTypeKey]?.identifier == HKCategoryTypeIdentifier.sleepAnalysis.rawValue,
-              let value = HealthDataReader.categoryValues[dataTypeKey]
-        else { return nil }
-        return { $0 == value }
-    }
-
     /// Gets the interval data of a sleep type: for each bucket the time that the type's samples
     /// cover, overlapping samples counted once, in a unit of time (MINUTE by default). Buckets of
     /// [interval] seconds follow each other from [start]; the last one ends at [end]. As for other
@@ -34,11 +24,11 @@ extension HealthDataReader {
     /// - Parameters:
     ///   - start: Milliseconds since the epoch
     ///   - end: Milliseconds since the epoch
-    ///   - valueTest: The test of the sample values that belong to the type (sleepValueTest)
+    ///   - values: The sleep analysis values of the type's samples, those getHealthDataFromTypes reads
     ///   - result: Flutter result callback, given the same keys as for other types
     func getSleepIntervalData(
         dataTypeKey: String, unitKey: String?, start: Int, end: Int, interval: Int,
-        includeManualEntry: Bool, valueTest: @escaping (Int) -> Bool, result: @escaping FlutterResult
+        includeManualEntry: Bool, values: CategoryValues, result: @escaping FlutterResult
     ) {
         guard interval > 0 else {
             result(FlutterError(code: "INVALID_ARGUMENT", message: "interval must be at least 1 second", details: nil))
@@ -62,18 +52,22 @@ extension HealthDataReader {
         }
         let (bucketLength, overflow) = interval.multipliedReportingOverflow(by: 1000)
 
-        // Every sample that overlaps the read, also one that starts before it.
-        var predicate = HKQuery.predicateForSamples(
-            withStart: HealthUtilities.dateFromMilliseconds(Double(start)),
-            end: HealthUtilities.dateFromMilliseconds(Double(end)), options: []
-        )
+        // Every sample of the type that overlaps the read, also one that starts before it.
+        var predicates = [
+            HKQuery.predicateForSamples(
+                withStart: HealthUtilities.dateFromMilliseconds(Double(start)),
+                end: HealthUtilities.dateFromMilliseconds(Double(end)), options: []
+            ),
+            values.predicate,
+        ]
         if !includeManualEntry {
-            let manualPredicate = NSPredicate(format: "metadata.%K != YES", HKMetadataKeyWasUserEntered)
-            predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [predicate, manualPredicate])
+            predicates.append(NSPredicate(format: "metadata.%K != YES", HKMetadataKeyWasUserEntered))
         }
 
         let query = HKSampleQuery(
-            sampleType: HKCategoryType(.sleepAnalysis), predicate: predicate, limit: HKObjectQueryNoLimit,
+            sampleType: HKCategoryType(.sleepAnalysis),
+            predicate: NSCompoundPredicate(andPredicateWithSubpredicates: predicates),
+            limit: HKObjectQueryNoLimit,
             sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
         ) { _, samplesOrNil, error in
             if let error {
@@ -89,7 +83,9 @@ extension HealthDataReader {
                 return
             }
 
-            let samples = (samplesOrNil ?? []).compactMap { $0 as? HKCategorySample }.filter { valueTest($0.value) }
+            // The query already filters by value; this keeps the result right if HealthKit did not.
+            let samples = (samplesOrNil ?? []).compactMap { $0 as? HKCategorySample }
+                .filter { values.contains($0.value) }
             let buckets = HealthDataReader.minutesPerBucket(
                 samples.map { (start: milliseconds($0.startDate), end: milliseconds($0.endDate)) },
                 start: start, end: end, bucket: overflow ? Int.max : bucketLength

@@ -16,6 +16,7 @@
 		5DDC8B9553DD970548CEEFEB /* WorkoutTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C8C35C444C54B37C22386BE /* WorkoutTypeTests.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
+		84C91D9AF8D58797EAA50814 /* CategoryValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E25BE1FB5CACFC9D8886597 /* CategoryValueTests.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -54,6 +55,7 @@
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		2A1208A9E4F2542C9DB5C2ED /* IntervalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTests.swift; sourceTree = "<group>"; };
+		2E25BE1FB5CACFC9D8886597 /* CategoryValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryValueTests.swift; sourceTree = "<group>"; };
 		331C3466792E0AE145779DB5 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -123,6 +125,7 @@
 				BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */,
 				C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */,
 				5C8C35C444C54B37C22386BE /* WorkoutTypeTests.swift */,
+				2E25BE1FB5CACFC9D8886597 /* CategoryValueTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -389,6 +392,7 @@
 				BEA7968C4EE40913C41030B9 /* SampleDatesTests.swift in Sources */,
 				1C1BF8D1AEAB4B7DAB0717F5 /* WorkoutWriteTests.swift in Sources */,
 				5DDC8B9553DD970548CEEFEB /* WorkoutTypeTests.swift in Sources */,
+				84C91D9AF8D58797EAA50814 /* CategoryValueTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

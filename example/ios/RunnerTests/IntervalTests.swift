@@ -103,19 +103,20 @@ class IntervalTests: XCTestCase {
     XCTAssertEqual(short.minutes, 0.025)
   }
 
-  func testSleepTypesReadTheirOwnValue() throws {
-    let values: [String: HKCategoryValueSleepAnalysis] = [
-      "SLEEP_IN_BED": .inBed, "SLEEP_ASLEEP": .asleepUnspecified, "SLEEP_AWAKE": .awake,
-      "SLEEP_LIGHT": .asleepCore, "SLEEP_DEEP": .asleepDeep, "SLEEP_REM": .asleepREM,
+  func testEverySleepTypeHasSleepIntervals() {
+    // A sleep type replies to a unit that is no unit of time before reading anything. The
+    // headache severities are category values too, but have no interval data.
+    let arguments: [String: Any] = [
+      "dataUnitKey": "METER", "interval": 3600, "startTime": t0, "endTime": t0 + 24 * 60 * minute,
     ]
-    for (dataTypeKey, value) in values {
-      let test = try XCTUnwrap(reader.sleepValueTest(for: dataTypeKey), dataTypeKey)
-      XCTAssertEqual((0...5).filter(test), [value.rawValue], dataTypeKey)
+    for dataTypeKey in Array(CategoryValues.sleepValues.keys) + ["SLEEP_UNKNOWN"] {
+      let sent = intervalReplies(arguments.merging(["dataTypeKey": dataTypeKey]) { $1 })
+      XCTAssertEqual(sent.count, 1, dataTypeKey)
+      XCTAssertEqual((sent.first as? FlutterError)?.message, "Unit METER cannot be used for \(dataTypeKey)")
     }
-    // The headache severities are category values too, but no sleep types; nor are quantities.
-    let headaches = HealthDataReader.categoryValues.keys.filter { values[$0] == nil }
-    for dataTypeKey in headaches + ["STEPS", "SLEEP_WRIST_TEMPERATURE"] {
-      XCTAssertNil(reader.sleepValueTest(for: dataTypeKey), dataTypeKey)
+    for dataTypeKey in CategoryValues.headacheValues.keys {
+      let sent = intervalReplies(arguments.merging(["dataTypeKey": dataTypeKey]) { $1 })
+      XCTAssertEqual((sent.first as? FlutterError)?.code, "INVALID_TYPE", dataTypeKey)
     }
   }
 
