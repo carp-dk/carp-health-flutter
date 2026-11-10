@@ -77,37 +77,34 @@ enum HealthDataType {
   WALKING_SPEED,
   SPEED,
 
-  /// Power in watts, for example from a cycling power meter. Read only:
-  /// writing it throws an [ArgumentError].
+  /// Power in watts, for example from a cycling power meter. Read only: writing it throws an
+  /// [ArgumentError].
   ///
-  ///  * iOS 17 and later: cycling power, HealthKit's
-  ///    `HKQuantityTypeIdentifier.cyclingPower`.
-  ///  * Android: the samples of Health Connect's `PowerRecord`, the power of
-  ///    any exercise, for example cycling or rowing.
+  ///  * iOS 17 and later: cycling power, HealthKit's `HKQuantityTypeIdentifier.cyclingPower`.
+  ///  * Android: the samples of Health Connect's `PowerRecord`, the power of any exercise, for
+  ///    example cycling or rowing.
   POWER,
 
-  /// Cycling cadence in revolutions per minute: how fast the pedals turn.
-  /// Read only: writing it throws an [ArgumentError].
+  /// Cycling cadence in revolutions per minute: how fast the pedals turn. Read only: writing it
+  /// throws an [ArgumentError].
   ///
   ///  * iOS 17 and later: HealthKit's `HKQuantityTypeIdentifier.cyclingCadence`.
   ///  * Android: the samples of Health Connect's `CyclingPedalingCadenceRecord`.
   CYCLING_CADENCE,
 
-  /// Maximal oxygen consumption (VO2 max) in milliliters per kilogram of body
-  /// weight per minute.
+  /// Maximal oxygen consumption (VO2 max) in milliliters per kilogram of body weight per minute.
   ///
   ///  * iOS: HealthKit's `HKQuantityTypeIdentifier.vo2Max`.
-  ///  * Android: Health Connect's `Vo2MaxRecord`; declare the `READ_VO2_MAX`
-  ///    and `WRITE_VO2_MAX` permissions. Health Connect takes values from 0 to
-  ///    100: [Health.writeHealthData] returns false for others.
+  ///  * Android: Health Connect's `Vo2MaxRecord`; declare the `READ_VO2_MAX` and `WRITE_VO2_MAX`
+  ///    permissions. Health Connect takes values from 0 to 100: [Health.writeHealthData] returns
+  ///    false for others.
   ///
-  /// [Health.getHealthIntervalDataFromTypes] returns the average of each
-  /// interval on iOS and no data points on Android, where Health Connect has
-  /// no VO2 max aggregate.
+  /// [Health.getHealthIntervalDataFromTypes] returns the average of each interval on iOS and no
+  /// data points on Android, where Health Connect has no VO2 max aggregate.
   VO2_MAX,
 
-  // HealthKit quantity types, iOS only. On an iOS version before the one named,
-  // reads of a type fail with HealthErrorCode.notSupported.
+  // HealthKit quantity types, iOS only. On an iOS version before the one named, reads of a
+  // type fail with HealthErrorCode.notSupported.
   /// HealthKit's `timeInDaylight`, iOS 17 and later.
   TIME_IN_DAYLIGHT,
 
@@ -117,12 +114,12 @@ enum HealthDataType {
   /// HealthKit's `walkingStepLength`.
   WALKING_STEP_LENGTH,
 
-  /// HealthKit's `walkingAsymmetryPercentage`. Read only: requesting write
-  /// access throws an [ArgumentError].
+  /// HealthKit's `walkingAsymmetryPercentage`. Read only: requesting write access throws an
+  /// [ArgumentError].
   WALKING_ASYMMETRY_PERCENTAGE,
 
-  /// HealthKit's `appleWalkingSteadiness`. Read only: requesting write access
-  /// throws an [ArgumentError].
+  /// HealthKit's `appleWalkingSteadiness`. Read only: requesting write access throws an
+  /// [ArgumentError].
   APPLE_WALKING_STEADINESS,
 
   /// HealthKit's `stairAscentSpeed`.
@@ -230,17 +227,17 @@ enum HealthDataType {
   /// HealthKit's `estimatedWorkoutEffortScore`, iOS 18 and later.
   ESTIMATED_WORKOUT_EFFORT_SCORE,
 
-  /// HealthKit's `appleSleepingBreathingDisturbances`, iOS 18 and later.
-  /// Read only: requesting write access throws an [ArgumentError].
+  /// HealthKit's `appleSleepingBreathingDisturbances`, iOS 18 and later. Read only: requesting
+  /// write access throws an [ArgumentError].
   APPLE_SLEEPING_BREATHING_DISTURBANCES,
 
-  /// Mindfulness sessions, such as meditation, in minutes: the value of a
-  /// session is the minutes from its start to its end. Write a session with
-  /// its type and title with [Health.writeMindfulnessSession].
+  /// Mindfulness sessions, such as meditation, in minutes: the value of a session is the minutes
+  /// from its start to its end. Write a session with its type and title with
+  /// [Health.writeMindfulnessSession].
   ///
   ///  * iOS: HealthKit's `HKCategoryTypeIdentifier.mindfulSession`.
-  ///  * Android: Health Connect's `MindfulnessSessionRecord`, on devices whose
-  ///    Health Connect has them ([Health.isMindfulnessSessionAvailable]).
+  ///  * Android: Health Connect's `MindfulnessSessionRecord`, on devices whose Health Connect has
+  ///    them ([Health.isMindfulnessSessionAvailable]).
   MINDFULNESS,
 
   WATER,
@@ -256,15 +253,14 @@ enum HealthDataType {
 
   /// Sleep of an unknown stage, in minutes.
   ///
-  ///  * Android: the stages of Health Connect's sleep sessions whose stage is
-  ///    unknown (`SleepSessionRecord.STAGE_TYPE_UNKNOWN`).
-  ///  * iOS: sleep analysis samples with a value the plugin has no type for:
-  ///    none in today's HealthKit, but values Apple adds later read as this
-  ///    type instead of being left out. HealthKit's `asleepUnspecified` is
-  ///    [HealthDataType.SLEEP_ASLEEP]. HealthKit has no unknown sleep value to
-  ///    write: [Health.writeHealthData] throws a [HealthException] with
-  ///    [HealthErrorCode.notSupported], and [Health.writeSleepSession] keeps
-  ///    an unknown stage as time in bed.
+  ///  * Android: the stages of Health Connect's sleep sessions whose stage is unknown
+  ///    (`SleepSessionRecord.STAGE_TYPE_UNKNOWN`).
+  ///  * iOS: sleep analysis samples with a value the plugin has no type for: none in today's
+  ///    HealthKit, but values Apple adds later read as this type instead of being left out.
+  ///    HealthKit's `asleepUnspecified` is [HealthDataType.SLEEP_ASLEEP]. HealthKit has no unknown
+  ///    sleep value to write: [Health.writeHealthData] throws a [HealthException] with
+  ///    [HealthErrorCode.notSupported], and [Health.writeSleepSession] keeps an unknown stage as
+  ///    time in bed.
   SLEEP_UNKNOWN,
 
   EXERCISE_TIME,
@@ -296,8 +292,8 @@ enum HealthDataType {
   // Health Connect
 
   /// Energy burned, active and basal, in kilocalories: Health Connect's
-  /// `TotalCaloriesBurnedRecord`. Android only, as HealthKit has no total: on
-  /// iOS, read [ACTIVE_ENERGY_BURNED] and [BASAL_ENERGY_BURNED].
+  /// `TotalCaloriesBurnedRecord`. Android only, as HealthKit has no total: on iOS, read
+  /// [ACTIVE_ENERGY_BURNED] and [BASAL_ENERGY_BURNED].
   TOTAL_CALORIES_BURNED,
   ACTIVITY_INTENSITY,
   SKIN_TEMPERATURE,
