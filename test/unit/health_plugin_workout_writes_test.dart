@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 
 import '../support/fixtures.dart';
+import '../support/health_on_android.dart';
+import '../support/health_on_ios.dart';
 import '../support/health_test_context.dart';
 
 void main() {
@@ -101,6 +103,51 @@ void main() {
 
       expect(uuid, 'workout-uuid-1');
       expect(argsOf('writeWorkoutDataUUID'), {...runArgs, 'metadata': sampleMetadataArgs});
+    });
+  });
+
+  group('workout types', () {
+    final start = HealthFixtures.start;
+    final end = HealthFixtures.end;
+
+    /// Writes a workout of [type] with both methods, expecting each to throw notSupported before anything is sent.
+    Future<void> expectBothThrow(Health health, HealthWorkoutActivityType type) async {
+      final notSupported = isA<HealthException>()
+          .having((e) => e.errorCode, 'errorCode', HealthErrorCode.notSupported)
+          .having((e) => e.dataType, 'dataType', type);
+      await expectLater(health.writeWorkoutData(activityType: type, start: start, end: end), throwsA(notSupported));
+      await expectLater(health.writeWorkoutDataUUID(activityType: type, start: start, end: end), throwsA(notSupported));
+      expect(ctx.channel.calls, isEmpty);
+    }
+
+    test('Android writes stationary biking, ice hockey, paddling and soccer', () async {
+      ctx.channel.when('writeWorkoutData', true);
+      final types = [
+        HealthWorkoutActivityType.BIKING_STATIONARY,
+        HealthWorkoutActivityType.HOCKEY,
+        HealthWorkoutActivityType.PADDLE_SPORTS,
+        HealthWorkoutActivityType.SOCCER,
+      ];
+      for (final type in types) {
+        expect(await HealthOnAndroid().writeWorkoutData(activityType: type, start: start, end: end), isTrue);
+        expect(argsOf('writeWorkoutData')['activityType'], type.name);
+      }
+    });
+
+    test('reject on Android the types Health Connect has no exercise type for', () async {
+      final types = [
+        HealthWorkoutActivityType.ARCHERY,
+        HealthWorkoutActivityType.CURLING,
+        HealthWorkoutActivityType.WALKING_TREADMILL,
+      ];
+      for (final type in types) {
+        await expectBothThrow(HealthOnAndroid(), type);
+      }
+    });
+
+    test('reject on iOS the types the plugin has no HealthKit workout type for', () async {
+      await expectBothThrow(HealthOnIOS(), HealthWorkoutActivityType.BIKING_STATIONARY);
+      await expectBothThrow(HealthOnIOS(), HealthWorkoutActivityType.WALKING_TREADMILL);
     });
   });
 

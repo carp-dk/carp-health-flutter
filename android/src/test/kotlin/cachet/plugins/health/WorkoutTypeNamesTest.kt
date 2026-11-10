@@ -55,10 +55,14 @@ class WorkoutTypeNamesTest {
 
     @Test
     fun anExerciseTypeOfOneNameReadsUnderThatName() {
-        // Stationary biking is an exercise type of its own in Health Connect, not a kind of BIKING.
+        // Stationary biking is an exercise type of its own in Health Connect, not a kind of BIKING. Ice hockey
+        // and paddling read under the HealthKit names that they are written from.
         val names = mapOf(
             ExerciseSessionRecord.EXERCISE_TYPE_BIKING to "BIKING",
             ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY to "BIKING_STATIONARY",
+            ExerciseSessionRecord.EXERCISE_TYPE_ICE_HOCKEY to "HOCKEY",
+            ExerciseSessionRecord.EXERCISE_TYPE_PADDLING to "PADDLE_SPORTS",
+            ExerciseSessionRecord.EXERCISE_TYPE_SOCCER to "SOCCER",
         )
         for ((exerciseType, name) in names) assertEquals(name, workoutTypeName(exerciseType))
     }
@@ -67,6 +71,8 @@ class WorkoutTypeNamesTest {
     fun anExerciseTypeWithoutANameReadsAsOther() {
         assertEquals("OTHER", workoutTypeName(ExerciseSessionRecord.EXERCISE_TYPE_BOOT_CAMP))
         assertEquals("OTHER", workoutTypeName(ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT))
+        // HOCKEY is written as ice hockey, so roller hockey has no name.
+        assertEquals("OTHER", workoutTypeName(ExerciseSessionRecord.EXERCISE_TYPE_ROLLER_HOCKEY))
     }
 
     @Test

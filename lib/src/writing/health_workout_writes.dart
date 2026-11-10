@@ -22,6 +22,9 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///  - [metadata] HealthKit metadata of the workout, such as its brand name or whether it was done indoors.
   ///    *ONLY FOR IOS* Ignored on Android. See [WorkoutMetadata].
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
+  ///
+  /// Throws a [HealthException] with [HealthErrorCode.notSupported] for an [activityType] this platform has no
+  /// workout type for, such as [HealthWorkoutActivityType.ARCHERY] on Android.
   Future<bool> writeWorkoutData({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
@@ -39,12 +42,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
 
-    // Check that value is on the current Platform
-    if (Platform.isIOS && !_isOnIOS(activityType)) {
-      throw HealthException(activityType, "Workout activity type $activityType is not supported on iOS");
-    } else if (Platform.isAndroid && !_isOnAndroid(activityType)) {
-      throw HealthException(activityType, "Workout activity type $activityType is not supported on Android");
-    }
+    _checkWorkoutActivityType(activityType);
     final args = <String, dynamic>{
       'activityType': activityType.name,
       'startTime': start.millisecondsSinceEpoch,
@@ -79,6 +77,9 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///  - [metadata] HealthKit metadata of the workout, such as its brand name or whether it was done indoors.
   ///    *ONLY FOR IOS* Ignored on Android. See [WorkoutMetadata].
   ///  - [recordingMethod] The recording method of the data point, automatic by default (on iOS this can only be automatic or manual).
+  ///
+  /// Throws a [HealthException] with [HealthErrorCode.notSupported] for an [activityType] this platform has no
+  /// workout type for, such as [HealthWorkoutActivityType.ARCHERY] on Android.
   Future<String?> writeWorkoutDataUUID({
     required HealthWorkoutActivityType activityType,
     required DateTime start,
@@ -96,12 +97,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
 
-    // Check that value is on the current Platform
-    if (Platform.isIOS && !_isOnIOS(activityType)) {
-      throw HealthException(activityType, "Workout activity type $activityType is not supported on iOS");
-    } else if (Platform.isAndroid && !_isOnAndroid(activityType)) {
-      throw HealthException(activityType, "Workout activity type $activityType is not supported on Android");
-    }
+    _checkWorkoutActivityType(activityType);
     final args = <String, dynamic>{
       'activityType': activityType.name,
       'startTime': start.millisecondsSinceEpoch,
@@ -120,5 +116,20 @@ mixin HealthWorkoutWrites on _HealthSupport {
     debugPrint("Added workout data point: $uuid");
 
     return uuid;
+  }
+
+  /// Throws a [HealthException] with [HealthErrorCode.notSupported] if this platform has no workout type for
+  /// [activityType].
+  void _checkWorkoutActivityType(HealthWorkoutActivityType activityType) {
+    final (supported, platform) = platformType == HealthPlatformType.appleHealth
+        ? (_isOnIOS(activityType), 'iOS')
+        : (_isOnAndroid(activityType), 'Android');
+    if (!supported) {
+      throw HealthException(
+        activityType,
+        "Workout activity type $activityType is not supported on $platform",
+        errorCode: HealthErrorCode.notSupported,
+      );
+    }
   }
 }
