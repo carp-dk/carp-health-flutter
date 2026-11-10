@@ -211,7 +211,7 @@ class HealthDataPoint {
       sourceId == other.sourceId &&
       sourceName == other.sourceName &&
       recordingMethod == other.recordingMethod &&
-      metadata == other.metadata &&
+      _deepEquals(metadata, other.metadata) &&
       deviceModel == other.deviceModel;
 
   @override
@@ -226,7 +226,7 @@ class HealthDataPoint {
     sourceDeviceId,
     sourceId,
     sourceName,
-    metadata,
+    _deepHash(metadata),
     deviceModel,
   );
 }

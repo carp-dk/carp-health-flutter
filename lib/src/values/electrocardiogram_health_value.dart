@@ -74,7 +74,7 @@ class ElectrocardiogramHealthValue extends HealthValue {
   @override
   bool operator ==(Object other) =>
       other is ElectrocardiogramHealthValue &&
-      voltageValues == other.voltageValues &&
+      listEquals(voltageValues, other.voltageValues) &&
       averageHeartRate == other.averageHeartRate &&
       samplingFrequency == other.samplingFrequency &&
       classification == other.classification;
