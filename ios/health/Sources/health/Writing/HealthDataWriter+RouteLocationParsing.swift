@@ -20,11 +20,14 @@ extension HealthDataWriter {
                 throw PluginError(message: "Invalid workout route timestamp")
             }
 
-            let altitude = doubleValue(from: entry["altitude"]) ?? 0
+            let altitude = doubleValue(from: entry["altitude"])
             let horizontalAccuracy = doubleValue(from: entry["horizontalAccuracy"])
                 ?? kCLLocationAccuracyHundredMeters
-            let verticalAccuracy = doubleValue(from: entry["verticalAccuracy"])
-                ?? kCLLocationAccuracyHundredMeters
+            // A CLLocation always has an altitude, which a negative vertical accuracy marks invalid:
+            // without one, reads leave the altitude out instead of returning 0 m.
+            let verticalAccuracy = altitude == nil
+                ? -1
+                : (doubleValue(from: entry["verticalAccuracy"]) ?? kCLLocationAccuracyHundredMeters)
             let speed = doubleValue(from: entry["speed"]) ?? -1
             let course = doubleValue(from: entry["course"]) ?? -1
             let speedAccuracyValue = doubleValue(from: entry["speedAccuracy"])
@@ -35,7 +38,7 @@ extension HealthDataWriter {
             {
                 return CLLocation(
                     coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-                    altitude: altitude,
+                    altitude: altitude ?? 0,
                     horizontalAccuracy: horizontalAccuracy,
                     verticalAccuracy: verticalAccuracy,
                     course: course,
@@ -47,7 +50,7 @@ extension HealthDataWriter {
             } else {
                 return CLLocation(
                     coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-                    altitude: altitude,
+                    altitude: altitude ?? 0,
                     horizontalAccuracy: horizontalAccuracy,
                     verticalAccuracy: verticalAccuracy,
                     course: course,

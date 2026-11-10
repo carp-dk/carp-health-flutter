@@ -5,7 +5,9 @@ part of '../../health.dart';
 /// Parameters:
 /// * [latitude] & [longitude] - required geographic coordinates in degrees.
 /// * [timestamp] - when the location sample was recorded.
-/// * [altitude] - optional altitude above sea level in meters.
+/// * [altitude] - optional altitude above sea level in meters. iOS leaves it
+///   out, with [verticalAccuracy], when HealthKit marks it invalid (a negative
+///   vertical accuracy), as it does for a location written without altitude.
 /// * [horizontalAccuracy] / [verticalAccuracy] - optional accuracy in meters.
 /// * [speed] - optional instantaneous speed in meters/second (iOS only).
 /// * [course] - optional bearing (heading) in degrees (iOS only).
