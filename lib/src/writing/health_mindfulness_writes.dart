@@ -34,7 +34,11 @@ mixin HealthMindfulnessWrites on _HealthSupport {
   /// automatic. Throws an [UnsupportedError] if Health Connect is not
   /// available, and a [HealthException] with [HealthErrorCode.notSupported]
   /// if it has no mindfulness sessions (see
-  /// [Health.isMindfulnessSessionAvailable]).
+  /// [Health.isMindfulnessSessionAvailable]). On iOS, throws a
+  /// [PlatformException] with code INVALID_ARGUMENT, before anything is saved,
+  /// if HealthKit does not accept the session's times: one longer than 28
+  /// days, HealthKit's maximum for a mindful session, or one that ends in the
+  /// year 4001 or later.
   Future<bool> writeMindfulnessSession({
     required DateTime startTime,
     required DateTime endTime,
