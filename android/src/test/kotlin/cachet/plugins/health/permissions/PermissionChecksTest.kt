@@ -1,5 +1,7 @@
 package cachet.plugins.health.permissions
 
+import android.os.DeadObjectException
+import android.os.RemoteException
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
@@ -41,17 +43,32 @@ class PermissionChecksTest {
 
     /** Each check of the plugin, replying to the result it is given. */
     private fun checks(client: HealthConnectClient): Map<String, (RecordingResult) -> Unit> {
-        val permissions = GrantedPermissions(client, scope)
         val features = FeatureAvailability(client, scope)
+        return permissionChecks(client) + mapOf(
+            "isHealthDataHistoryAvailable" to features::isHealthDataHistoryAvailable,
+            "isHealthDataInBackgroundAvailable" to features::isHealthDataInBackgroundAvailable,
+            "isSkinTemperatureAvailable" to features::isSkinTemperatureAvailable,
+        )
+    }
+
+    /** The checks that call Health Connect's PermissionController, which asks its service. */
+    private fun permissionChecks(client: HealthConnectClient): Map<String, (RecordingResult) -> Unit> {
+        val permissions = GrantedPermissions(client, scope)
         return mapOf(
             "hasPermissions" to { result: RecordingResult -> permissions.hasPermissions(hasPermissions(0), result) },
             "isHealthDataHistoryAuthorized" to permissions::isHealthDataHistoryAuthorized,
             "isHealthDataInBackgroundAuthorized" to permissions::isHealthDataInBackgroundAuthorized,
             "revokePermissions" to permissions::revokePermissions,
-            "isHealthDataHistoryAvailable" to features::isHealthDataHistoryAvailable,
-            "isHealthDataInBackgroundAvailable" to features::isHealthDataInBackgroundAvailable,
-            "isSkinTemperatureAvailable" to features::isSkinTemperatureAvailable,
         )
+    }
+
+    /** A PermissionController whose calls fail with [error]. A Kotlin object, as fakeOf wraps checked exceptions. */
+    private fun failingPermissionController(error: Exception) = object : PermissionController {
+        override suspend fun getGrantedPermissions(): Set<String> = throw error
+
+        override suspend fun revokeAllPermissions() {
+            throw error
+        }
     }
 
     @Test
@@ -63,6 +80,27 @@ class PermissionChecksTest {
             assertEquals(name, 1, result.replies)
             assertEquals(name, HealthErrors.HEALTH_ERROR, result.code)
             assertEquals(name, "Health Connect is unavailable", result.message)
+        }
+        assertEquals(emptyList<Throwable>(), escaped)
+    }
+
+    @Test
+    fun aCheckThatLosesTheHealthConnectServiceRepliesUnavailable() {
+        // The Health Connect app (Android 13 and lower) fails pending calls with these when its service
+        // dies or cannot be bound, and the client rethrows them. Uncaught, they used to crash the app.
+        val failures = listOf(
+            RemoteException("Binder died"),
+            DeadObjectException(),
+            RemoteException("Binding to service failed"),
+        )
+        val features = fakeOf<HealthConnectFeatures> { HealthConnectFeatures.FEATURE_STATUS_AVAILABLE }
+        for (failure in failures) {
+            for ((name, check) in permissionChecks(client(failingPermissionController(failure), features))) {
+                val result = RecordingResult()
+                check(result)
+                assertEquals("$name, $failure", 1, result.replies)
+                assertEquals("$name, $failure", HealthErrors.UNAVAILABLE, result.code)
+            }
         }
         assertEquals(emptyList<Throwable>(), escaped)
     }

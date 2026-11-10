@@ -21,10 +21,12 @@ internal class HealthPermissionRequests(
     private val contextProvider: () -> Context?,
     private val dataOperationsProvider: () -> HealthDataOperations,
 ) {
+    /** The request that waits for the open permission dialog, or null if none is open. */
     var mResult: Result? = null
         private set
-    private var healthConnectRequestPermissionsLauncher: ActivityResultLauncher<Set<String>>? = null
-    private var isReplySubmitted = false
+
+    // Internal for tests, which use a fake launcher.
+    internal var healthConnectRequestPermissionsLauncher: ActivityResultLauncher<Set<String>>? = null
 
     private val context: Context?
         get() = contextProvider()
@@ -68,27 +70,28 @@ internal class HealthPermissionRequests(
 
     /**
      * Handles permission request results from Health Connect permission dialog. Called when user
-     * responds to permission request, updates Flutter with result.
+     * responds to permission request, updates Flutter with result. The request is cleared before
+     * the reply, so a second result finds none to answer, and a reply that throws leaves none
+     * waiting.
      *
      * @param permissionGranted Set of permission strings that were granted
      */
-    private fun onHealthConnectPermissionCallback(permissionGranted: Set<String>) {
-        if (!isReplySubmitted) {
-            if (permissionGranted.isEmpty()) {
-                mResult?.success(false)
-                Log.i(
-                        "FLUTTER_HEALTH",
-                        "Health Connect permissions were not granted! Make sure to declare the required permissions in the AndroidManifest.xml file."
-                )
-            } else {
-                mResult?.success(true)
-                Log.i(
-                        "FLUTTER_HEALTH",
-                        "${permissionGranted.size} Health Connect permissions were granted!"
-                )
-                Log.i("FLUTTER_HEALTH", "Permissions granted: $permissionGranted")
-            }
-            isReplySubmitted = true
+    internal fun onHealthConnectPermissionCallback(permissionGranted: Set<String>) {
+        val result = mResult ?: return
+        mResult = null
+        if (permissionGranted.isEmpty()) {
+            result.success(false)
+            Log.i(
+                    "FLUTTER_HEALTH",
+                    "Health Connect permissions were not granted! Make sure to declare the required permissions in the AndroidManifest.xml file."
+            )
+        } else {
+            result.success(true)
+            Log.i(
+                    "FLUTTER_HEALTH",
+                    "${permissionGranted.size} Health Connect permissions were granted!"
+            )
+            Log.i("FLUTTER_HEALTH", "Permissions granted: $permissionGranted")
         }
     }
 
@@ -105,23 +108,22 @@ internal class HealthPermissionRequests(
             return
         }
 
-        if (healthConnectRequestPermissionsLauncher == null) {
+        val launcher = healthConnectRequestPermissionsLauncher
+        if (launcher == null) {
             result.success(false)
             Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
-        // Store the result to be called in onHealthConnectPermissionCallback
-        mResult = result
-        isReplySubmitted = false
-
+        // Prepared before the request is kept as pending: a type that Health Connect does not have
+        // replies false here, and malformed arguments throw.
         val permList = dataOperations.preparePermissionsList(call)
         if (permList == null) {
             result.success(false)
             return
         }
 
-        healthConnectRequestPermissionsLauncher!!.launch(permList.toSet())
+        launch(launcher, permList.toSet(), call, result)
     }
 
     /**
@@ -132,17 +134,14 @@ internal class HealthPermissionRequests(
      * @param result Flutter result callback for permission request outcome
      */
     fun requestHealthDataHistoryAuthorization(call: MethodCall, result: Result) {
-        if (context == null || healthConnectRequestPermissionsLauncher == null) {
+        val launcher = healthConnectRequestPermissionsLauncher
+        if (context == null || launcher == null) {
             result.success(false)
             Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
-        mResult = result
-        isReplySubmitted = false
-        healthConnectRequestPermissionsLauncher!!.launch(
-                setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY)
-        )
+        launch(launcher, setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY), call, result)
     }
 
     /**
@@ -153,16 +152,40 @@ internal class HealthPermissionRequests(
      * @param result Flutter result callback for permission request outcome
      */
     fun requestHealthDataInBackgroundAuthorization(call: MethodCall, result: Result) {
-        if (context == null || healthConnectRequestPermissionsLauncher == null) {
+        val launcher = healthConnectRequestPermissionsLauncher
+        if (context == null || launcher == null) {
             result.success(false)
             Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
+        launch(launcher, setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND), call, result)
+    }
+
+    /**
+     * Launches the permission dialog for [permissions] and keeps [result] for the user's answer.
+     * The dialog answers one request at a time, so a request made while it is open replies false
+     * instead of taking the place of the first one, which would never be answered. If the dialog
+     * cannot be launched, [result] gets the error.
+     */
+    private fun launch(
+            launcher: ActivityResultLauncher<Set<String>>,
+            permissions: Set<String>,
+            call: MethodCall,
+            result: Result,
+    ) {
+        if (mResult != null) {
+            Log.w("FLUTTER_HEALTH", "${call.method} returns false: the permission dialog is already open")
+            result.success(false)
+            return
+        }
+
         mResult = result
-        isReplySubmitted = false
-        healthConnectRequestPermissionsLauncher!!.launch(
-                setOf(HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
-        )
+        try {
+            launcher.launch(permissions)
+        } catch (e: Exception) {
+            mResult = null
+            HealthErrors.report(result, e, call.method)
+        }
     }
 }

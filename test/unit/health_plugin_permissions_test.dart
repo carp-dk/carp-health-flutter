@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 
@@ -39,6 +40,16 @@ void main() {
       final args = Map<String, dynamic>.from(call!.arguments as Map);
       expect(args['types'], [HealthDataType.HEART_RATE.name, HealthDataType.WEIGHT.name]);
       expect(args['permissions'], [HealthDataAccess.READ.index, HealthDataAccess.READ.index]);
+    });
+
+    test('hasPermissions throws the error of a check that Health Connect fails', () async {
+      // As when the service of the Health Connect app (Android 13 and lower) dies.
+      ctx.channel.whenSequence('hasPermissions', [PlatformException(code: 'UNAVAILABLE', message: 'Binder died')]);
+
+      await expectLater(
+        ctx.health.hasPermissions([HealthDataType.WEIGHT]),
+        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'UNAVAILABLE')),
+      );
     });
 
     test('requestAuthorization throws when permissions length mismatches types', () {
@@ -105,6 +116,16 @@ void main() {
       final available = await ctx.health.isHealthDataHistoryAvailable();
 
       expect(available, isTrue);
+    });
+
+    test('isHealthDataHistoryAvailable returns false when Health Connect fails', () async {
+      ctx.channel.whenSequence('isHealthDataHistoryAvailable', [
+        PlatformException(code: 'UNAVAILABLE', message: 'Binder died'),
+      ]);
+
+      final available = await ctx.health.isHealthDataHistoryAvailable();
+
+      expect(available, isFalse);
     });
 
     test('isHealthDataHistoryAuthorized returns channel value', () async {
