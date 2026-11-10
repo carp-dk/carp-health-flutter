@@ -104,7 +104,7 @@ mixin HealthPlatformSpecificWrites on _HealthSupport {
     return success ?? false;
   }
 
-  /// Writes an [ActivityIntensityRecord] to Google Health Connect.
+  /// Writes an `ActivityIntensityRecord` to Google Health Connect.
   ///
   /// This API is Android only.
   Future<bool> writeActivityIntensity({

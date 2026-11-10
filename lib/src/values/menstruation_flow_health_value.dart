@@ -59,7 +59,7 @@ enum MenstrualFlow {
 /// A [HealthValue] object for menstrual flow.
 ///
 /// Parameters:
-/// * [flowValue] - the flow value
+/// * [flow] - the flow value
 /// * [isStartOfCycle] - indicator whether or not this occurrence is the first day of the menstrual cycle (iOS only)
 /// * [wasUserEntered] - indicator whether or not the data was entered by the user (iOS only)
 /// * [dateTime] - the date and time of the menstrual flow
