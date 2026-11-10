@@ -49,6 +49,7 @@ part 'src/values/numeric_health_value.dart';
 part 'src/values/nutrition_health_value.dart';
 part 'src/values/nutrition_health_value_fields.dart';
 part 'src/values/skin_temperature_health_value.dart';
+part 'src/values/workout_event.dart';
 part 'src/values/workout_health_value.dart';
 part 'src/values/workout_route_health_value.dart';
 part 'src/workout_summary.dart';

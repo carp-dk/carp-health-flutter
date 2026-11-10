@@ -55,6 +55,10 @@ extension HealthPlugin {
         unitDict[HealthConstants.METER_PER_SECOND] = HKUnit(from: "m/s")
         unitDict[HealthConstants.REVOLUTION_PER_MINUTE] = HKUnit(from: "count/min")
         unitDict[HealthConstants.MILLILITER_PER_KILOGRAM_PER_MINUTE] = HKUnit(from: "mL/(kg*min)")
+        unitDict[HealthConstants.LITER_PER_MINUTE] = HKUnit.liter().unitDivided(by: HKUnit.minute())
+        unitDict[HealthConstants.KILOCALORIE_PER_HOUR_KILOGRAM] = HKUnit.kilocalorie().unitDivided(
+            by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: HKUnit.hour())
+        )
         unitDict[HealthConstants.UNKNOWN_UNIT] = HKUnit(from: "")
         unitDict[HealthConstants.NO_UNIT] = HKUnit(from: "")
 
@@ -129,12 +133,18 @@ extension HealthPlugin {
             initializeIOS14Types()
         }
 
+        initializeMoreQuantityTypes()
+
         if #available(iOS 16.0, *) {
             initializeIOS16Types()
         }
 
         if #available(iOS 17.0, *) {
             initializeIOS17Types()
+        }
+
+        if #available(iOS 18.0, *) {
+            initializeIOS18Types()
         }
 
         // Concatenate heart events, headache and health data types (both may be empty)
@@ -202,6 +212,8 @@ extension HealthPlugin {
         dataQuantityTypesDict[HealthConstants.SLEEP_WRIST_TEMPERATURE] = HKQuantityType.quantityType(forIdentifier: .appleSleepingWristTemperature)!
 
         unitDict[HealthConstants.WATT] = HKUnit.watt()
+
+        initializeMoreIOS16QuantityTypes()
     }
 
     /// Initialize iOS 17 specific data types
@@ -212,5 +224,7 @@ extension HealthPlugin {
 
         dataQuantityTypesDict[HealthConstants.POWER] = HKQuantityType.quantityType(forIdentifier: .cyclingPower)!
         dataQuantityTypesDict[HealthConstants.CYCLING_CADENCE] = HKQuantityType.quantityType(forIdentifier: .cyclingCadence)!
+
+        initializeMoreIOS17QuantityTypes()
     }
 }

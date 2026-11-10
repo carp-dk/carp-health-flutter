@@ -94,7 +94,7 @@ extension HealthDataReader {
 
     private func workoutDictionaries(_ samples: [HKWorkout]) -> [NSDictionary] {
         samples.map { sample -> NSDictionary in
-            [
+            let dictionary: [String: Any] = [
                 "uuid": "\(sample.uuid)",
                 "workoutActivityType": workoutActivityName(of: sample) as Any,
                 "totalEnergyBurned": sample.totalEnergyBurned?.doubleValue(
@@ -118,6 +118,7 @@ extension HealthDataReader {
                     ? Int(sample.totalEnergyBurned!.doubleValue(for: HKUnit.kilocalorie()))
                     : 0,
             ]
+            return dictionary.merging(workoutDetails(of: sample)) { value, _ in value } as NSDictionary
         }
     }
 

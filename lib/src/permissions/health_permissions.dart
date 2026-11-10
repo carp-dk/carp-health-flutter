@@ -72,6 +72,18 @@ mixin HealthPermissions on _HealthSupport {
   ///    a data type due to privacy concern, this method will return **true if
   ///    the window asking for permission was showed to the user without errors**
   ///    if it is called on iOS with a READ or READ_WRITE access.
+  ///
+  /// Throws an [ArgumentError] for WRITE or READ_WRITE access to a type that
+  /// HealthKit lets apps only read, where HealthKit would crash the app:
+  /// [HealthDataType.ELECTROCARDIOGRAM], the heart rate events,
+  /// [HealthDataType.WALKING_HEART_RATE],
+  /// [HealthDataType.ATRIAL_FIBRILLATION_BURDEN],
+  /// [HealthDataType.APPLE_STAND_HOUR], [HealthDataType.APPLE_MOVE_TIME],
+  /// [HealthDataType.APPLE_STAND_TIME], [HealthDataType.EXERCISE_TIME],
+  /// [HealthDataType.SLEEP_WRIST_TEMPERATURE],
+  /// [HealthDataType.WALKING_ASYMMETRY_PERCENTAGE],
+  /// [HealthDataType.APPLE_WALKING_STEADINESS] and
+  /// [HealthDataType.APPLE_SLEEPING_BREATHING_DISTURBANCES].
   Future<bool> requestAuthorization(List<HealthDataType> types, {List<HealthDataAccess>? permissions}) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (permissions != null && permissions.length != types.length) {
@@ -82,15 +94,9 @@ mixin HealthPermissions on _HealthSupport {
       for (int i = 0; i < types.length; i++) {
         final type = types[i];
         final permission = permissions[i];
-        if ((type == HealthDataType.ELECTROCARDIOGRAM ||
-                type == HealthDataType.HIGH_HEART_RATE_EVENT ||
-                type == HealthDataType.LOW_HEART_RATE_EVENT ||
-                type == HealthDataType.IRREGULAR_HEART_RATE_EVENT ||
-                type == HealthDataType.WALKING_HEART_RATE ||
-                type == HealthDataType.ATRIAL_FIBRILLATION_BURDEN) &&
-            permission != HealthDataAccess.READ) {
+        if (_readOnlyTypesIOS.contains(type) && permission != HealthDataAccess.READ) {
           throw ArgumentError(
-            'Requesting WRITE permission on ELECTROCARDIOGRAM / HIGH_HEART_RATE_EVENT / LOW_HEART_RATE_EVENT / IRREGULAR_HEART_RATE_EVENT / WALKING_HEART_RATE / ATRIAL_FIBRILLATION_BURDEN is not allowed.',
+            'Requesting WRITE permission on ${type.name} is not allowed: HealthKit only lets apps read it.',
           );
         }
       }

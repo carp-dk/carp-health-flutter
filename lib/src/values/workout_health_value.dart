@@ -8,6 +8,10 @@ part of '../../health.dart';
 /// * [totalEnergyBurnedUnit] - the unit of the total energy burned
 /// * [totalDistance] - the total distance of the workout
 /// * [totalDistanceUnit] - the unit of the total distance
+/// * [duration], [avgMets], [elevationAscended], [elevationDescended],
+///   [indoorWorkout], [weatherTemperature], [weatherHumidity], [averageSpeed],
+///   [maximumSpeed] and [workoutEvents] - what HealthKit records about the
+///   workout besides its totals (iOS only, null on Android)
 @JsonSerializable(includeIfNull: false, explicitToJson: true)
 class WorkoutHealthValue extends HealthValue {
   /// The type of the workout.
@@ -37,6 +41,49 @@ class WorkoutHealthValue extends HealthValue {
   /// Might not be available for all workouts.
   HealthDataUnit? totalStepsUnit;
 
+  /// The average intensity of the workout in METs (metabolic equivalents),
+  /// in kilocalories per kilogram of body weight per hour (iOS only).
+  /// Might not be available for all workouts.
+  num? avgMets;
+
+  /// The elevation the workout climbed, in meters (iOS only).
+  /// Might not be available for all workouts.
+  num? elevationAscended;
+
+  /// The elevation the workout descended, in meters (iOS only).
+  /// Might not be available for all workouts.
+  num? elevationDescended;
+
+  /// How long the workout was active, in seconds: its time without pauses
+  /// (iOS only).
+  num? duration;
+
+  /// Whether the workout was indoors (iOS only): HealthKit's
+  /// `HKMetadataKeyIndoorWorkout`, which [WorkoutMetadata.indoorWorkout]
+  /// writes. Might not be available for all workouts.
+  bool? indoorWorkout;
+
+  /// The temperature during the workout, in degrees Celsius (iOS only).
+  /// Might not be available for all workouts.
+  num? weatherTemperature;
+
+  /// The humidity during the workout (iOS only): HealthKit's
+  /// `HKMetadataKeyWeatherHumidity` in percent (`HKUnit.percent()`).
+  /// Might not be available for all workouts.
+  num? weatherHumidity;
+
+  /// The average speed of the workout, in meters per second (iOS only).
+  /// Might not be available for all workouts.
+  num? averageSpeed;
+
+  /// The highest speed of the workout, in meters per second (iOS only).
+  /// Might not be available for all workouts.
+  num? maximumSpeed;
+
+  /// The events of the workout, such as its pauses, laps and segments (iOS
+  /// only).
+  List<WorkoutEvent>? workoutEvents;
+
   WorkoutHealthValue({
     required this.workoutActivityType,
     this.totalEnergyBurned,
@@ -45,6 +92,16 @@ class WorkoutHealthValue extends HealthValue {
     this.totalDistanceUnit,
     this.totalSteps,
     this.totalStepsUnit,
+    this.avgMets,
+    this.elevationAscended,
+    this.elevationDescended,
+    this.duration,
+    this.indoorWorkout,
+    this.weatherTemperature,
+    this.weatherHumidity,
+    this.averageSpeed,
+    this.maximumSpeed,
+    this.workoutEvents,
   });
 
   /// Create a [WorkoutHealthValue] based on a health data point from native data format.
@@ -65,6 +122,18 @@ class WorkoutHealthValue extends HealthValue {
     totalStepsUnit: dataPoint['totalStepsUnit'] != null
         ? HealthDataUnit.values.firstWhere((element) => element.name == dataPoint['totalStepsUnit'])
         : null,
+    avgMets: dataPoint['avgMets'] as num?,
+    elevationAscended: dataPoint['elevationAscended'] as num?,
+    elevationDescended: dataPoint['elevationDescended'] as num?,
+    duration: dataPoint['duration'] as num?,
+    indoorWorkout: dataPoint['indoorWorkout'] as bool?,
+    weatherTemperature: dataPoint['weatherTemperature'] as num?,
+    weatherHumidity: dataPoint['weatherHumidity'] as num?,
+    averageSpeed: dataPoint['averageSpeed'] as num?,
+    maximumSpeed: dataPoint['maximumSpeed'] as num?,
+    workoutEvents: (dataPoint['workoutEvents'] as List<dynamic>?)
+        ?.map((event) => WorkoutEvent.fromHealthDataPoint(Map<String, dynamic>.from(event as Map)))
+        .toList(),
   );
 
   @override
@@ -82,7 +151,17 @@ class WorkoutHealthValue extends HealthValue {
            totalDistance: $totalDistance,
            totalDistanceUnit: ${totalDistanceUnit?.name}
            totalSteps: $totalSteps,
-           totalStepsUnit: ${totalStepsUnit?.name}""";
+           totalStepsUnit: ${totalStepsUnit?.name},
+           avgMets: $avgMets,
+           elevationAscended: $elevationAscended,
+           elevationDescended: $elevationDescended,
+           duration: $duration,
+           indoorWorkout: $indoorWorkout,
+           weatherTemperature: $weatherTemperature,
+           weatherHumidity: $weatherHumidity,
+           averageSpeed: $averageSpeed,
+           maximumSpeed: $maximumSpeed,
+           workoutEvents: ${workoutEvents?.length} events""";
 
   @override
   bool operator ==(Object other) =>
@@ -93,7 +172,17 @@ class WorkoutHealthValue extends HealthValue {
       totalDistance == other.totalDistance &&
       totalDistanceUnit == other.totalDistanceUnit &&
       totalSteps == other.totalSteps &&
-      totalStepsUnit == other.totalStepsUnit;
+      totalStepsUnit == other.totalStepsUnit &&
+      avgMets == other.avgMets &&
+      elevationAscended == other.elevationAscended &&
+      elevationDescended == other.elevationDescended &&
+      duration == other.duration &&
+      indoorWorkout == other.indoorWorkout &&
+      weatherTemperature == other.weatherTemperature &&
+      weatherHumidity == other.weatherHumidity &&
+      averageSpeed == other.averageSpeed &&
+      maximumSpeed == other.maximumSpeed &&
+      listEquals(workoutEvents, other.workoutEvents);
 
   @override
   int get hashCode => Object.hash(
@@ -104,5 +193,15 @@ class WorkoutHealthValue extends HealthValue {
     totalDistanceUnit,
     totalSteps,
     totalStepsUnit,
+    avgMets,
+    elevationAscended,
+    elevationDescended,
+    duration,
+    indoorWorkout,
+    weatherTemperature,
+    weatherHumidity,
+    averageSpeed,
+    maximumSpeed,
+    workoutEvents == null ? null : Object.hashAll(workoutEvents!),
   );
 }
