@@ -36,8 +36,9 @@ void main() {
       );
     });
 
-    test('getHealthAggregateDataFromTypes throws platform errors', () async {
-      ctx.channel.whenSequence('getAggregateData', [PlatformException(code: 'HEALTH_ERROR')]);
+    test('getHealthAggregateDataFromTypes throws an UnsupportedError, not a platform error', () async {
+      // It is not sent: iOS has no such method, and Android rejects its arguments.
+      ctx.channel.whenSequence('getAggregateData', [PlatformException(code: 'INVALID_ARGUMENT')]);
 
       await expectLater(
         ctx.health.getHealthAggregateDataFromTypes(
@@ -45,8 +46,9 @@ void main() {
           startDate: HealthFixtures.start,
           endDate: HealthFixtures.end,
         ),
-        throwsA(platformError('HEALTH_ERROR', type: HealthDataType.WORKOUT)),
+        throwsA(isA<UnsupportedError>()),
       );
+      expect(ctx.channel.calls, isEmpty);
     });
 
     test('getHealthDataByUUID throws platform errors', () async {

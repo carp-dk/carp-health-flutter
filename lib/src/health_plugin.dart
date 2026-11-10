@@ -20,8 +20,8 @@ part of '../health.dart';
 /// In addition, the plugin has a set of specialized methods for reading and writing
 /// different types of health data:
 ///
-///  * Reading aggregate health data using the [getHealthIntervalDataFromTypes]
-///    and [getHealthAggregateDataFromTypes] methods.
+///  * Reading health data aggregated over intervals using the
+///    [getHealthIntervalDataFromTypes] method.
 ///  * Reading total step counts using the [getTotalStepsInInterval] method.
 ///  * Writing different types of specialized health data like the [writeWorkoutData],
 ///    [writeSleepSession], [writeBloodPressure], [writeBloodOxygen], [writeAudiogram], [writeMeal],

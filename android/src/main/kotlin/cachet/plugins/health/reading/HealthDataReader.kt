@@ -99,19 +99,8 @@ class HealthDataReader(
      * for sleep types, 'recordingMethodsToFilter'
      * @param result Flutter result callback returning list of aggregated data maps
      */
-    fun getAggregateData(call: MethodCall, result: Result) {
-        aggregateReader.getAggregateData(call, result)
-    }
-
-    /**
-     * Retrieves interval-based health data. Currently delegates to getAggregateData.
-     * Maintained for API compatibility and potential future differentiation.
-     *
-     * @param call Method call with interval data parameters
-     * @param result Flutter result callback returning interval data
-     */
     fun getIntervalData(call: MethodCall, result: Result) {
-        getAggregateData(call, result)
+        aggregateReader.getAggregateData(call, result)
     }
 
     /**

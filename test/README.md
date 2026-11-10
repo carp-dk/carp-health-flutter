@@ -37,7 +37,7 @@ This folder contains the reusable test harness, fixtures, and templates for the 
 - `Health.getHealthDataFromTypes`
 - `Health.getHealthDataPages`
 - `Health.getHealthIntervalDataFromTypes`
-- `Health.getHealthAggregateDataFromTypes`
+- `Health.getHealthAggregateDataFromTypes` (deprecated: throws an `UnsupportedError` without calling the platform)
 - `Health.getHealthDataByUUID`
 - `Health.getChangesToken`
 - `Health.getChanges`

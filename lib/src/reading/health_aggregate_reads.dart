@@ -78,9 +78,17 @@ mixin HealthAggregateReads on _HealthReadSupport {
     return dataPoints;
   }
 
-  /// Fetch a list of health data points based on [types].
+  /// Deprecated: use [getHealthIntervalDataFromTypes], which aggregates
+  /// [types] over intervals on both platforms.
   ///
-  /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports an error.
+  /// Throws an [UnsupportedError] without calling the platform. This method
+  /// has not worked on either platform since Google Fit was removed: iOS has
+  /// no such read, and on Android only the interval reads of
+  /// [getHealthIntervalDataFromTypes] remain, which take other arguments.
+  @Deprecated(
+    'Throws an UnsupportedError: it has not worked since Google Fit was removed. '
+    'Use getHealthIntervalDataFromTypes instead.',
+  )
   Future<List<HealthDataPoint>> getHealthAggregateDataFromTypes({
     required List<HealthDataType> types,
     required DateTime startDate,
@@ -88,24 +96,9 @@ mixin HealthAggregateReads on _HealthReadSupport {
     int activitySegmentDuration = 1,
     bool includeManualEntry = true,
   }) async {
-    final mode = isolateMode;
-    await _checkIfHealthConnectAvailableOnAndroid();
-    await _checkTypesAvailable(types);
-    final deviceId = await _resolveDeviceId();
-
-    final args = <String, dynamic>{
-      'dataTypeKeys': types.map((dataType) => dataType.name).toList(),
-      'startTime': startDate.millisecondsSinceEpoch,
-      'endTime': endDate.millisecondsSinceEpoch,
-      'activitySegmentDuration': activitySegmentDuration,
-      'includeManualEntry': includeManualEntry,
-    };
-    return _invokeAndParse(
-      'getAggregateData',
-      args,
-      _parseList,
-      _ParseRequest(HealthDataType.WORKOUT, null, deviceId),
-      mode,
+    throw UnsupportedError(
+      'getHealthAggregateDataFromTypes has not worked on either platform since Google Fit was removed: '
+      'use getHealthIntervalDataFromTypes instead.',
     );
   }
 

@@ -82,25 +82,22 @@ void main() {
       expect(args['recordingMethodsToFilter'], [RecordingMethod.automatic.toInt()]);
     });
 
-    test('getHealthAggregateDataFromTypes forwards aggregate query', () async {
+    test('getHealthAggregateDataFromTypes throws without calling the platform', () async {
+      // Neither platform reads these aggregates since Google Fit was removed.
       ctx.channel.when('getAggregateData', [HealthFixtures.workoutPoint()]);
 
-      final result = await ctx.health.getHealthAggregateDataFromTypes(
-        types: [HealthDataType.WORKOUT],
-        startDate: HealthFixtures.start,
-        endDate: HealthFixtures.end,
-        activitySegmentDuration: 60,
+      await expectLater(
+        ctx.health.getHealthAggregateDataFromTypes(
+          types: [HealthDataType.WORKOUT],
+          startDate: HealthFixtures.start,
+          endDate: HealthFixtures.end,
+          activitySegmentDuration: 60,
+        ),
+        throwsA(
+          isA<UnsupportedError>().having((e) => e.message, 'message', contains('getHealthIntervalDataFromTypes')),
+        ),
       );
-
-      expect(result, hasLength(1));
-      expect(result.first.type, HealthDataType.WORKOUT);
-      expect(result.first.value, isA<WorkoutHealthValue>());
-
-      final call = ctx.channel.lastCallFor('getAggregateData');
-      expect(call, isNotNull);
-      final args = Map<String, dynamic>.from(call!.arguments as Map);
-      expect(args['dataTypeKeys'], [HealthDataType.WORKOUT.name]);
-      expect(args['activitySegmentDuration'], 60);
+      expect(ctx.channel.calls, isEmpty);
     });
 
     test('getTotalStepsInInterval includes manual filter when disabled', () async {

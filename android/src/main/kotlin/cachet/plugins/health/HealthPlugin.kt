@@ -152,7 +152,6 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             "getDataPage" -> dataReader.getDataPage(call, result)
             "getDataByUUID" -> dataReader.getDataByUUID(call, result)
             "getIntervalData" -> dataReader.getIntervalData(call, result)
-            "getAggregateData" -> dataReader.getAggregateData(call, result)
             "getTotalStepsInInterval" -> dataReader.getTotalStepsInInterval(call, result)
             "getChangesToken" -> dataChanges.getChangesToken(call, result)
             "getChanges" -> dataChanges.getChanges(call, result)
