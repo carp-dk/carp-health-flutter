@@ -31,13 +31,32 @@ internal class HealthPermissionRequests(
     private val dataOperations: HealthDataOperations
         get() = dataOperationsProvider()
 
-    /** Registers the launcher of the permission dialog with [activity], a ComponentActivity. */
+    /**
+     * Registers the launcher of the permission dialog with [activity]. The launcher needs a
+     * ComponentActivity, such as FlutterFragmentActivity. Any other activity, such as the default
+     * FlutterActivity, gets no launcher and an error naming the fix, and permission requests
+     * then return false.
+     */
     fun registerLauncher(activity: Activity?) {
+        val componentActivity = activity as? ComponentActivity
+        if (componentActivity == null) {
+            healthConnectRequestPermissionsLauncher = null
+            Log.e(
+                    "FLUTTER_HEALTH",
+                    "Host Activity is ${activity?.javaClass?.name}, which does not extend " +
+                            "androidx.activity.ComponentActivity, so Health Connect permissions " +
+                            "cannot be requested. Make MainActivity extend " +
+                            "io.flutter.embedding.android.FlutterFragmentActivity instead of " +
+                            "FlutterActivity (see 'Google Health Connect (Android)' in the README)."
+            )
+            return
+        }
+
         val requestPermissionActivityContract =
                 PermissionController.createRequestPermissionResultContract()
 
         healthConnectRequestPermissionsLauncher =
-                (activity as ComponentActivity).registerForActivityResult(
+                componentActivity.registerForActivityResult(
                         requestPermissionActivityContract
                 ) { granted -> onHealthConnectPermissionCallback(granted) }
     }
@@ -88,7 +107,7 @@ internal class HealthPermissionRequests(
 
         if (healthConnectRequestPermissionsLauncher == null) {
             result.success(false)
-            Log.i("FLUTTER_HEALTH", "Permission launcher not found")
+            Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
@@ -115,7 +134,7 @@ internal class HealthPermissionRequests(
     fun requestHealthDataHistoryAuthorization(call: MethodCall, result: Result) {
         if (context == null || healthConnectRequestPermissionsLauncher == null) {
             result.success(false)
-            Log.i("FLUTTER_HEALTH", "Permission launcher not found")
+            Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
@@ -136,7 +155,7 @@ internal class HealthPermissionRequests(
     fun requestHealthDataInBackgroundAuthorization(call: MethodCall, result: Result) {
         if (context == null || healthConnectRequestPermissionsLauncher == null) {
             result.success(false)
-            Log.i("FLUTTER_HEALTH", "Permission launcher not found")
+            Log.e("FLUTTER_HEALTH", "Permission launcher not found")
             return
         }
 
