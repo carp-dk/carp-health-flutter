@@ -1,3 +1,4 @@
+import CoreLocation
 import Flutter
 import HealthKit
 import XCTest
@@ -5,7 +6,8 @@ import XCTest
 @testable import health
 
 /// HKWorkout raises an exception (crashing the app) for a time range it does not accept, so the
-/// writer checks the range and the units of the totals first.
+/// writer checks the range and the units of the totals first. It also turns the locations of
+/// workout routes into CLLocations.
 class WorkoutWriteTests: XCTestCase {
   private let writer = HealthDataWriter(
     healthStore: HKHealthStore(), dataTypesDict: [:],
@@ -79,6 +81,28 @@ class WorkoutWriteTests: XCTestCase {
       XCTAssertEqual(sent.count, 1, method)
       XCTAssertEqual((sent.first as? FlutterError)?.code, "INVALID_ARGUMENT", method)
     }
+  }
+
+  /// A CLLocation always has an altitude. A route location written without one gets a negative
+  /// vertical accuracy, which marks its altitude invalid, so it does not read back as 0 m.
+  func testRouteLocationWithoutAltitudeHasNoValidAltitude() throws {
+    let locations = try writer.parseLocations([
+      ["latitude": 55.68, "longitude": 12.57, "timestamp": 1_700_000_000_000],
+      ["latitude": 55.68, "longitude": 12.57, "timestamp": 1_700_000_001_000, "verticalAccuracy": 5.0],
+    ])
+    XCTAssertEqual(locations.map(\.verticalAccuracy), [-1, -1])
+  }
+
+  func testRouteLocationKeepsItsAltitude() throws {
+    let locations = try writer.parseLocations([
+      [
+        "latitude": 55.68, "longitude": 12.57, "timestamp": 1_700_000_000_000, "altitude": 12.5,
+        "verticalAccuracy": 5.0,
+      ],
+      ["latitude": 55.68, "longitude": 12.57, "timestamp": 1_700_000_001_000, "altitude": 0.0],
+    ])
+    XCTAssertEqual(locations.map(\.altitude), [12.5, 0])
+    XCTAssertEqual(locations.map(\.verticalAccuracy), [5, kCLLocationAccuracyHundredMeters])
   }
 
   private func checkDates(lasting duration: TimeInterval) throws {

@@ -61,7 +61,8 @@ internal class DataPageReader(
     /**
      * Reads, converts and sends the page [request] asks for. A page that turns out too large is
      * dropped before anything is sent and the same position is read again with fewer records;
-     * every such retry costs one more Health Connect call.
+     * every such retry costs one more Health Connect call. A request with a limit is answered with
+     * one page of the records that start last ([readNewestRecords]), read once.
      */
     private suspend fun replyPage(request: DataPageRequest, result: Result) {
         val firstPage = request.isFirstPage
@@ -79,20 +80,19 @@ internal class DataPageReader(
             )
             return
         }
+        val limit = request.limit
+        if (limit != null) {
+            // The records that start last, as the one page: the Dart side keeps the newest points.
+            val records =
+                healthConnectClient.readNewestRecords(request.recordType, request.startTime, request.endTime, limit)
+            result.success(mapOf("data" to convert(request, records, granted), "nextPageToken" to null))
+            return
+        }
         if (request.isSliced) {
             val page = heartRate.readPage(request.startTime, request.endTime, request.pageSize, request.sliceToken)
-            val data = mutableListOf<Map<String, Any?>>()
-            converter.convertRecords(
-                page.records,
-                request.dataType,
-                request.dataUnit,
-                request.startTime,
-                request.endTime,
-                request.recordingMethodsToFilter,
-                granted,
-                data
+            result.success(
+                mapOf("data" to convert(request, page.records, granted), "nextPageToken" to page.next?.encode())
             )
-            result.success(mapOf("data" to data, "nextPageToken" to page.next?.encode()))
             return
         }
 
@@ -178,16 +178,28 @@ internal class DataPageReader(
             )
         }
 
+        val data = convert(request, earlier + response.records, granted)
+        val next = response.pageToken?.takeIf { it.isNotEmpty() }?.let { DataPageToken(nextRecords, it).encode() }
+        result.success(mapOf("data" to data, "nextPageToken" to next))
+        return null
+    }
+
+    /** The data points of [records]: workout routes from their sessions, any other type by [converter]. */
+    private suspend fun convert(
+        request: DataPageRequest,
+        records: List<Record>,
+        granted: Set<String>,
+    ): List<Map<String, Any?>> {
         val data = mutableListOf<Map<String, Any?>>()
         if (request.dataType == HealthConstants.WORKOUT_ROUTE) {
             routes.appendWorkoutRoutes(
-                response.records.filterIsInstance<ExerciseSessionRecord>(),
+                records.filterIsInstance<ExerciseSessionRecord>(),
                 request.recordingMethodsToFilter,
                 data
             )
         } else {
             converter.convertRecords(
-                earlier + response.records,
+                records,
                 request.dataType,
                 request.dataUnit,
                 request.startTime,
@@ -197,8 +209,6 @@ internal class DataPageReader(
                 data
             )
         }
-        val next = response.pageToken?.takeIf { it.isNotEmpty() }?.let { DataPageToken(nextRecords, it).encode() }
-        result.success(mapOf("data" to data, "nextPageToken" to next))
-        return null
+        return data
     }
 }

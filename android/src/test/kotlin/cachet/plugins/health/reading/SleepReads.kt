@@ -39,6 +39,7 @@ internal class SleepReads {
         sessions: List<SleepSessionRecord>,
         pageSize: Int = DEFAULT_PAGE_SIZE,
         recordingMethodsToFilter: List<Int> = emptyList(),
+        limit: Int? = null,
     ): PageRead {
         val client = fakeSleepStore(sessions, requests)
         val reader = DataPageReader(
@@ -53,6 +54,7 @@ internal class SleepReads {
             val arguments = hashMapOf(
                 "dataTypeKey" to dataType, "startTime" to from.toEpochMilli(), "endTime" to to.toEpochMilli(),
                 "recordingMethodsToFilter" to recordingMethodsToFilter, "pageSize" to pageSize, "pageToken" to token,
+                "limit" to limit,
             )
             val page = reply { reader.getDataPage(MethodCall("getDataPage", arguments), it) } as Map<*, *>
             pages += points(page["data"])
@@ -63,7 +65,13 @@ internal class SleepReads {
     }
 
     /** Reads [dataType] in [from, to) with the deprecated getData, in one reply. */
-    fun legacy(dataType: String, from: Instant, to: Instant, sessions: List<SleepSessionRecord>): List<ReadPoint> {
+    fun legacy(
+        dataType: String,
+        from: Instant,
+        to: Instant,
+        sessions: List<SleepSessionRecord>,
+        limit: Int? = null,
+    ): List<ReadPoint> {
         val client = fakeSleepStore(sessions, requests)
         val reader = LegacyDataReader(
             client, CoroutineScope(job), converter(client), WorkoutRoutes(HealthRecordingFilter()),
@@ -71,7 +79,7 @@ internal class SleepReads {
         )
         val arguments = hashMapOf(
             "dataTypeKey" to dataType, "startTime" to from.toEpochMilli(), "endTime" to to.toEpochMilli(),
-            "recordingMethodsToFilter" to emptyList<Int>(),
+            "recordingMethodsToFilter" to emptyList<Int>(), "limit" to limit,
         )
         return points(reply { reader.getData(MethodCall("getData", arguments), it) })
     }

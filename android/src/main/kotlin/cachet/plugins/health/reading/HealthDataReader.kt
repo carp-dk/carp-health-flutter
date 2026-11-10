@@ -51,6 +51,7 @@ class HealthDataReader(
      * memory at a few hundred thousand points; the Dart side reads through [getDataPage].
      *
      * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'recordingMethodsToFilter'
+     * and optionally 'limit' ([readNewestRecords])
      * @param result Flutter result callback returning list of health data maps
      */
     // Deprecated: the Dart side reads through getDataPage since 14.0.0 and calls this only for
@@ -73,9 +74,10 @@ class HealthDataReader(
      * The reply is {data, nextPageToken}; the token ([DataPageToken], [SliceToken]) is opaque to
      * Dart and null on the last page. Without read permission the first page is empty, last, and flagged
      * 'permissionDenied'. Failures are reported with the codes of [HealthErrors], never as data.
+     * A call with a 'limit' gets one page: the points of the 'limit' records that start last ([readNewestRecords]).
      *
      * @param call Method call containing 'dataTypeKey', 'dataUnitKey', 'startTime', 'endTime',
-     * 'recordingMethodsToFilter', 'pageSize' and the 'pageToken' returned by the previous page
+     * 'recordingMethodsToFilter', 'pageSize' and the 'pageToken' returned by the previous page, or a 'limit'
      * @param result Flutter result callback returning a map with 'data' and 'nextPageToken'
      */
     fun getDataPage(call: MethodCall, result: Result) {

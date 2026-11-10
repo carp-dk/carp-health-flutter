@@ -26,7 +26,7 @@ extension _Content on HealthAppState {
   Widget get _contentNotFetched => const Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Text("Press 'Auth' to get permissions to access health data."),
+      Text("Press 'Authenticate' to get permissions to access health data."),
       Text("Press 'Fetch Data' to get health data."),
       Text("Press 'Add Data' to add some random health data."),
       Text("Press 'Delete Data' to remove some random health data."),

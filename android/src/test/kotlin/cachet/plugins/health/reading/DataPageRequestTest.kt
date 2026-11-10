@@ -68,6 +68,7 @@ class DataPageRequestTest {
         assertEquals(emptyList<Int>(), request.recordingMethodsToFilter)
         assertEquals(20000, request.pageSize)
         assertNull(request.token)
+        assertNull(request.limit)
     }
 
     @Test
@@ -75,6 +76,17 @@ class DataPageRequestTest {
         for ((sent, used) in listOf(0 to 1, -5 to 1, 50000 to 50000, 100000 to 50000, 3_000_000_000L to 50000)) {
             val arguments = arrayOf("dataTypeKey" to "STEPS", "startTime" to 0, "endTime" to 1, "pageSize" to sent)
             assertEquals("$sent", used, DataPageRequest.from(call(*arguments)).pageSize)
+        }
+    }
+
+    @Test
+    fun readsAndClampsTheLimit() {
+        // 0 or less means no limit, and Health Connect returns at most 5000 records per request.
+        val sent = listOf<Any?>(null, 0, -3, 1, 7, 5000, 5001, 3_000_000_000L)
+        val used = listOf(null, null, null, 1, 7, 5000, 5000, 5000)
+        for ((limit, expected) in sent.zip(used)) {
+            val arguments = arrayOf("dataTypeKey" to "WEIGHT", "startTime" to 0, "endTime" to 1, "limit" to limit)
+            assertEquals("$limit", expected, DataPageRequest.from(call(*arguments)).limit)
         }
     }
 
@@ -91,6 +103,7 @@ class DataPageRequestTest {
             call(*valid, "pageToken" to mapOf("hc" to "1", "records" to 5)),
             call(*valid, "recordingMethodsToFilter" to listOf("MANUAL")),
             call(*valid, "recordingMethodsToFilter" to 3),
+            call(*valid, "limit" to "1"),
             MethodCall("getDataPage", "STEPS"),
         )
         for (badCall in bad) {
