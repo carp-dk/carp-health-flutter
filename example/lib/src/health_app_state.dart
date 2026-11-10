@@ -30,9 +30,23 @@ class HealthAppState extends State<HealthApp> {
     'No status, click "Check Skin Temp Feature" to get the status.',
   );
 
+  // Whether the installed Health Connect has mindfulness sessions and skin temperature, set by
+  // _checkHealthConnectFeatures. Until it has checked, [types] leaves them out.
+  bool _hasMindfulnessSessions = false;
+  bool _hasSkinTemperature = false;
+
   // All types available depending on platform (iOS ot Android).
   List<HealthDataType> get types {
-    if (Platform.isAndroid) return dataTypesAndroid;
+    if (Platform.isAndroid) {
+      // Without the feature, reading, writing or deleting the type throws a HealthException
+      // (notSupported), which would fail the read of all types.
+      return [
+        for (final type in dataTypesAndroid)
+          if ((type != HealthDataType.MINDFULNESS || _hasMindfulnessSessions) &&
+              (type != HealthDataType.SKIN_TEMPERATURE || _hasSkinTemperature))
+            type,
+      ];
+    }
     if (!Platform.isIOS) return [];
 
     final iosTypes = List<HealthDataType>.from(dataTypesIOS);
@@ -99,8 +113,22 @@ class HealthAppState extends State<HealthApp> {
     // configure the health plugin before use and check the Health Connect status
     health.configure();
     health.getHealthConnectSdkStatus();
+    _checkHealthConnectFeatures();
 
     super.initState();
+  }
+
+  /// Checks which of the types that Health Connect added after its first release the installed
+  /// Health Connect has: mindfulness sessions and skin temperature.
+  Future<void> _checkHealthConnectFeatures() async {
+    if (!Platform.isAndroid) return;
+    final hasMindfulnessSessions = await health.isMindfulnessSessionAvailable();
+    final hasSkinTemperature = await health.isSkinTemperatureAvailable();
+    if (!mounted) return;
+    setState(() {
+      _hasMindfulnessSessions = hasMindfulnessSessions;
+      _hasSkinTemperature = hasSkinTemperature;
+    });
   }
 
   /// Overridden without `@protected` so the actions and widgets, which are extensions on this class, can call it:
