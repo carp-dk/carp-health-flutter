@@ -3,6 +3,7 @@ package cachet.plugins.health.writing
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.response.InsertRecordsResponse
+import cachet.plugins.health.HealthErrors
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import kotlinx.coroutines.CoroutineScope
@@ -34,8 +35,8 @@ internal class ValueWriter(
     /**
      * Inserts the record of the value in [call] and hands the response to [onInserted]. Replies
      * [failureReply] instead if writeData does not write the data type, or Health Connect rejects the
-     * value or the insert. Throws IllegalArgumentException, failing the call, for a value of a type
-     * with a duration that does not end after it starts ([requireStartBeforeEnd]).
+     * value or the insert, and an INVALID_ARGUMENT error for a value of a type with a duration that
+     * does not end after it starts ([requireStartBeforeEnd]).
      */
     private fun write(
         call: MethodCall,
@@ -58,7 +59,14 @@ internal class ValueWriter(
         )
 
         val metadata = buildMetadata(recordingMethod, clientRecordId, clientRecordVersion?.toLong(), deviceType)
-        requireStartBeforeEnd(type, startTime, endTime)
+        try {
+            requireStartBeforeEnd(type, startTime, endTime)
+        } catch (e: IllegalArgumentException) {
+            // An invalid call, not a value Health Connect rejects: an INVALID_ARGUMENT error, where an
+            // exception out of onMethodCall would reach Dart with the generic code 'error'.
+            HealthErrors.report(result, e, "${call.method}($type)")
+            return
+        }
         val record = try {
             valueRecord(type, startTime, endTime, value, metadata)
         } catch (e: IllegalArgumentException) {

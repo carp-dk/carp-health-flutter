@@ -3,23 +3,26 @@ package cachet.plugins.health.writing
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.response.InsertRecordsResponse
 import cachet.plugins.health.HealthConstants
+import cachet.plugins.health.HealthErrors
 import cachet.plugins.health.RecordingResult
 import cachet.plugins.health.fakeOf
 import io.flutter.plugin.common.MethodCall
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ValueWriterTest {
     private val start = 1_700_000_000_000L
     private val end = start + 600_000
 
+    private var inserts = 0
+
     // Health Connect inserts every record it is given; the writes run at once, as it answers without suspending.
     private val writer = ValueWriter(
         fakeOf<HealthConnectClient> { method ->
             if (method != "insertRecords") throw UnsupportedOperationException(method)
+            inserts++
             InsertRecordsResponse(listOf("id"))
         },
         CoroutineScope(Dispatchers.Unconfined),
@@ -56,15 +59,23 @@ class ValueWriterTest {
     }
 
     @Test
-    fun aValueWithADurationThatEndsWhenItStartsFailsTheCall() {
-        // The plugin's own check, before the record is built, as on every Android version before.
-        val call = write(HealthConstants.STEPS, start, start, 10.0)
-        for (method in listOf(writer::writeData, writer::writeDataUUID)) {
-            val result = RecordingResult()
-            val error = assertThrows(IllegalArgumentException::class.java) { method(call, result) }
-            assertEquals("startTime must be before endTime.", error.message)
-            assertEquals(0, result.replies)
+    fun aValueWithADurationThatEndsWhenItStartsRepliesAnInvalidArgumentError() {
+        // The plugin's own check, before the record is built, as on every Android version before. It used
+        // to throw out of onMethodCall, which Flutter replied as the generic code 'error'.
+        for (type in listOf(HealthConstants.STEPS, HealthConstants.SLEEP_DEEP)) {
+            for (endTime in listOf(start, start - 1)) {
+                val call = write(type, start, endTime, 10.0)
+                for (method in listOf(writer::writeData, writer::writeDataUUID)) {
+                    val result = RecordingResult()
+                    method(call, result)
+                    assertEquals(1, result.replies)
+                    assertEquals(HealthErrors.INVALID_ARGUMENT, result.code)
+                    assertEquals("startTime must be before endTime.", result.message)
+                    assertEquals("java.lang.IllegalArgumentException", (result.details as Map<*, *>)["exception"])
+                }
+            }
         }
+        assertEquals(0, inserts)
     }
 
     @Test

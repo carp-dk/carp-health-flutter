@@ -11,8 +11,9 @@ import kotlinx.coroutines.CoroutineScope
  * Health Connect format.
  *
  * Writes run on the plugin's scope, on the main thread. A write that Health Connect rejects replies
- * false (an empty string where the reply is a UUID), not an error; only the workout route methods
- * reply errors (ARGUMENT_ERROR, ROUTE_ERROR, INVALID_ARGUMENT).
+ * false (an empty string where the reply is a UUID), not an error. Errors are replied by writeData
+ * and writeDataUUID for a value of a type with a duration that does not end after it starts
+ * (INVALID_ARGUMENT), and by the workout route methods (ARGUMENT_ERROR, ROUTE_ERROR, INVALID_ARGUMENT).
  */
 class HealthDataWriter(
     private val healthConnectClient: HealthConnectClient,
@@ -32,7 +33,9 @@ class HealthDataWriter(
      *
      * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'value',
      * 'recordingMethod' and optionally 'clientRecordId', 'clientRecordVersion', 'deviceType'
-     * @param result Flutter result callback returning boolean success status
+     * @param result Flutter result callback returning boolean success status, or an INVALID_ARGUMENT
+     * error for a value of a type with a duration, such as steps or a sleep stage, that does not end
+     * after it starts
      */
     fun writeData(call: MethodCall, result: Result) {
         values.writeData(call, result)
@@ -42,7 +45,8 @@ class HealthDataWriter(
      * Writes a single health data record to Health Connect, as [writeData] does.
      *
      * @param call Method call with the arguments of [writeData]
-     * @param result Flutter result callback returning string inserted record UUID or empty string on failure
+     * @param result Flutter result callback returning string inserted record UUID or empty string on
+     * failure, or the INVALID_ARGUMENT error of [writeData]
      */
     fun writeDataUUID(call: MethodCall, result: Result) {
         values.writeDataUUID(call, result)
