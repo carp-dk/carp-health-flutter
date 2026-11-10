@@ -138,6 +138,38 @@ class IntervalTests: XCTestCase {
     XCTAssertEqual((emptyRead.first as? [Any])?.count, 0)
   }
 
+  func testTypesThisIOSLacksAreNotSupported() {
+    // As before iOS 18, which has no rowing speed: the plugin does not register it.
+    let plugin = HealthPlugin()
+    plugin.initializeTypes()
+    var dataTypes = plugin.dataTypesDict
+    var quantityTypes = plugin.dataQuantityTypesDict
+    dataTypes["ROWING_SPEED"] = nil
+    quantityTypes["ROWING_SPEED"] = nil
+    let olderReader = HealthDataReader(
+      healthStore: plugin.healthStore, dataTypesDict: dataTypes, dataQuantityTypesDict: quantityTypes,
+      unitDict: plugin.unitDict, workoutActivityTypeMap: [:],
+      characteristicsTypesDict: plugin.characteristicsTypesDict
+    )
+    func code(_ dataTypeKey: String, paged: Bool = false) -> String? {
+      let arguments: [String: Any] = [
+        "dataTypeKey": dataTypeKey, "dataUnitKey": "METER_PER_SECOND", "interval": 3600,
+        "startTime": t0, "endTime": t0 + 60 * minute,
+      ]
+      let sent = paged
+        ? replies(to: olderReader.getDataPage, method: "getDataPage", arguments: arguments)
+        : replies(to: olderReader.getIntervalData, method: "getIntervalData", arguments: arguments)
+      XCTAssertEqual(sent.count, 1, dataTypeKey)
+      return (sent.first as? FlutterError)?.code
+    }
+    // As a paged read of it replies.
+    XCTAssertEqual(code("ROWING_SPEED"), "NOT_SUPPORTED")
+    XCTAssertEqual(code("ROWING_SPEED", paged: true), "NOT_SUPPORTED")
+    // The types this iOS has without interval data keep their code.
+    XCTAssertEqual(code("MINDFULNESS"), "INVALID_TYPE")
+    XCTAssertEqual(code("GENDER"), "INVALID_TYPE")
+  }
+
   func testQuantitiesAreSummedOrAveraged() {
     XCTAssertEqual(reader.statisticsOption(for: "HEART_RATE"), .discreteAverage)
     XCTAssertEqual(reader.statisticsOption(for: "STEPS"), .cumulativeSum)

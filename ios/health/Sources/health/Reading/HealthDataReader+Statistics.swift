@@ -37,6 +37,18 @@ extension HealthDataReader {
         let dateFrom = HealthUtilities.dateFromMilliseconds(startDate.doubleValue)
         let dateTo = HealthUtilities.dateFromMilliseconds(endDate.doubleValue)
 
+        // The test getDataPage makes: a type this iOS version does not have is in neither dictionary.
+        guard dataTypesDict[dataTypeKey] != nil || characteristicsTypesDict[dataTypeKey] != nil else {
+            result(
+                FlutterError(
+                    code: "NOT_SUPPORTED",
+                    message: "Data type \(dataTypeKey) is not available on this device",
+                    details: nil
+                )
+            )
+            return
+        }
+        // A type it has without interval data, such as a workout or a characteristic.
         guard let quantityType = dataQuantityTypesDict[dataTypeKey] else {
             result(
                 FlutterError(

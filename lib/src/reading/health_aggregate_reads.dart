@@ -46,7 +46,10 @@ mixin HealthAggregateReads on _HealthReadSupport {
   ///    [HealthDataType.WALKING_SPEED] and [HealthDataType.WATER_TEMPERATURE].
   ///    Any other type, such as a workout, [HealthDataType.MINDFULNESS] or a
   ///    headache, throws a [HealthPlatformException] with
-  ///    [HealthErrorCode.invalidArgument] (platform code INVALID_TYPE).
+  ///    [HealthErrorCode.invalidArgument] (platform code INVALID_TYPE). A type
+  ///    this iOS version does not have, such as [HealthDataType.ROWING_SPEED]
+  ///    before iOS 18, throws one with [HealthErrorCode.notSupported] (platform
+  ///    code NOT_SUPPORTED), as reads of it do.
   ///
   /// Data of the recording methods in [recordingMethodsToFilter] is left out
   /// (by default none is), as far as the platform can filter it:
