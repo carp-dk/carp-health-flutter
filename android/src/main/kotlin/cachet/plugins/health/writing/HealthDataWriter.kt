@@ -32,7 +32,8 @@ class HealthDataWriter(
      * automatic type conversion and validation.
      *
      * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'value',
-     * 'recordingMethod' and optionally 'clientRecordId', 'clientRecordVersion', 'deviceType'
+     * 'recordingMethod' and optionally 'clientRecordId', 'clientRecordVersion', 'deviceType', and for
+     * MINDFULNESS 'mindfulnessSessionType', 'title', 'notes' (writeMindfulnessSession)
      * @param result Flutter result callback returning boolean success status, or an INVALID_ARGUMENT
      * error for a value of a type with a duration, such as steps or a sleep stage, that does not end
      * after it starts

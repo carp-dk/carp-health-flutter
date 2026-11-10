@@ -7,8 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 
 /**
  * Answers whether Health Connect features are available on the device, for
- * isHealthDataHistoryAvailable, isHealthDataInBackgroundAvailable and isSkinTemperatureAvailable.
- * A check that fails replies the error ([launchCheck]).
+ * isHealthDataHistoryAvailable, isHealthDataInBackgroundAvailable, isSkinTemperatureAvailable and
+ * isMindfulnessSessionAvailable. A check that fails replies the error ([launchCheck]).
  */
 internal class FeatureAvailability(
     private val healthConnectClient: HealthConnectClient,
@@ -26,6 +26,10 @@ internal class FeatureAvailability(
 
     fun isSkinTemperatureAvailable(result: Result) {
         replyAvailable(HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE, "isSkinTemperatureAvailable", result)
+    }
+
+    fun isMindfulnessSessionAvailable(result: Result) {
+        replyAvailable(HealthConnectFeatures.FEATURE_MINDFULNESS_SESSION, "isMindfulnessSessionAvailable", result)
     }
 
     /** Replies whether [feature], a HealthConnectFeatures.FEATURE_* value, is available. */

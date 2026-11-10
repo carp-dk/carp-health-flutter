@@ -234,7 +234,15 @@ enum HealthDataType {
   /// Read only: requesting write access throws an [ArgumentError].
   APPLE_SLEEPING_BREATHING_DISTURBANCES,
 
+  /// Mindfulness sessions, such as meditation, in minutes: the value of a
+  /// session is the minutes from its start to its end. Write a session with
+  /// its type and title with [Health.writeMindfulnessSession].
+  ///
+  ///  * iOS: HealthKit's `HKCategoryTypeIdentifier.mindfulSession`.
+  ///  * Android: Health Connect's `MindfulnessSessionRecord`, on devices whose
+  ///    Health Connect has them ([Health.isMindfulnessSessionAvailable]).
   MINDFULNESS,
+
   WATER,
   SLEEP_ASLEEP,
   SLEEP_AWAKE_IN_BED,

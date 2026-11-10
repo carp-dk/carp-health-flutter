@@ -146,6 +146,8 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                     permissionRequests.requestHealthDataInBackgroundAuthorization(call, result)
             "isSkinTemperatureAvailable" ->
                     runCheck(call, result) { isSkinTemperatureAvailable(call, result) }
+            "isMindfulnessSessionAvailable" ->
+                    runCheck(call, result) { isMindfulnessSessionAvailable(call, result) }
 
             // Reading data
             "getData" -> dataReader.getData(call, result)

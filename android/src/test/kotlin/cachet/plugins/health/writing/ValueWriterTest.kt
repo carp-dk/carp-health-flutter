@@ -1,11 +1,14 @@
 package cachet.plugins.health.writing
 
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.records.MindfulnessSessionRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.response.InsertRecordsResponse
 import cachet.plugins.health.HealthConstants
 import cachet.plugins.health.HealthErrors
 import cachet.plugins.health.RecordingResult
 import cachet.plugins.health.fakeOf
+import cachet.plugins.health.reading.fakeHealthConnect
 import io.flutter.plugin.common.MethodCall
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +65,7 @@ class ValueWriterTest {
     fun aValueWithADurationThatEndsWhenItStartsRepliesAnInvalidArgumentError() {
         // The plugin's own check, before the record is built, as on every Android version before. It used
         // to throw out of onMethodCall, which Flutter replied as the generic code 'error'.
-        for (type in listOf(HealthConstants.STEPS, HealthConstants.SLEEP_DEEP)) {
+        for (type in listOf(HealthConstants.STEPS, HealthConstants.SLEEP_DEEP, HealthConstants.MINDFULNESS)) {
             for (endTime in listOf(start, start - 1)) {
                 val call = write(type, start, endTime, 10.0)
                 for (method in listOf(writer::writeData, writer::writeDataUUID)) {
@@ -81,5 +84,33 @@ class ValueWriterTest {
     @Test
     fun aSeriesValueMayEndWhenItStarts() {
         assertEquals(listOf(true, "id"), replies(write(HealthConstants.HEART_RATE, start, start, 70.0)))
+    }
+
+    @Test
+    fun aMindfulnessSessionIsWrittenWithTheSessionInTheCall() {
+        val inserted = mutableListOf<Any?>()
+        val writer = ValueWriter(
+            fakeHealthConnect { method, args ->
+                check(method == "insertRecords") { "Unexpected call of $method" }
+                inserted.addAll(args.single() as List<*>)
+                InsertRecordsResponse(listOf("id"))
+            },
+            CoroutineScope(Dispatchers.Unconfined),
+        )
+        // A writeMindfulnessSession call as Dart sends it.
+        val call = MethodCall(
+            "writeData",
+            hashMapOf(
+                "dataTypeKey" to HealthConstants.MINDFULNESS, "startTime" to start, "endTime" to end, "value" to 10.0,
+                "recordingMethod" to RECORDING_METHOD_MANUAL_ENTRY, "mindfulnessSessionType" to "BREATHING",
+                "title" to "Morning practice", "notes" to null,
+            ),
+        )
+        val result = RecordingResult()
+        writer.writeData(call, result)
+        assertEquals(true, result.value)
+        val session = inserted.single() as MindfulnessSessionRecord
+        assertEquals(MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_BREATHING, session.mindfulnessSessionType)
+        assertEquals("Morning practice" to null, session.title to session.notes)
     }
 }
