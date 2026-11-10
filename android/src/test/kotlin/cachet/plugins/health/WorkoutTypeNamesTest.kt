@@ -54,6 +54,16 @@ class WorkoutTypeNamesTest {
     }
 
     @Test
+    fun anExerciseTypeOfOneNameReadsUnderThatName() {
+        // Stationary biking is an exercise type of its own in Health Connect, not a kind of BIKING.
+        val names = mapOf(
+            ExerciseSessionRecord.EXERCISE_TYPE_BIKING to "BIKING",
+            ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY to "BIKING_STATIONARY",
+        )
+        for ((exerciseType, name) in names) assertEquals(name, workoutTypeName(exerciseType))
+    }
+
+    @Test
     fun anExerciseTypeWithoutANameReadsAsOther() {
         assertEquals("OTHER", workoutTypeName(ExerciseSessionRecord.EXERCISE_TYPE_BOOT_CAMP))
         assertEquals("OTHER", workoutTypeName(ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT))
