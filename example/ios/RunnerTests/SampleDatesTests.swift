@@ -16,8 +16,11 @@ class SampleDatesTests: XCTestCase {
       "STEPS": HKQuantityType(.stepCount),
       "SLEEP_ASLEEP": HKCategoryType(.sleepAnalysis),
       "MINDFULNESS": HKCategoryType(.mindfulSession),
+      "ENVIRONMENTAL_AUDIO_EXPOSURE": HKQuantityType(.environmentalAudioExposure),
     ],
-    unitDict: ["COUNT": .count()],
+    unitDict: [
+      "COUNT": .count(), "DECIBEL_A_WEIGHTED_SOUND_PRESSURE_LEVEL": .decibelAWeightedSoundPressureLevel(),
+    ],
     workoutActivityTypeMap: [:]
   )
   private let now = Date()
@@ -36,6 +39,26 @@ class SampleDatesTests: XCTestCase {
         sent.append($0)
       }
       XCTAssertTrue(accepted, type.identifier)
+      XCTAssertTrue(sent.isEmpty, type.identifier)
+    }
+  }
+
+  func testAudioExposuresLastAtLeastAMillisecond() throws {
+    // At one instant, as writeHealthData writes a sample without an endTime.
+    let instant: [String: Any] = [
+      "value": 70.0, "dataTypeKey": "ENVIRONMENTAL_AUDIO_EXPOSURE",
+      "dataUnitKey": "DECIBEL_A_WEIGHTED_SOUND_PRESSURE_LEVEL", "recordingMethod": 2,
+      "startTime": milliseconds(now), "endTime": milliseconds(now),
+    ]
+    try assertRepliesInvalidArgumentOnce(writer.writeData, method: "writeData", arguments: instant)
+    try assertRepliesInvalidArgumentOnce(writer.writeDataUUID, method: "writeDataUUID", arguments: instant)
+    for type in [HKQuantityType(.environmentalAudioExposure), HKQuantityType(.headphoneAudioExposure)] {
+      XCTAssertEqual(
+        pluginErrorMessage(try writer.checkSampleDates(start: now, end: now, of: type)),
+        "A \(type.identifier) sample must last at least 0.001 seconds"
+      )
+      var sent = [Any?]()
+      XCTAssertTrue(writer.validateSampleDates(start: now - 1, end: now, of: [type]) { sent.append($0) })
       XCTAssertTrue(sent.isEmpty, type.identifier)
     }
   }

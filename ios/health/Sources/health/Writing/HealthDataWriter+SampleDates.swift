@@ -3,8 +3,9 @@ import HealthKit
 
 extension HealthDataWriter {
     /// Checks the time range of a sample before it is created. HealthKit raises an exception
-    /// (crashing the app) for a sample that ends at or after Date.distantFuture or lasts longer
-    /// than its type allows (4 days for most types).
+    /// (crashing the app) for a sample that ends at or after Date.distantFuture, lasts longer
+    /// than its type allows (4 days for most types) or shorter (1 ms for the audio exposure
+    /// types, the only ones with a minimum).
     /// - Throws: PluginError for a time range the sample type does not accept
     func checkSampleDates(start: Date, end: Date, of type: HKSampleType) throws {
         guard start <= end else {
@@ -18,6 +19,14 @@ extension HealthDataWriter {
             throw PluginError(
                 message: "A \(type.identifier) sample can last at most "
                     + "\(Int(type.maximumAllowedDuration)) seconds"
+            )
+        }
+        // The same for minimumAllowedDuration. HealthKit compares the duration as computed here, so
+        // a range of exactly 1 ms, which comes out just below it for most dates, is refused too.
+        if type.isMinimumDurationRestricted, end.timeIntervalSince(start) < type.minimumAllowedDuration {
+            throw PluginError(
+                message: "A \(type.identifier) sample must last at least "
+                    + "\(type.minimumAllowedDuration) seconds"
             )
         }
     }

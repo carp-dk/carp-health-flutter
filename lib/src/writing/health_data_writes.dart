@@ -15,8 +15,8 @@ mixin HealthDataWrites on _HealthSupport {
   ///  * [startTime] - the start time when this [value] is measured.
   ///    It must be equal to or earlier than [endTime].
   ///  * [endTime] - the end time when this [value] is measured.
-  ///    It must be equal to or later than [startTime], and on Android later
-  ///    for the types listed below.
+  ///    It must be equal to or later than [startTime], and later for the types
+  ///    listed below.
   ///    Simply set [endTime] equal to [startTime] if the [value] is measured
   ///    only at a specific point in time (default).
   ///  * [recordingMethod] - the recording method of the data point, automatic by default.
@@ -58,8 +58,12 @@ mixin HealthDataWrites on _HealthSupport {
   /// [HealthDataType.MINDFULNESS] and the sleep types. On iOS, throws a
   /// [PlatformException] with code INVALID_ARGUMENT, before anything is saved,
   /// for a [unit] the type cannot use, a category value the type does not
-  /// have, or a sample longer than HealthKit allows for the type (4 days for
-  /// most types) or ending in the year 4001 or later.
+  /// have, a sample longer than HealthKit allows for the type (4 days for
+  /// most types) or ending in the year 4001 or later, and a
+  /// [HealthDataType.ENVIRONMENTAL_AUDIO_EXPOSURE] or
+  /// [HealthDataType.HEADPHONE_AUDIO_EXPOSURE] sample whose [endTime] is not
+  /// after [startTime] (also when it is not given): HealthKit's minimum for
+  /// them is 1 ms.
   @override
   Future<bool> writeHealthData({
     required double value,
@@ -131,8 +135,8 @@ mixin HealthDataWrites on _HealthSupport {
   ///  * [startTime] - the start time when this [value] is measured.
   ///    It must be equal to or earlier than [endTime].
   ///  * [endTime] - the end time when this [value] is measured.
-  ///    It must be equal to or later than [startTime], and on Android later
-  ///    for the types listed in [writeHealthData].
+  ///    It must be equal to or later than [startTime], and later for the types
+  ///    listed in [writeHealthData].
   ///    Simply set [endTime] equal to [startTime] if the [value] is measured
   ///    only at a specific point in time (default).
   ///  * [recordingMethod] - the recording method of the data point, automatic by default.

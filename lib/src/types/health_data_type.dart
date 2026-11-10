@@ -152,10 +152,10 @@ enum HealthDataType {
   /// HealthKit's `physicalEffort`, iOS 17 and later.
   PHYSICAL_EFFORT,
 
-  /// HealthKit's `environmentalAudioExposure`.
+  /// HealthKit's `environmentalAudioExposure`. Writes need an endTime after the startTime.
   ENVIRONMENTAL_AUDIO_EXPOSURE,
 
-  /// HealthKit's `headphoneAudioExposure`.
+  /// HealthKit's `headphoneAudioExposure`. Writes need an endTime after the startTime.
   HEADPHONE_AUDIO_EXPOSURE,
 
   /// HealthKit's `numberOfTimesFallen`.
