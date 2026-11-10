@@ -54,9 +54,11 @@ enum HealthErrorCode {
   rateLimitExceeded('RATE_LIMIT_EXCEEDED'),
 
   /// The app does not have the permission the call needs, for example a read
-  /// in the background without the Health Connect background read permission.
-  /// A missing read permission for a data type is not an error: the type
-  /// simply returns no data.
+  /// in the background without the Health Connect background read permission,
+  /// or, on Android, [Health.getTotalStepsInInterval] without the steps read
+  /// permission. In [Health.getHealthDataFromTypes] and
+  /// [Health.getHealthDataPages], a missing read permission for a data type is
+  /// not an error: the type simply returns no data.
   permissionDenied('PERMISSION_DENIED'),
 
   /// The request was not valid, for example a unit that cannot express the

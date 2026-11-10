@@ -30,6 +30,7 @@ extension _ChangesActions on HealthAppState {
     }
 
     try {
+      // null only on iOS
       final token = await health.getChangesToken(types: _changeTypes);
       setState(() {
         _changesToken = token;
@@ -38,6 +39,14 @@ extension _ChangesActions on HealthAppState {
         _changes.clear();
         _state = token == null ? AppState.CHANGES_NOT_READY : AppState.CHANGES_READY;
       });
+    } on HealthPlatformException catch (error) {
+      // Health Connect reported an error, for example
+      // HealthErrorCode.rateLimitExceeded, which is worth retrying later.
+      debugPrint(
+        "Exception in createChangesToken: $error - "
+        "errorCode: ${error.errorCode}, retryable: ${error.isRetryable}",
+      );
+      setState(() => _state = AppState.CHANGES_NOT_READY);
     } catch (error) {
       debugPrint("Exception in createChangesToken: $error");
       setState(() => _state = AppState.CHANGES_NOT_READY);
@@ -59,6 +68,7 @@ extension _ChangesActions on HealthAppState {
 
     try {
       final response = await health.getChanges(changesToken: token);
+      // null only on iOS
       if (response == null) {
         setState(() => _state = AppState.CHANGES_NOT_READY);
         return;
@@ -82,6 +92,15 @@ extension _ChangesActions on HealthAppState {
         _lastChangesAt = DateTime.now();
         _state = AppState.CHANGES_READY;
       });
+    } on HealthPlatformException catch (error) {
+      // Health Connect reported an error, for example
+      // HealthErrorCode.rateLimitExceeded: the token stays valid, so fetch
+      // again later.
+      debugPrint(
+        "Exception in fetchChanges: $error - "
+        "errorCode: ${error.errorCode}, retryable: ${error.isRetryable}",
+      );
+      setState(() => _state = AppState.CHANGES_NOT_READY);
     } catch (error) {
       debugPrint("Exception in fetchChanges: $error");
       setState(() => _state = AppState.CHANGES_NOT_READY);

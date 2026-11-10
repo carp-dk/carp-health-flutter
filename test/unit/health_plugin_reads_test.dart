@@ -119,6 +119,13 @@ void main() {
       expect(args['recordingMethodsToFilter'], [RecordingMethod.manual.toInt()]);
     });
 
+    test('getTotalStepsInInterval returns 0 when there are no steps', () async {
+      ctx.channel.whenSequence('getTotalStepsInInterval', [0, null]);
+
+      expect(await ctx.health.getTotalStepsInInterval(HealthFixtures.start, HealthFixtures.end), 0);
+      expect(await ctx.health.getTotalStepsInInterval(HealthFixtures.start, HealthFixtures.end), 0);
+    });
+
     test('removeDuplicates removes identical points', () {
       final point = HealthDataPoint(
         uuid: 'id-1',

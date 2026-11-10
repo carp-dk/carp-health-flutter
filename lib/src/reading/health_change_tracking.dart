@@ -6,9 +6,11 @@ part of '../../health.dart';
 mixin HealthChangeTracking on _HealthReadSupport {
   /// Create a Health Connect changes token for the provided [types].
   ///
-  /// Android only. Returns null on iOS or if an error occurs.
+  /// Android only: returns null on iOS. Throws a [HealthPlatformException] if
+  /// Health Connect reports an error, for example
+  /// [HealthErrorCode.rateLimitExceeded] when its API quota is used up.
   Future<String?> getChangesToken({required List<HealthDataType> types}) async {
-    if (Platform.isIOS) return null;
+    if (platformType == HealthPlatformType.appleHealth) return null;
 
     await _checkIfHealthConnectAvailableOnAndroid();
     if (types.isEmpty) {
@@ -27,20 +29,15 @@ mixin HealthChangeTracking on _HealthReadSupport {
       }
     }
 
-    try {
-      return await Health._channel.invokeMethod<String>('getChangesToken', {
-        'types': normalizedTypes.map((type) => type.name).toList(),
-      });
-    } catch (e) {
-      debugPrint('$runtimeType - Exception in getChangesToken(): $e');
-      return null;
-    }
+    return _invoke<String>('getChangesToken', {'types': normalizedTypes.map((type) => type.name).toList()});
   }
 
   /// Fetch the next page of changes for a previously created token.
   ///
-  /// Android only. Returns null on iOS or if an error occurs, for example when
-  /// Health Connect's API quota is used up; try again later.
+  /// Android only: returns null on iOS. Throws a [HealthPlatformException] if
+  /// Health Connect reports an error, for example
+  /// [HealthErrorCode.rateLimitExceeded] when its API quota is used up; try
+  /// again later with the same token.
   ///
   /// [HealthChangesResponse.changesTokenExpired] means the token can no longer
   /// be used: read the data since your last sync (for example with
@@ -49,7 +46,7 @@ mixin HealthChangeTracking on _HealthReadSupport {
   /// large ("Too many records in the cursor"), so poll often enough to keep the
   /// batches small.
   Future<HealthChangesResponse?> getChanges({required String changesToken, bool includeSelf = false}) async {
-    if (Platform.isIOS) return null;
+    if (platformType == HealthPlatformType.appleHealth) return null;
 
     final mode = isolateMode;
     await _checkIfHealthConnectAvailableOnAndroid();
@@ -65,21 +62,16 @@ mixin HealthChangeTracking on _HealthReadSupport {
         _ParseRequest(null, null, await _resolveDeviceId()),
         mode,
       );
-    } on HealthException catch (e) {
+    } on HealthPlatformException catch (e) {
+      if (e.errorCode != HealthErrorCode.dataTooLarge) rethrow;
       debugPrint('$runtimeType - Exception in getChanges(): $e');
-      if (e.errorCode == HealthErrorCode.dataTooLarge) {
-        // Retrying the same token would fail the same way.
-        return HealthChangesResponse(
-          changes: const [],
-          nextChangesToken: changesToken,
-          hasMore: false,
-          changesTokenExpired: true,
-        );
-      }
-      return null;
-    } catch (e) {
-      debugPrint('$runtimeType - Exception in getChanges(): $e');
-      return null;
+      // Retrying the same token would fail the same way.
+      return HealthChangesResponse(
+        changes: const [],
+        nextChangesToken: changesToken,
+        hasMore: false,
+        changesTokenExpired: true,
+      );
     }
   }
 

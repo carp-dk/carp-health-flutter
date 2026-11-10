@@ -67,20 +67,22 @@ mixin HealthAggregateReads on _HealthReadSupport {
     );
   }
 
-  /// Get the total number of steps within a specific time period.
-  /// Returns null if not successful, for example when Health Connect's API
-  /// quota is used up.
-  Future<int?> getTotalStepsInInterval(DateTime startTime, DateTime endTime, {bool includeManualEntry = true}) async {
+  /// Get the total number of steps within a specific time period: 0 if there
+  /// are no steps in it.
+  ///
+  /// Throws an [UnsupportedError] if Health Connect is not available, and a
+  /// [HealthPlatformException] if Health Connect or HealthKit reports an
+  /// error, for example [HealthErrorCode.rateLimitExceeded] when Health
+  /// Connect's API quota is used up, or, on Android,
+  /// [HealthErrorCode.permissionDenied] without the steps read permission.
+  /// HealthKit does not report a denied read permission: it returns 0.
+  Future<int> getTotalStepsInInterval(DateTime startTime, DateTime endTime, {bool includeManualEntry = true}) async {
+    await _checkIfHealthConnectAvailableOnAndroid();
     final args = <String, dynamic>{
       'startTime': startTime.millisecondsSinceEpoch,
       'endTime': endTime.millisecondsSinceEpoch,
       'recordingMethodsToFilter': includeManualEntry ? <RecordingMethod>[] : [RecordingMethod.manual.toInt()],
     };
-    try {
-      return await Health._channel.invokeMethod<int?>('getTotalStepsInInterval', args);
-    } on PlatformException catch (e) {
-      debugPrint('$runtimeType - Exception in getTotalStepsInInterval(): $e');
-      return null;
-    }
+    return await _invoke<int>('getTotalStepsInInterval', args, dataType: HealthDataType.STEPS) ?? 0;
   }
 }

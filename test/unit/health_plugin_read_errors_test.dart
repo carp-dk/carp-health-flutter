@@ -65,23 +65,37 @@ void main() {
       expect(await ctx.health.getHealthDataByUUID(uuid: 'uuid-1', type: HealthDataType.SLEEP_REM), isNull);
     });
 
-    test('getTotalStepsInInterval returns null on platform errors', () async {
+    test('getTotalStepsInInterval throws platform errors', () async {
       ctx.channel.whenSequence('getTotalStepsInInterval', [
         PlatformException(code: 'RATE_LIMIT_EXCEEDED'),
         PlatformException(code: 'STEPS_ERROR'),
       ]);
 
-      expect(await ctx.health.getTotalStepsInInterval(HealthFixtures.start, HealthFixtures.end), isNull);
-      expect(
-        await ctx.health.getTotalStepsInInterval(HealthFixtures.start, HealthFixtures.end, includeManualEntry: false),
-        isNull,
+      await expectLater(
+        ctx.health.getTotalStepsInInterval(HealthFixtures.start, HealthFixtures.end),
+        throwsA(platformError('RATE_LIMIT_EXCEEDED', type: HealthDataType.STEPS)),
+      );
+      await expectLater(
+        ctx.health.getTotalStepsInInterval(HealthFixtures.start, HealthFixtures.end, includeManualEntry: false),
+        throwsA(platformError('STEPS_ERROR', type: HealthDataType.STEPS)),
       );
     });
 
-    test('getChanges returns null on platform errors', () async {
-      ctx.channel.whenSequence('getChanges', [PlatformException(code: 'RATE_LIMIT_EXCEEDED')]);
+    test('getChanges throws platform errors', () async {
+      ctx.channel.whenSequence('getChanges', [
+        PlatformException(code: 'RATE_LIMIT_EXCEEDED'),
+        PlatformException(code: 'PERMISSION_DENIED'),
+      ]);
 
-      expect(await ctx.health.getChanges(changesToken: 'token-1'), isNull);
+      // A change carries its own data type, so the error has none.
+      await expectLater(
+        ctx.health.getChanges(changesToken: 'token-1'),
+        throwsA(platformError('RATE_LIMIT_EXCEEDED', type: null)),
+      );
+      await expectLater(
+        ctx.health.getChanges(changesToken: 'token-1', includeSelf: true),
+        throwsA(platformError('PERMISSION_DENIED', type: null)),
+      );
     });
 
     test('getChanges asks for a new token when the changes are too large', () async {
@@ -97,10 +111,13 @@ void main() {
       expect(response.changes, isEmpty);
     });
 
-    test('getChangesToken returns null on platform errors', () async {
+    test('getChangesToken throws platform errors', () async {
       ctx.channel.whenSequence('getChangesToken', [PlatformException(code: 'RATE_LIMIT_EXCEEDED')]);
 
-      expect(await ctx.health.getChangesToken(types: [HealthDataType.STEPS]), isNull);
+      await expectLater(
+        ctx.health.getChangesToken(types: [HealthDataType.STEPS]),
+        throwsA(platformError('RATE_LIMIT_EXCEEDED', type: null)),
+      );
     });
 
     test('a missing native implementation is not wrapped', () async {

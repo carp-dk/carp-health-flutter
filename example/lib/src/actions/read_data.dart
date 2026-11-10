@@ -92,19 +92,27 @@ extension _ReadDataActions on HealthAppState {
 
     if (stepsPermission) {
       try {
+        // 0 if there are no steps today
         steps = await health.getTotalStepsInInterval(
           midnight,
           now,
           includeManualEntry: !recordingMethodsToFilter.contains(RecordingMethod.manual),
         );
+        debugPrint('Total number of steps: $steps');
+      } on HealthPlatformException catch (error) {
+        // Health Connect or HealthKit reported an error, for example
+        // HealthErrorCode.rateLimitExceeded, which is worth retrying later.
+        debugPrint(
+          "Exception in getTotalStepsInInterval: $error - "
+          "errorCode: ${error.errorCode}, retryable: ${error.isRetryable}",
+        );
       } catch (error) {
         debugPrint("Exception in getTotalStepsInInterval: $error");
       }
 
-      debugPrint('Total number of steps: $steps');
-
+      // steps is null if they could not be read
       setState(() {
-        _nofSteps = (steps == null) ? 0 : steps;
+        _nofSteps = steps ?? 0;
         _state = (steps == null) ? AppState.NO_DATA : AppState.STEPS_READY;
       });
     } else {

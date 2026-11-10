@@ -110,4 +110,16 @@ mixin _HealthReadSupport on _HealthSupport {
     }
     return parse(decoded, request);
   }
+
+  /// Sends [method] and returns its reply as it is, for small replies such as
+  /// a step count or a changes token. Errors reported by the platform are
+  /// thrown as [HealthPlatformException]s for [dataType], as in
+  /// [_invokeAndParse].
+  Future<T?> _invoke<T>(String method, Object? arguments, {HealthDataType? dataType}) async {
+    try {
+      return await Health._channel.invokeMethod<T>(method, arguments);
+    } on PlatformException catch (error) {
+      throw HealthPlatformException(dataType, error);
+    }
+  }
 }

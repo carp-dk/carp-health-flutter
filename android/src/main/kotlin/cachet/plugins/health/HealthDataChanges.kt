@@ -7,6 +7,7 @@ import androidx.health.connect.client.changes.DeletionChange
 import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.request.ChangesTokenRequest
+import androidx.health.connect.client.response.ChangesResponse
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel.Result
 import kotlinx.coroutines.CoroutineScope
@@ -70,10 +71,12 @@ class HealthDataChanges(
     /**
      * Fetches the next page of changes for a previously created token.
      *
-     * A page that is too large to convert or send (more than 100,000 data points, e.g. for
-     * thousands of changed heart rate series, or an OutOfMemoryError) or that Health Connect
-     * cannot return ("Too many records in the cursor") is reported as DATA_TOO_LARGE; the Dart
-     * side then reports the token as expired.
+     * A page of more than 100,000 data points (e.g. thousands of changed heart rate series) is read
+     * again from the same token with at most half as many changes ([ChangesPageSizer]) until it fits.
+     * A page that cannot get small enough (a single change over the limit, or Health Connect does not
+     * return fewer changes), that does not fit in memory (OutOfMemoryError) or that Health Connect
+     * cannot return ("Too many records in the cursor") is reported as DATA_TOO_LARGE; the Dart side
+     * then reports the token as expired.
      *
      * @param call Method call containing 'changesToken' and optional 'includeSelf'
      * @param result Flutter result callback returning changes payload
@@ -100,14 +103,21 @@ class HealthDataChanges(
 
     /** Reads the page of changes after [changesToken], converts it and replies. */
     private suspend fun replyChanges(changesToken: String, includeSelf: Boolean, result: Result) {
-        val response = healthConnectClient.getChanges(changesToken)
+        var response = healthConnectClient.getChanges(changesToken)
         // Health Connect returns a page of changed records whatever their size, and one heart rate record
         // can hold thousands of samples. Converting and sending millions of points at once would run out
-        // of memory; the Dart side reports this as an expired token, so the app reads the range again.
-        val points = response.changes.sumOf { change ->
-            val record = (change as? UpsertionChange)?.record
-            if (record == null || (!includeSelf && record.metadata.dataOrigin.packageName == context.packageName)) 0L
-            else dataConverter.sampleCount(record).toLong() * maxOf(1, dataTypesForRecord(record).size)
+        // of memory, so such a page is read again with fewer changes. A page that stays too large is
+        // reported; the Dart side reports this as an expired token, so the app reads the range again.
+        var points = pointCount(response, includeSelf)
+        while (points > MAX_CHANGE_POINTS) {
+            val changeCount = response.changes.size
+            val pageSize = ChangesPageSizer.smallerPageSize(changeCount, points) ?: break
+            Log.i("FLUTTER_HEALTH", "Reading $pageSize changes again: $changeCount held $points data points")
+            response = healthConnectClient.getChanges(changesToken, pageSize)
+            points = pointCount(response, includeSelf)
+            // The page size is only a hint (an older Health Connect may ignore it): stop when the page
+            // did not get smaller.
+            if (response.changes.size >= changeCount) break
         }
         if (points > MAX_CHANGE_POINTS) {
             result.error(
@@ -172,6 +182,14 @@ class HealthDataChanges(
         result.success(payload)
     }
 
+    /** The data points the changes in [response] convert to; this app's records count only with [includeSelf]. */
+    private fun pointCount(response: ChangesResponse, includeSelf: Boolean): Long =
+        response.changes.sumOf { change ->
+            val record = (change as? UpsertionChange)?.record
+            if (record == null || (!includeSelf && record.metadata.dataOrigin.packageName == context.packageName)) 0L
+            else dataConverter.sampleCount(record).toLong() * maxOf(1, dataTypesForRecord(record).size)
+        }
+
     private fun dataTypesForRecord(record: Record): List<String> = when (record) {
         is WeightRecord -> listOf(HealthConstants.WEIGHT)
         is HeightRecord -> listOf(HealthConstants.HEIGHT)
@@ -230,6 +248,3 @@ class HealthDataChanges(
         )
     }
 }
-
-// The most data points one getChanges reply may hold: twice the largest getDataPage page.
-private const val MAX_CHANGE_POINTS = 100_000L
