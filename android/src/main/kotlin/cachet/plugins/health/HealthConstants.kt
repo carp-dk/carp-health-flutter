@@ -129,9 +129,8 @@ object HealthConstants {
         HEART_RATE to HeartRateRecord.BPM_AVG,
         DISTANCE_DELTA to DistanceRecord.DISTANCE_TOTAL,
         WATER to HydrationRecord.VOLUME_TOTAL,
-        SLEEP_ASLEEP to SleepSessionRecord.SLEEP_DURATION_TOTAL,
-        SLEEP_AWAKE to SleepSessionRecord.SLEEP_DURATION_TOTAL,
-        SLEEP_IN_BED to SleepSessionRecord.SLEEP_DURATION_TOTAL,
+        // No sleep types: SleepSessionRecord.SLEEP_DURATION_TOTAL is the whole session, whatever the
+        // stage. Their intervals are the minutes of their data points (reading/SleepIntervalReader.kt).
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord.ENERGY_TOTAL,
         POWER to PowerRecord.POWER_AVG,
         CYCLING_CADENCE to CyclingPedalingCadenceRecord.RPM_AVG,

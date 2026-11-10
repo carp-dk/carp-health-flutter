@@ -75,33 +75,34 @@ class HealthDataPoint {
     this.workoutSummary,
     this.metadata,
     this.deviceModel,
-  }) {
-    // set the value to minutes rather than the category
-    // returned by the native API
-    if (type == HealthDataType.MINDFULNESS ||
-        type == HealthDataType.HEADACHE_UNSPECIFIED ||
-        type == HealthDataType.HEADACHE_NOT_PRESENT ||
-        type == HealthDataType.HEADACHE_MILD ||
-        type == HealthDataType.HEADACHE_MODERATE ||
-        type == HealthDataType.HEADACHE_SEVERE ||
-        type == HealthDataType.SLEEP_ASLEEP ||
-        type == HealthDataType.SLEEP_AWAKE ||
-        type == HealthDataType.SLEEP_AWAKE_IN_BED ||
-        type == HealthDataType.SLEEP_DEEP ||
-        type == HealthDataType.SLEEP_IN_BED ||
-        type == HealthDataType.SLEEP_LIGHT ||
-        type == HealthDataType.SLEEP_REM ||
-        type == HealthDataType.SLEEP_UNKNOWN ||
-        type == HealthDataType.SLEEP_OUT_OF_BED) {
-      value = _convertMinutes();
-    }
-  }
+  });
+
+  /// The types whose native value is a category, not an amount:
+  /// [HealthDataPoint.fromHealthDataPoint] sets their value to the minutes
+  /// from `date_from` to `date_to` instead.
+  static const _durationTypes = {
+    HealthDataType.MINDFULNESS,
+    HealthDataType.HEADACHE_UNSPECIFIED,
+    HealthDataType.HEADACHE_NOT_PRESENT,
+    HealthDataType.HEADACHE_MILD,
+    HealthDataType.HEADACHE_MODERATE,
+    HealthDataType.HEADACHE_SEVERE,
+    HealthDataType.SLEEP_ASLEEP,
+    HealthDataType.SLEEP_AWAKE,
+    HealthDataType.SLEEP_AWAKE_IN_BED,
+    HealthDataType.SLEEP_DEEP,
+    HealthDataType.SLEEP_IN_BED,
+    HealthDataType.SLEEP_LIGHT,
+    HealthDataType.SLEEP_REM,
+    HealthDataType.SLEEP_UNKNOWN,
+    HealthDataType.SLEEP_OUT_OF_BED,
+  };
 
   static final Map<String, HealthDataUnit> _unitsByName = HealthDataUnit.values.asNameMap();
 
-  /// Converts dateTo - dateFrom to minutes.
-  NumericHealthValue _convertMinutes() =>
-      NumericHealthValue(numericValue: (dateTo.millisecondsSinceEpoch - dateFrom.millisecondsSinceEpoch) / (1000 * 60));
+  /// The minutes from [from] to [to].
+  static NumericHealthValue _minutesBetween(DateTime from, DateTime to) =>
+      NumericHealthValue(numericValue: (to.millisecondsSinceEpoch - from.millisecondsSinceEpoch) / (1000 * 60));
 
   /// Create a [HealthDataPoint] from json.
   factory HealthDataPoint.fromJson(Map<String, dynamic> json) => _$HealthDataPointFromJson(json);
@@ -122,8 +123,12 @@ class HealthDataPoint {
     // Parsing can run in a worker isolate, which has its own registry.
     _registerFromJsonFunctions();
 
+    final DateTime from = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_from'] as int);
+    final DateTime to = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_to'] as int);
+
     // Handling different [HealthValue] types
     HealthValue value = switch (dataType) {
+      _ when _durationTypes.contains(dataType) => _minutesBetween(from, to),
       HealthDataType.AUDIOGRAM => AudiogramHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.WORKOUT => WorkoutHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.WORKOUT_ROUTE => WorkoutRouteHealthValue.fromHealthDataPoint(dataPoint),
@@ -136,8 +141,6 @@ class HealthDataPoint {
       _ => NumericHealthValue.fromHealthDataPoint(dataPoint),
     };
 
-    final DateTime from = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_from'] as int);
-    final DateTime to = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_to'] as int);
     final String sourceId = dataPoint["source_id"] as String;
     final String sourceName = dataPoint["source_name"] as String;
     final Map<String, dynamic>? metadata = dataPoint["metadata"] == null

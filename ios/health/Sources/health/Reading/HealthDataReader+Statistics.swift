@@ -18,6 +18,16 @@ extension HealthDataReader {
             HealthConstants.RecordingMethod.manual.rawValue
         )
 
+        // Sleep types are categories, not quantities: their value is the time their samples cover.
+        if let valueTest = sleepValueTest(for: dataTypeKey) {
+            getSleepIntervalData(
+                dataTypeKey: dataTypeKey, unitKey: dataUnitKey, start: startDate.intValue, end: endDate.intValue,
+                interval: intervalInSecond, includeManualEntry: includeManualEntry, valueTest: valueTest,
+                result: result
+            )
+            return
+        }
+
         // interval in seconds
         var interval = DateComponents()
         interval.second = intervalInSecond
@@ -131,8 +141,9 @@ extension HealthDataReader {
         healthStore.execute(query)
     }
 
-    /// Helper to select correct HKStatisticsOptions for a given dataTypeKey
-    private func statisticsOption(for dataTypeKey: String) -> HKStatisticsOptions {
+    /// Helper to select correct HKStatisticsOptions for a given dataTypeKey: the sum of a
+    /// cumulative type such as STEPS, the average of a discrete one such as HEART_RATE.
+    func statisticsOption(for dataTypeKey: String) -> HKStatisticsOptions {
         guard let quantityType = dataQuantityTypesDict[dataTypeKey] else {
             // Default to cumulativeSum for backward compatibility
             return .cumulativeSum

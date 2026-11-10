@@ -43,6 +43,10 @@ internal const val ROUTE_MAX_RECORDS = 5
 internal val SERIES_LOOKBACK: Duration = Duration.ofHours(24)
 internal const val SERIES_PROBE_RECORDS_RETRY = 1
 
+// How far before the requested start sleep intervals read sessions: Health Connect matches sessions
+// by start time, and the part of a session that began earlier counts in the first buckets.
+internal val SLEEP_LOOKBACK: Duration = Duration.ofHours(24)
+
 // Re-reads of a page with fewer records per getDataPage call, and how many times 'pageSize'
 // samples a series page may hold before it is re-read.
 internal const val MAX_SHRINK_RETRIES = 3

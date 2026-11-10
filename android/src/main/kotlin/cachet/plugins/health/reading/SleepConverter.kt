@@ -5,6 +5,7 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import cachet.plugins.health.HealthConstants
 import cachet.plugins.health.HealthDataConverter
 import cachet.plugins.health.HealthRecordingFilter
+import java.time.Instant
 
 // Sleep-related constants
 private const val SLEEP_SESSION = "SLEEP_SESSION"
@@ -54,24 +55,38 @@ internal class SleepConverter(
 
         for (rec in filteredRecords) {
             if (rec is SleepSessionRecord) {
-                if (dataType == SLEEP_SESSION) {
+                for (point in sleepPoints(rec, dataType)) {
+                    val stage = point.stage
                     healthConnectData.addAll(
-                        dataConverter.convertRecord(rec, dataType)
-                    )
-                } else {
-                    for (recStage in rec.stages) {
-                        if (dataType == HealthConstants.mapSleepStageToType[recStage.stage]) {
-                            healthConnectData.addAll(
-                                dataConverter.convertRecordStage(
-                                    recStage,
-                                    dataType,
-                                    rec.metadata
-                                )
-                            )
+                        if (stage == null) {
+                            dataConverter.convertRecord(rec, dataType)
+                        } else {
+                            dataConverter.convertRecordStage(stage, dataType, rec.metadata)
                         }
-                    }
+                    )
                 }
             }
         }
     }
 }
+
+/** A data point of a sleep type: a whole session, or one of its stages ([stage]). */
+internal class SleepPoint(
+    val startTime: Instant,
+    val endTime: Instant,
+    val stage: SleepSessionRecord.Stage? = null,
+)
+
+/**
+ * The data points of the sleep type [dataType] in [session]: the session itself for SLEEP_SESSION,
+ * otherwise its stages of that type (none for a session without stages). Reads convert these points,
+ * and sleep intervals add up the time they cover ([SleepIntervalReader]).
+ */
+internal fun sleepPoints(session: SleepSessionRecord, dataType: String): List<SleepPoint> =
+    if (dataType == SLEEP_SESSION) {
+        listOf(SleepPoint(session.startTime, session.endTime))
+    } else {
+        session.stages
+            .filter { HealthConstants.mapSleepStageToType[it.stage] == dataType }
+            .map { SleepPoint(it.startTime, it.endTime, it) }
+    }

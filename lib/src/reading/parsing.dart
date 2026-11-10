@@ -45,9 +45,25 @@ _Page _parsePage(Object? reply, _ParseRequest request) {
   );
 }
 
-/// A list reply, as from the native `getData`, interval or aggregate methods.
+/// A list reply, as from the native `getData` or aggregate methods.
 List<HealthDataPoint> _parseList(Object? reply, _ParseRequest request) =>
     reply is List ? _parsePoints(reply, request) : <HealthDataPoint>[];
+
+/// A reply of the native `getIntervalData` method: a point per interval whose
+/// value is the number the platform computed for it (a sum, an average or the
+/// minutes sleep covers), a [NumericHealthValue] for every type. For sleep or
+/// activity intensity it is not what a read's point of that type holds (the
+/// time the point spans, or an intensity level).
+List<HealthDataPoint> _parseIntervals(Object? reply, _ParseRequest request) => [
+  if (reply is List)
+    for (final interval in reply)
+      HealthDataPoint.fromHealthDataPoint(
+        request.dataType!,
+        interval,
+        request.unitName,
+        sourceDeviceId: request.deviceId,
+      )..value = NumericHealthValue.fromHealthDataPoint(interval),
+];
 
 /// A reply of the native `getDataByUUID` method: null if the record was not
 /// found. Android replies with an empty map when the record has nothing of this

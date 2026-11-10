@@ -37,7 +37,8 @@ class HealthDataReader(
         DataPageReader(healthConnectClient, scope, dataConverter, converter, routes, lookback, heartRate)
     private val recordByIdReader =
         RecordByIdReader(healthConnectClient, scope, dataConverter, workouts, sleep, routes)
-    private val aggregateReader = AggregateReader(healthConnectClient, scope)
+    private val aggregateReader =
+        AggregateReader(healthConnectClient, scope, SleepIntervalReader(healthConnectClient, recordingFilter))
     private val totalStepsReader = TotalStepsReader(healthConnectClient, scope, recordingFilter)
 
     /**
@@ -91,9 +92,11 @@ class HealthDataReader(
 
     /**
      * Retrieves aggregated health data grouped by time intervals.
-     * Calculates totals, averages, or counts over specified time periods.
+     * Calculates totals or averages over specified time periods, and for sleep types the minutes
+     * their data points cover ([SleepIntervalReader]). Intervals without data are left out.
      *
-     * @param call Method call containing 'dataTypeKey', 'interval', 'startTime', 'endTime'
+     * @param call Method call containing 'dataTypeKey', 'interval', 'startTime', 'endTime' and,
+     * for sleep types, 'recordingMethodsToFilter'
      * @param result Flutter result callback returning list of aggregated data maps
      */
     fun getAggregateData(call: MethodCall, result: Result) {
