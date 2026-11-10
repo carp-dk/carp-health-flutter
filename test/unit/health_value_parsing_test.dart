@@ -18,6 +18,21 @@ void main() {
       expect(value.numericValue, 72);
     });
 
+    test('parses the model of the device that recorded the data', () {
+      HealthDataPoint point(Map<String, dynamic> extra) => HealthDataPoint.fromHealthDataPoint(
+        HealthDataType.HEART_RATE,
+        {...HealthFixtures.numericPoint(), ...extra},
+        null,
+      );
+
+      expect(point({'device_model': 'Watch'}).deviceModel, 'Watch');
+      // Null when the app that wrote the data reported no device.
+      expect(point({'device_model': null}).deviceModel, isNull);
+      expect(point({}).deviceModel, isNull);
+      // It is part of ==.
+      expect(point({'device_model': 'Watch'}), isNot(point({'device_model': 'iPhone'})));
+    });
+
     test('parses workout health data points', () {
       final point = HealthDataPoint.fromHealthDataPoint(
         HealthDataType.WORKOUT,

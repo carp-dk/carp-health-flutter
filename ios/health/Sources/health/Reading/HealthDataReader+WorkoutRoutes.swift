@@ -118,6 +118,7 @@ extension HealthDataReader {
             "date_to": endTimestamp,
             "source_id": route.sourceRevision.source.bundleIdentifier,
             "source_name": route.sourceRevision.source.name,
+            "device_model": route.device?.model as Any,
             "recording_method":
                 (route.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                 ? HealthConstants.RecordingMethod.manual.rawValue

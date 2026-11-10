@@ -1,21 +1,13 @@
 package cachet.plugins.health
 
-import android.content.ContextWrapper
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.metadata.Metadata
-import androidx.health.connect.client.response.ChangesResponse
 import cachet.plugins.health.reading.WorkoutConverter
 import cachet.plugins.health.reading.WorkoutRoutes
-import io.flutter.plugin.common.MethodCall
 import java.time.Instant
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -94,7 +86,7 @@ class WorkoutTypeNamesTest {
         assertEquals(expected, sessions.map { routes.buildWorkoutRouteMap(it, route)!!.routeActivityType() })
         assertEquals(expected, sessions.map { routes.buildConsentRequiredRouteMap(it).routeActivityType() })
 
-        assertEquals(expected, changedWorkouts(sessions).map { it["workoutActivityType"] })
+        assertEquals(expected, changedDataPoints(sessions).map { it["workoutActivityType"] })
     }
 
     private fun session(exerciseType: Int) = ExerciseSessionRecord(
@@ -107,23 +99,4 @@ class WorkoutTypeNamesTest {
     )
 
     private fun Map<String, Any?>.routeActivityType() = (this["metadata"] as Map<*, *>)["workout_activity_type"]
-
-    /** The workouts that getChanges replies for a page of changes that upserts [sessions]. */
-    private fun changedWorkouts(sessions: List<ExerciseSessionRecord>): List<Map<*, *>> {
-        val client = fakeOf<HealthConnectClient> { method ->
-            check(method == "getChanges") { "Unexpected call of $method" }
-            ChangesResponse(sessions.map { UpsertionChange(it) }, "next", hasMore = false, changesTokenExpired = false)
-        }
-        val job = Job()
-        val changes = HealthDataChanges(
-            client, CoroutineScope(Dispatchers.Unconfined + job), ContextWrapper(null), HealthDataConverter(),
-        )
-        val reply = RecordingResult()
-        changes.getChanges(MethodCall("getChanges", hashMapOf("changesToken" to "token")), reply)
-        // getChanges replies from a coroutine on another thread: wait until that has ended.
-        job.complete()
-        runBlocking { withTimeout(30_000) { job.join() } }
-        assertEquals("replies", 1, reply.replies)
-        return ((reply.value as Map<*, *>)["changes"] as List<*>).map { (it as Map<*, *>)["dataPoint"] as Map<*, *> }
-    }
 }

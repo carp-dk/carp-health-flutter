@@ -212,7 +212,7 @@ class HealthDataConverter {
 
     /**
      * Creates the base record structure with common fields shared by all health records.
-     * Includes metadata like UUID, source information, and recording method.
+     * Includes metadata like UUID, source information, recording method and device model.
      * 
      * @param metadata Record metadata from Health Connect
      * @return MutableMap<String, Any?> Base record structure with common fields
@@ -221,7 +221,8 @@ class HealthDataConverter {
         "uuid" to metadata.id,
         "source_id" to "",
         "source_name" to metadata.dataOrigin.packageName,
-        "recording_method" to metadata.recordingMethod
+        "recording_method" to metadata.recordingMethod,
+        "device_model" to metadata.device?.model
     )
 
     /**
@@ -256,13 +257,13 @@ class HealthDataConverter {
      * @param stage The sleep stage record from Health Connect
      * @param dataType The specific sleep data type being requested
      * @param metadata Parent sleep session metadata
-     * @return List<Map<String, Any>> Sleep stage data in Flutter format
+     * @return List<Map<String, Any?>> Sleep stage data in Flutter format
      */
     fun convertRecordStage(
         stage: SleepSessionRecord.Stage,
         dataType: String,
         metadata: Metadata
-    ): List<Map<String, Any>> {
+    ): List<Map<String, Any?>> {
         return listOf(
             mapOf(
                 "uuid" to metadata.id,
@@ -272,6 +273,7 @@ class HealthDataConverter {
                 "date_to" to stage.endTime.toEpochMilli(),
                 "source_id" to "",
                 "source_name" to metadata.dataOrigin.packageName,
+                "device_model" to metadata.device?.model,
             )
         )
     }

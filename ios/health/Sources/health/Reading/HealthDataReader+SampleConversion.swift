@@ -52,6 +52,7 @@ extension HealthDataReader {
                 "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                 "source_id": sample.sourceRevision.source.bundleIdentifier,
                 "source_name": sample.sourceRevision.source.name,
+                "device_model": sample.device?.model as Any,
                 "recording_method":
                     (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                     ? HealthConstants.RecordingMethod.manual.rawValue
@@ -77,6 +78,7 @@ extension HealthDataReader {
                 "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                 "source_id": sample.sourceRevision.source.bundleIdentifier,
                 "source_name": sample.sourceRevision.source.name,
+                "device_model": sample.device?.model as Any,
                 "recording_method":
                     (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                     ? HealthConstants.RecordingMethod.manual.rawValue
@@ -111,6 +113,7 @@ extension HealthDataReader {
                 "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                 "source_id": sample.sourceRevision.source.bundleIdentifier,
                 "source_name": sample.sourceRevision.source.name,
+                "device_model": sample.device?.model as Any,
                 "recording_method":
                     (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                     ? HealthConstants.RecordingMethod.manual.rawValue
@@ -146,6 +149,7 @@ extension HealthDataReader {
                 "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                 "source_id": sample.sourceRevision.source.bundleIdentifier,
                 "source_name": sample.sourceRevision.source.name,
+                "device_model": sample.device?.model as Any,
             ]
         }
     }
@@ -184,6 +188,7 @@ extension HealthDataReader {
                     "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                     "source_id": sample.sourceRevision.source.bundleIdentifier,
                     "source_name": sample.sourceRevision.source.name,
+                    "device_model": sample.device?.model,
                     "recording_method":
                         (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
                         ? HealthConstants.RecordingMethod.manual.rawValue

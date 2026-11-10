@@ -30,6 +30,41 @@ class SampleConversionTests: XCTestCase {
     XCTAssertTrue(maps[1]["totalSwimmingStrokeCount"] is NSNull)
   }
 
+  func testSamplesHaveTheModelOfTheirDevice() throws {
+    let watch = HKDevice(
+      name: "Apple Watch", manufacturer: "Apple Inc.", model: "Watch", hardwareVersion: "Watch7,1",
+      firmwareVersion: nil, softwareVersion: "26.0", localIdentifier: nil, udiDeviceIdentifier: nil
+    )
+    let end = start + 30 * 60
+    let steps = [watch, nil].map {
+      HKQuantitySample(
+        type: HKQuantityType(.stepCount), quantity: HKQuantity(unit: .count(), doubleValue: 1200),
+        start: start, end: end, device: $0, metadata: nil
+      )
+    }
+    let mindfulness = [watch, nil].map {
+      HKCategorySample(
+        type: HKCategoryType(.mindfulSession), value: HKCategoryValue.notApplicable.rawValue,
+        start: start, end: end, device: $0, metadata: nil
+      )
+    }
+    let runs = [watch, nil].map {
+      HKWorkout(
+        activityType: .running, start: start, end: end, workoutEvents: nil, totalEnergyBurned: nil,
+        totalDistance: nil, device: $0, metadata: nil
+      )
+    }
+    for maps in [
+      try self.maps(of: steps, type: HealthConstants.STEPS, unit: .count()),
+      try self.maps(of: mindfulness, type: HealthConstants.MINDFULNESS),
+      try self.maps(of: runs, type: HealthConstants.WORKOUT),
+    ] {
+      XCTAssertEqual(maps[0]["device_model"] as? String, "Watch")
+      // Null on the Dart side when the app that wrote the data named no device.
+      XCTAssertTrue(maps[1]["device_model"] is NSNull)
+    }
+  }
+
   /// The maps that getHealthDataFromTypes sends for [samples] of the data type [type].
   private func maps(of samples: [HKSample], type: String, unit: HKUnit? = nil) throws -> [NSDictionary] {
     var result: Result<[Any], Error>?

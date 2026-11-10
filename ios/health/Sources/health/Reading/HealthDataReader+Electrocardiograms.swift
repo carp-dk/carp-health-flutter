@@ -88,6 +88,7 @@ extension HealthDataReader {
             "date_to": Int(ecg.endDate.timeIntervalSince1970 * 1000),
             "source_id": ecg.sourceRevision.source.bundleIdentifier,
             "source_name": ecg.sourceRevision.source.name,
+            "device_model": ecg.device?.model as Any,
         ]
     }
 }

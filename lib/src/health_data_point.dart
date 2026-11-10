@@ -55,9 +55,9 @@ class HealthDataPoint {
   /// The metadata for this data point.
   Map<String, dynamic>? metadata;
 
-  /// The source of the data, whether from the iPhone or Watch or something else.
-  /// Only available fo iOS
-  /// On Android: always return null
+  /// The model of the device that recorded the data: on iOS HealthKit's `HKDevice.model`, such as `iPhone`
+  /// or `Watch`, and on Android the `model` of Health Connect's `Device`, such as `Pixel Watch 2`. Null when
+  /// the app that wrote the data reported no device, or no model for it.
   String? deviceModel;
 
   HealthDataPoint({
