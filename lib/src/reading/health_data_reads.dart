@@ -100,7 +100,7 @@ mixin HealthDataReads on _HealthPageReads {
     final dataPoints = <HealthDataPoint>[];
     for (final type in read.types) {
       // If BodyMassIndex is requested on Android, calculate this manually
-      if (type == HealthDataType.BODY_MASS_INDEX && Platform.isAndroid) {
+      if (type == HealthDataType.BODY_MASS_INDEX && platformType == HealthPlatformType.googleHealthConnect) {
         final page = await _computeAndroidBMI(
           startTime,
           endTime,
@@ -206,7 +206,7 @@ mixin HealthDataReads on _HealthPageReads {
 
     for (final type in read.types) {
       // If BodyMassIndex is requested on Android, calculate this manually
-      if (type == HealthDataType.BODY_MASS_INDEX && Platform.isAndroid) {
+      if (type == HealthDataType.BODY_MASS_INDEX && platformType == HealthPlatformType.googleHealthConnect) {
         yield await _computeAndroidBMI(
           startTime,
           endTime,
