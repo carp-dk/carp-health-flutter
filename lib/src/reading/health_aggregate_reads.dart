@@ -44,8 +44,14 @@ mixin HealthAggregateReads on _HealthReadSupport {
   ///    headache, throws a [HealthPlatformException] with
   ///    [HealthErrorCode.invalidArgument] (platform code INVALID_TYPE).
   ///
-  /// You can also specify the [recordingMethodsToFilter] to filter the data points.
-  /// If not specified, all data points will be included.
+  /// Data of the recording methods in [recordingMethodsToFilter] is left out
+  /// (by default none is), as far as the platform can filter it:
+  ///  * on iOS, only [RecordingMethod.manual] is left out: HealthKit marks only
+  ///    the samples the user entered (`HKWasUserEntered`), so the other
+  ///    methods are ignored;
+  ///  * on Android, only the sleep types are filtered: the intervals of every
+  ///    other type are Health Connect aggregates, which cannot be filtered by
+  ///    recording method, so they include data of every recording method.
   ///
   /// Throws a [HealthException] with [HealthErrorCode.notSupported] if a type
   /// is not available on this platform or device (before anything is read),
