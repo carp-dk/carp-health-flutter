@@ -30,11 +30,12 @@ class HealthDataReader(
     private val routes = WorkoutRoutes(recordingFilter)
     private val converter = RecordConverter(dataConverter, recordingFilter, workouts, sleep)
     private val lookback = SeriesLookback(healthConnectClient)
+    private val sleepLookback = SleepLookback(healthConnectClient)
 
-    private val legacyReader = LegacyDataReader(healthConnectClient, scope, converter, routes, lookback)
+    private val legacyReader = LegacyDataReader(healthConnectClient, scope, converter, routes, lookback, sleepLookback)
     private val heartRate = HeartRatePageReader(HealthConnectHeartRateSource(healthConnectClient), Build.VERSION.SDK_INT)
     private val pageReader =
-        DataPageReader(healthConnectClient, scope, dataConverter, converter, routes, lookback, heartRate)
+        DataPageReader(healthConnectClient, scope, dataConverter, converter, routes, lookback, sleepLookback, heartRate)
     private val recordByIdReader =
         RecordByIdReader(healthConnectClient, scope, dataConverter, workouts, sleep, routes)
     private val aggregateReader =
@@ -67,6 +68,8 @@ class HealthDataReader(
      * record can hold thousands of samples: heart rate is therefore read in time slices planned
      * from counts of its samples ([HistogramPlanner]), and speed, power, cycling cadence and skin
      * temperature ask for few records per request ([SeriesPageSizer]).
+     * A sleep stage is returned when it starts in the range, whichever session it belongs to: the
+     * first page also reads the sessions that began in the [SLEEP_LOOKBACK] before the range ([SleepLookback]).
      * The reply is {data, nextPageToken}; the token ([DataPageToken], [SliceToken]) is opaque to
      * Dart and null on the last page. Without read permission the first page is empty, last, and flagged
      * 'permissionDenied'. Failures are reported with the codes of [HealthErrors], never as data.

@@ -25,6 +25,7 @@ internal class LegacyDataReader(
     private val converter: RecordConverter,
     private val routes: WorkoutRoutes,
     private val lookback: SeriesLookback,
+    private val sleepLookback: SleepLookback,
 ) {
     fun getData(call: MethodCall, result: Result) {
         val dataType = call.argument<String>("dataTypeKey")!!
@@ -62,16 +63,14 @@ internal class LegacyDataReader(
                     grantedPermissions.contains(HealthPermission.getReadPermission(classType))
                 ) {
                     val records = readAllRecords(classType, startTime, endTime)
+                    val recordIds = records.mapTo(HashSet()) { it.metadata.id }
+                    // The records that began before the range and reach into it, as getDataPage reads them.
                     val earlier =
-                        if (classType in HealthDataConverter.seriesTypes) {
-                            lookback.readLookbackRecords(
-                                classType,
-                                startTime,
-                                LEGACY_PROBE_RECORDS,
-                                records.mapTo(HashSet()) { it.metadata.id }
-                            )
-                        } else {
-                            emptyList()
+                        when {
+                            classType in HealthDataConverter.seriesTypes ->
+                                lookback.readLookbackRecords(classType, startTime, LEGACY_PROBE_RECORDS, recordIds)
+                            isSleepStageType(dataType) -> sleepLookback.readLookbackSessions(startTime, recordIds)
+                            else -> emptyList()
                         }
                     converter.convertRecords(
                         earlier + records,

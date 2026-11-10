@@ -27,6 +27,7 @@ internal class DataPageReader(
     private val converter: RecordConverter,
     private val routes: WorkoutRoutes,
     private val lookback: SeriesLookback,
+    private val sleepLookback: SleepLookback,
     private val heartRate: HeartRatePageReader,
 ) {
     // At most two pages in memory at once, however many reads the app runs in parallel.
@@ -123,7 +124,9 @@ internal class DataPageReader(
     /**
      * Reads [records] records at the position of [request], converts them and replies, then returns
      * null. An oversized series page is dropped instead when [canShrink]: nothing is sent, and the
-     * fewer records to read the same position with are returned.
+     * fewer records to read the same position with are returned. The first page of a series or sleep
+     * stage read also converts the records that began before the range and reach into it
+     * ([SeriesLookback], [SleepLookback]); later pages cost no such read.
      */
     private suspend fun readAndReplyPage(
         request: DataPageRequest,
@@ -167,6 +170,12 @@ internal class DataPageReader(
                     response.records.mapTo(HashSet()) { it.metadata.id }
                 )
             }
+        } else if (request.isFirstPage && request.isSleepStage) {
+            // The sessions that began before the range, for their stages that start inside it.
+            earlier = sleepLookback.readLookbackSessions(
+                request.startTime,
+                response.records.mapTo(HashSet()) { it.metadata.id }
+            )
         }
 
         val data = mutableListOf<Map<String, Any?>>()

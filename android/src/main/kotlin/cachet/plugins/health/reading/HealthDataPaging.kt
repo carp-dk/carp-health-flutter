@@ -111,6 +111,9 @@ internal class DataPageRequest(
     /** Whether this is a heart rate read, which goes slice by slice ([SlicePlanner], [sliceToken]). */
     val isSliced: Boolean get() = dataType == HealthConstants.HEART_RATE
 
+    /** Whether this is a read of a sleep stage type, whose first page also looks back ([SleepLookback]). */
+    val isSleepStage: Boolean get() = isSleepStageType(dataType)
+
     /** Whether this is the first page of the read. */
     val isFirstPage: Boolean get() = token == null && sliceToken == null
 

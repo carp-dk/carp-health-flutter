@@ -46,8 +46,17 @@ mixin HealthDataReads on _HealthPageReads {
   /// If not specified, all data points will be included.
   ///
   /// Types are read in the order of [types], each type once. Within a type,
-  /// points are oldest first on Android (by start time) and newest first on
-  /// iOS (by end time), without duplicates.
+  /// points are oldest first on Android (by the start time of their record:
+  /// the stages of a sleep session come together) and newest first on iOS (by
+  /// end time), without duplicates.
+  ///
+  /// Sleep data points are returned when they start at or after [startTime]
+  /// and before [endTime], so reads of consecutive ranges return each of them
+  /// once: a [HealthDataType.SLEEP_SESSION] (Android) when the session starts
+  /// in the range, a stage such as [HealthDataType.SLEEP_DEEP] when the stage
+  /// does, whichever session it is part of. On Android, this finds the stages
+  /// of sessions that began up to 24 hours before [startTime], not those of
+  /// sessions that began earlier.
   ///
   /// Data is read about [Health.pageSize] points per platform call and parsed
   /// as set by [Health.isolateMode], so neither the native side nor the UI has
@@ -121,12 +130,21 @@ mixin HealthDataReads on _HealthPageReads {
   /// Types are read one after another, in the order of [types], each type
   /// once. Within a type, points are oldest first: in the order of their
   /// records' start times on Android (the samples of a heart rate, speed,
-  /// power, cycling cadence or skin temperature record come together), by end
-  /// time on iOS. Each type ends with exactly one page whose
+  /// power, cycling cadence or skin temperature record come together, as do
+  /// the stages of a sleep session), by end time on iOS. Each type ends with
+  /// exactly one page whose
   /// [HealthDataPage.isLastPageForType] is true (empty if the type has no more
   /// data); other pages are never empty. This is a finite read of the data
   /// stored now, not a live stream of new data, and not a snapshot: data
   /// written while it runs may or may not be included.
+  ///
+  /// Sleep data points are returned when they start at or after [startTime]
+  /// and before [endTime], so reads of consecutive ranges return each of them
+  /// once: a [HealthDataType.SLEEP_SESSION] (Android) when the session starts
+  /// in the range, a stage such as [HealthDataType.SLEEP_DEEP] when the stage
+  /// does, whichever session it is part of. On Android, this finds the stages
+  /// of sessions that began up to 24 hours before [startTime], not those of
+  /// sessions that began earlier.
   ///
   /// An error ends the stream; pages already delivered stay valid. The error is
   /// a [RangeError] for an invalid [pageSize], a [HealthException] with
