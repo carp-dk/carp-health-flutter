@@ -17,6 +17,7 @@ part 'src/health_data_point.dart';
 part 'src/health_changes.dart';
 part 'src/health_plugin.dart';
 part 'src/health_support.dart';
+part 'src/permissions/health_authorization_request_status.dart';
 part 'src/permissions/health_connect_features.dart';
 part 'src/permissions/health_connect_status.dart';
 part 'src/permissions/health_permissions.dart';
