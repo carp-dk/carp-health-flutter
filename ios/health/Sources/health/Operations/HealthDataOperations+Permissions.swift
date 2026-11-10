@@ -57,6 +57,68 @@ extension HealthDataOperations {
     ///   - call: Flutter method call
     ///   - result: Flutter result callback
     func requestAuthorization(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        let (typesToWrite, typesToRead) = try authorizationTypes(call: call)
+
+        // HealthKit raises an exception (crashing the app) for a request without types, e.g. when every
+        // requested type is newer than this iOS version, like POWER before iOS 17. No sheet is shown.
+        if typesToRead.isEmpty, typesToWrite.isEmpty {
+            result(false)
+            return
+        }
+
+        healthStore.requestAuthorization(toShare: typesToWrite, read: typesToRead) {
+            success, _ in
+            DispatchQueue.main.async {
+                result(success)
+            }
+        }
+    }
+
+    /// Whether requestAuthorization with the same arguments would show the authorization sheet:
+    /// replies HealthKit's HKAuthorizationRequestStatus as "shouldRequest", "unnecessary" or
+    /// "unknown". It does not tell whether read access was granted, which HealthKit does not disclose.
+    /// - Parameters:
+    ///   - call: Flutter method call with the arguments of requestAuthorization
+    ///   - result: Flutter result callback
+    func getRequestStatusForAuthorization(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        let (typesToWrite, typesToRead) = try authorizationTypes(call: call)
+
+        // As for requestAuthorization, HealthKit raises an exception for no types, for which
+        // requestAuthorization shows no sheet.
+        if typesToRead.isEmpty, typesToWrite.isEmpty {
+            result("unnecessary")
+            return
+        }
+
+        healthStore.getRequestStatusForAuthorization(toShare: typesToWrite, read: typesToRead) {
+            status, error in
+            DispatchQueue.main.async {
+                // HealthKit reports the status unknown together with the error.
+                if let error {
+                    result(HealthUtilities.flutterError(
+                        for: error, operation: "getting the authorization request status",
+                        fallbackCode: "PERMISSION_ERROR"
+                    ))
+                    return
+                }
+                switch status {
+                case .shouldRequest:
+                    result("shouldRequest")
+                case .unnecessary:
+                    result("unnecessary")
+                default:
+                    result("unknown")
+                }
+            }
+        }
+    }
+
+    /// The types to share and to read that requestAuthorization and getRequestStatusForAuthorization
+    /// pass to HealthKit, whose request status only describes the types requestAuthorization asked for.
+    /// Types this iOS version does not have are left out.
+    /// - Parameter call: Flutter method call with 'types' and 'permissions' (0: read, 1: write, other: both)
+    /// - Throws: PluginError for invalid arguments or write access to a characteristic type
+    func authorizationTypes(call: FlutterMethodCall) throws -> (toShare: Set<HKSampleType>, read: Set<HKObjectType>) {
         guard let arguments = call.arguments as? NSDictionary,
               let types = arguments["types"] as? [String],
               let permissions = arguments["permissions"] as? [Int],
@@ -124,20 +186,7 @@ extension HealthDataOperations {
                 }
             }
         }
-
-        // HealthKit raises an exception (crashing the app) for a request without types, e.g. when every
-        // requested type is newer than this iOS version, like POWER before iOS 17. No sheet is shown.
-        if typesToRead.isEmpty, typesToWrite.isEmpty {
-            result(false)
-            return
-        }
-
-        healthStore.requestAuthorization(toShare: typesToWrite, read: typesToRead) {
-            success, _ in
-            DispatchQueue.main.async {
-                result(success)
-            }
-        }
+        return (typesToWrite, typesToRead)
     }
 
     /// Check if we have permission for a specific type

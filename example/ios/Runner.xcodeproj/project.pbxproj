@@ -12,6 +12,7 @@
 		1C1BF8D1AEAB4B7DAB0717F5 /* WorkoutWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C010A9E8DCE8474BB07CF295 /* WorkoutWriteTests.swift */; };
 		2BD5D95B309ADB489BDF574E /* IntervalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1208A9E4F2542C9DB5C2ED /* IntervalTests.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
+		09D0F2800976212E477B7EAC /* AuthorizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E63A3E3857B98FFC033531 /* AuthorizationTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		4EAFA3DAD1C000503243AA27 /* SleepSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D3F8FFC6601A2556937D45 /* SleepSessionTests.swift */; };
 		5DDC8B9553DD970548CEEFEB /* WorkoutTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C8C35C444C54B37C22386BE /* WorkoutTypeTests.swift */; };
@@ -59,6 +60,7 @@
 		2E25BE1FB5CACFC9D8886597 /* CategoryValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryValueTests.swift; sourceTree = "<group>"; };
 		331C3466792E0AE145779DB5 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
+		E8E63A3E3857B98FFC033531 /* AuthorizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorizationTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3A090B140475A389FCD6B6D8 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
@@ -122,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
+				E8E63A3E3857B98FFC033531 /* AuthorizationTests.swift */,
 				2A1208A9E4F2542C9DB5C2ED /* IntervalTests.swift */,
 				ED4901810075486EBCA0D487 /* AudiogramTests.swift */,
 				BDFA1DEF8819F9F437DEDD74 /* SampleDatesTests.swift */,
@@ -390,6 +393,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
+				09D0F2800976212E477B7EAC /* AuthorizationTests.swift in Sources */,
 				2BD5D95B309ADB489BDF574E /* IntervalTests.swift in Sources */,
 				E1D6C479530D416E8E45A741 /* AudiogramTests.swift in Sources */,
 				BEA7968C4EE40913C41030B9 /* SampleDatesTests.swift in Sources */,

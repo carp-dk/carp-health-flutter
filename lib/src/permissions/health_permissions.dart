@@ -5,6 +5,22 @@ part of '../../health.dart';
 /// data history and in the background are in [HealthConnectFeatures].
 // ignore: library_private_types_in_public_api
 mixin HealthPermissions on _HealthSupport {
+  /// The types that HealthKit only lets apps read. HealthKit raises an
+  /// exception, which crashes the app, when asked for write access to them.
+  static const _readOnlyTypes = {
+    HealthDataType.ELECTROCARDIOGRAM,
+    HealthDataType.HIGH_HEART_RATE_EVENT,
+    HealthDataType.LOW_HEART_RATE_EVENT,
+    HealthDataType.IRREGULAR_HEART_RATE_EVENT,
+    HealthDataType.WALKING_HEART_RATE,
+    HealthDataType.ATRIAL_FIBRILLATION_BURDEN,
+    HealthDataType.EXERCISE_TIME,
+    HealthDataType.APPLE_MOVE_TIME,
+    HealthDataType.APPLE_STAND_TIME,
+    HealthDataType.APPLE_STAND_HOUR,
+    HealthDataType.SLEEP_WRIST_TEMPERATURE,
+  };
+
   /// Determines if the health data [types] have been granted with the specified
   /// access rights [permissions].
   ///
@@ -72,29 +88,15 @@ mixin HealthPermissions on _HealthSupport {
   ///    a data type due to privacy concern, this method will return **true if
   ///    the window asking for permission was showed to the user without errors**
   ///    if it is called on iOS with a READ or READ_WRITE access.
+  ///  * Throws an [ArgumentError] for WRITE or READ_WRITE access to a type that
+  ///    HealthKit only lets apps read, such as [HealthDataType.ELECTROCARDIOGRAM]
+  ///    or [HealthDataType.EXERCISE_TIME].
   Future<bool> requestAuthorization(List<HealthDataType> types, {List<HealthDataAccess>? permissions}) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (permissions != null && permissions.length != types.length) {
       throw ArgumentError('The length of [types] must be same as that of [permissions].');
     }
-
-    if (permissions != null) {
-      for (int i = 0; i < types.length; i++) {
-        final type = types[i];
-        final permission = permissions[i];
-        if ((type == HealthDataType.ELECTROCARDIOGRAM ||
-                type == HealthDataType.HIGH_HEART_RATE_EVENT ||
-                type == HealthDataType.LOW_HEART_RATE_EVENT ||
-                type == HealthDataType.IRREGULAR_HEART_RATE_EVENT ||
-                type == HealthDataType.WALKING_HEART_RATE ||
-                type == HealthDataType.ATRIAL_FIBRILLATION_BURDEN) &&
-            permission != HealthDataAccess.READ) {
-          throw ArgumentError(
-            'Requesting WRITE permission on ELECTROCARDIOGRAM / HIGH_HEART_RATE_EVENT / LOW_HEART_RATE_EVENT / IRREGULAR_HEART_RATE_EVENT / WALKING_HEART_RATE / ATRIAL_FIBRILLATION_BURDEN is not allowed.',
-          );
-        }
-      }
-    }
+    if (permissions != null) _checkWriteAccess(types, permissions);
 
     final mTypes = List<HealthDataType>.from(types, growable: true);
     final mPermissions = permissions == null
@@ -113,6 +115,55 @@ mixin HealthPermissions on _HealthSupport {
       "permissions": mPermissions,
     });
     return isAuthorized ?? false;
+  }
+
+  /// Whether [requestAuthorization] with the same [types] and [permissions]
+  /// would show the authorization sheet, so apps can tell a first request from
+  /// one the user has already answered. Uses HealthKit's
+  /// [`getRequestStatusForAuthorization`](https://developer.apple.com/documentation/healthkit/hkhealthstore/2994346-getrequeststatusforauthorization).
+  ///
+  /// It does not tell whether read access was granted, which HealthKit does
+  /// not disclose (this is why [hasPermissions] returns null for read access on
+  /// iOS).
+  ///
+  /// [permissions] are as for [requestAuthorization]: if given, its length
+  /// must be that of [types]; if not, read access is asked for every type.
+  /// Throws an [ArgumentError] for write access to a type that HealthKit only
+  /// lets apps read, as [requestAuthorization] does, and a [PlatformException]
+  /// if HealthKit fails to determine the status, which HealthKit reports as
+  /// [HealthAuthorizationRequestStatus.unknown] together with an error.
+  ///
+  /// iOS only. Returns null on Android, where [hasPermissions] tells whether
+  /// the permissions were granted.
+  Future<HealthAuthorizationRequestStatus?> getRequestStatusForAuthorization(
+    List<HealthDataType> types, {
+    List<HealthDataAccess>? permissions,
+  }) async {
+    if (permissions != null && permissions.length != types.length) {
+      throw ArgumentError('The length of [types] must be same as that of [permissions].');
+    }
+    if (platformType != HealthPlatformType.appleHealth) return null;
+    if (permissions != null) _checkWriteAccess(types, permissions);
+
+    final status = await Health._channel.invokeMethod<String>('getRequestStatusForAuthorization', {
+      'types': types.map((type) => type.name).toList(),
+      'permissions': permissions == null
+          ? List<int>.filled(types.length, HealthDataAccess.READ.index)
+          : permissions.map((permission) => permission.index).toList(),
+    });
+    return HealthAuthorizationRequestStatus.fromString(status);
+  }
+
+  /// Throws an [ArgumentError] if [permissions] asks for write access to one
+  /// of the [_readOnlyTypes] at the same index in [types].
+  void _checkWriteAccess(List<HealthDataType> types, List<HealthDataAccess> permissions) {
+    for (int i = 0; i < types.length; i++) {
+      if (_readOnlyTypes.contains(types[i]) && permissions[i] != HealthDataAccess.READ) {
+        throw ArgumentError(
+          'Requesting WRITE permission on ${types[i].name} is not allowed: HealthKit only lets apps read it.',
+        );
+      }
+    }
   }
 
   /// Revokes Google Health Connect permissions on Android of all types.

@@ -200,6 +200,15 @@ public class HealthPlugin: NSObject, FlutterPlugin {
                                     details: nil))
             }
 
+        case "getRequestStatusForAuthorization":
+            do {
+                try healthDataOperations.getRequestStatusForAuthorization(call: call, result: result)
+            } catch {
+                result(FlutterError(code: "PERMISSION_ERROR",
+                                    message: "Error getting the authorization request status: \(error.localizedDescription)",
+                                    details: nil))
+            }
+
         case "delete":
             healthDataOperations.delete(call: call, result: result)
 

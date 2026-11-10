@@ -70,6 +70,40 @@ void main() {
       );
     });
 
+    test('requestAuthorization rejects write access to every type HealthKit only lets apps read', () async {
+      // HealthKit raises an exception for them, which crashes the app.
+      const readOnly = [
+        HealthDataType.ELECTROCARDIOGRAM,
+        HealthDataType.HIGH_HEART_RATE_EVENT,
+        HealthDataType.LOW_HEART_RATE_EVENT,
+        HealthDataType.IRREGULAR_HEART_RATE_EVENT,
+        HealthDataType.WALKING_HEART_RATE,
+        HealthDataType.ATRIAL_FIBRILLATION_BURDEN,
+        HealthDataType.EXERCISE_TIME,
+        HealthDataType.APPLE_MOVE_TIME,
+        HealthDataType.APPLE_STAND_TIME,
+        HealthDataType.APPLE_STAND_HOUR,
+        HealthDataType.SLEEP_WRIST_TEMPERATURE,
+      ];
+      for (final type in readOnly) {
+        for (final access in [HealthDataAccess.WRITE, HealthDataAccess.READ_WRITE]) {
+          await expectLater(
+            ctx.health.requestAuthorization(
+              [HealthDataType.STEPS, type],
+              permissions: [HealthDataAccess.WRITE, access],
+            ),
+            throwsA(isA<ArgumentError>().having((e) => e.message, 'message', contains(type.name))),
+            reason: '$type with $access',
+          );
+        }
+      }
+      expect(ctx.channel.calls, isEmpty);
+
+      ctx.channel.when('requestAuthorization', true);
+      final readAccess = List.filled(readOnly.length, HealthDataAccess.READ);
+      expect(await ctx.health.requestAuthorization(readOnly, permissions: readAccess), isTrue);
+    });
+
     test('requestAuthorization forwards types and permissions', () async {
       ctx.channel.when('requestAuthorization', true);
 
