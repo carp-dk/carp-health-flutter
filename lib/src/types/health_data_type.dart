@@ -145,6 +145,10 @@ enum HealthDataType {
   ELECTROCARDIOGRAM,
 
   // Health Connect
+
+  /// Energy burned, active and basal, in kilocalories: Health Connect's
+  /// `TotalCaloriesBurnedRecord`. Android only, as HealthKit has no total: on
+  /// iOS, read [ACTIVE_ENERGY_BURNED] and [BASAL_ENERGY_BURNED].
   TOTAL_CALORIES_BURNED,
   ACTIVITY_INTENSITY,
   SKIN_TEMPERATURE,

@@ -36,7 +36,8 @@ mixin HealthDataWrites on _HealthSupport {
   /// ([Health.writeMenstruationFlow], which takes the start-of-cycle flag
   /// HealthKit needs). Throws a [HealthException] with
   /// [HealthErrorCode.notSupported] for a type this platform does not have,
-  /// such as [HealthDataType.INSULIN_DELIVERY] on Android, and on iOS for
+  /// such as [HealthDataType.INSULIN_DELIVERY] on Android and
+  /// [HealthDataType.TOTAL_CALORIES_BURNED] on iOS, and on iOS for
   /// [HealthDataType.SLEEP_UNKNOWN]: HealthKit has no unknown sleep value.
   /// Throws an [ArgumentError] if [endTime] is before [startTime]. On Android,
   /// throws a [PlatformException] with code INVALID_ARGUMENT if [endTime]
