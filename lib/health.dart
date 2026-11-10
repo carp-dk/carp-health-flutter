@@ -26,6 +26,7 @@ part 'src/reading/health_change_tracking.dart';
 part 'src/reading/health_data_page.dart';
 part 'src/reading/health_data_reads.dart';
 part 'src/reading/health_platform_exception.dart';
+part 'src/reading/interval_filter_warning.dart';
 part 'src/reading/page_reads.dart';
 part 'src/reading/parsing.dart';
 part 'src/reading/read_support.dart';

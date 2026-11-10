@@ -53,6 +53,8 @@ mixin HealthAggregateReads on _HealthReadSupport {
   ///    other type are Health Connect aggregates, which cannot be filtered by
   ///    recording method, so they include data of every recording method.
   ///
+  /// A filter that cannot be applied prints a warning to the console.
+  ///
   /// Throws a [HealthException] with [HealthErrorCode.notSupported] if a type
   /// is not available on this platform or device (before anything is read),
   /// and a [HealthPlatformException] if Health Connect or HealthKit reports an
@@ -66,6 +68,7 @@ mixin HealthAggregateReads on _HealthReadSupport {
   }) async {
     final mode = isolateMode;
     final read = await _prepareRead(types);
+    _warnUnfilteredIntervals(platformType, read.types, recordingMethodsToFilter);
     final dataPoints = <HealthDataPoint>[];
 
     for (final type in read.types) {
