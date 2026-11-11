@@ -298,7 +298,7 @@ bool saved = await health.writeWorkoutData(
 );
 ```
 
-- `metadata` is HealthKit metadata of the workout, which Android ignores: a `WorkoutMetadata` with its brand name, whether it was indoors (`indoorWorkout`), whether it was a group fitness class, coached or (on iOS 17 and later) an Apple Fitness+ session, and its sync identifier and version (see below). A run written with `WorkoutMetadata(indoorWorkout: true)` reads back as `RUNNING_TREADMILL` (see [Workout Types](#workout-types)).
+- `metadata` is HealthKit metadata of the workout, which Android ignores: a `WorkoutMetadata` with its brand name, whether it was indoors (`indoorWorkout`), whether it was a group fitness class or coached, and its sync identifier and version (see below). HealthKit lets only Apple's apps mark a workout as an Apple Fitness+ session, so `WorkoutMetadata` has no field for it. A run written with `WorkoutMetadata(indoorWorkout: true)` reads back as `RUNNING_TREADMILL` (see [Workout Types](#workout-types)).
 - On Android, `startZoneOffset` and `endZoneOffset` set the offsets from UTC of the local time at the start and at the end of the workout, at most 18 hours either way (a larger offset throws an `ArgumentError`). Without them, the workout's records get Health Connect's default. iOS ignores them.
 - A workout type that the platform has no workout type for, such as `ARCHERY` on Android or `DANCING` on iOS, throws a `HealthException` with `HealthErrorCode.notSupported`.
 

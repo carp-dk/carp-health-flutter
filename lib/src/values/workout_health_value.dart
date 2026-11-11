@@ -97,7 +97,8 @@ class WorkoutHealthValue extends HealthValue {
   num? weatherTemperature;
 
   /// The humidity during the workout (iOS only): HealthKit's
-  /// `HKMetadataKeyWeatherHumidity` in percent (`HKUnit.percent()`).
+  /// `HKMetadataKeyWeatherHumidity` as a fraction (`HKUnit.percent()`): 0.55
+  /// is 55 %.
   /// Might not be available for all workouts.
   num? weatherHumidity;
 

@@ -155,11 +155,12 @@ class HealthDataReader {
         let dataUnitKey = arguments["dataUnitKey"] as? String
         let unit = dataUnitKey.flatMap { unitDict[$0] }
 
+        // As in getDataPage: a type this iOS version does not have is not registered.
         guard let dataType = dataTypesDict[dataTypeKey] else {
             result(
                 FlutterError(
-                    code: "INVALID_TYPE",
-                    message: "Invalid dataTypeKey: \(dataTypeKey)",
+                    code: "NOT_SUPPORTED",
+                    message: "Data type \(dataTypeKey) is not available on this device",
                     details: nil
                 )
             )

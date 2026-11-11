@@ -6,8 +6,10 @@ part of '../../health.dart';
 /// iOS only: each field that is set is saved on the workout under the
 /// HealthKit metadata key named in its documentation, and a field left null
 /// is not saved. Health Connect has no such metadata, so it is ignored on
-/// Android. [appleFitnessPlusSession] needs iOS 17 or later. [syncIdentifier]
-/// and [syncVersion] are set together or not at all.
+/// Android. [syncIdentifier] and [syncVersion] are set together or not at
+/// all. HealthKit lets only Apple's apps set
+/// `HKMetadataKeyAppleFitnessPlusSession`: a workout written with it is not
+/// saved, so there is no field for it.
 ///
 /// See https://developer.apple.com/documentation/healthkit/workout-metadata-keys
 class WorkoutMetadata {
@@ -28,11 +30,6 @@ class WorkoutMetadata {
   /// ignored on Android. Maps to HealthKit's `HKMetadataKeyCoachedWorkout`.
   final bool? coachedWorkout;
 
-  /// Whether the workout was an Apple Fitness+ session. iOS 17 and later
-  /// only: ignored on earlier iOS versions and on Android. Maps to HealthKit's
-  /// `HKMetadataKeyAppleFitnessPlusSession`.
-  final bool? appleFitnessPlusSession;
-
   /// Your id of the workout, to write it again without adding a copy: a
   /// workout written with the [syncIdentifier] of a workout this app wrote
   /// before replaces that workout if its [syncVersion] is greater. iOS only,
@@ -51,7 +48,6 @@ class WorkoutMetadata {
     this.indoorWorkout,
     this.groupFitness,
     this.coachedWorkout,
-    this.appleFitnessPlusSession,
     this.syncIdentifier,
     this.syncVersion,
   });
@@ -63,7 +59,6 @@ class WorkoutMetadata {
     if (indoorWorkout != null) 'indoorWorkout': indoorWorkout,
     if (groupFitness != null) 'groupFitness': groupFitness,
     if (coachedWorkout != null) 'coachedWorkout': coachedWorkout,
-    if (appleFitnessPlusSession != null) 'appleFitnessPlusSession': appleFitnessPlusSession,
     if (syncIdentifier != null) 'syncIdentifier': syncIdentifier,
     if (syncVersion != null) 'syncVersion': syncVersion,
   };
@@ -75,25 +70,16 @@ class WorkoutMetadata {
       indoorWorkout == other.indoorWorkout &&
       groupFitness == other.groupFitness &&
       coachedWorkout == other.coachedWorkout &&
-      appleFitnessPlusSession == other.appleFitnessPlusSession &&
       syncIdentifier == other.syncIdentifier &&
       syncVersion == other.syncVersion;
 
   @override
-  int get hashCode => Object.hash(
-    workoutBrandName,
-    indoorWorkout,
-    groupFitness,
-    coachedWorkout,
-    appleFitnessPlusSession,
-    syncIdentifier,
-    syncVersion,
-  );
+  int get hashCode =>
+      Object.hash(workoutBrandName, indoorWorkout, groupFitness, coachedWorkout, syncIdentifier, syncVersion);
 
   @override
   String toString() =>
       '$runtimeType - workoutBrandName: $workoutBrandName, indoorWorkout: $indoorWorkout, '
       'groupFitness: $groupFitness, coachedWorkout: $coachedWorkout, '
-      'appleFitnessPlusSession: $appleFitnessPlusSession, '
       'syncIdentifier: $syncIdentifier, syncVersion: $syncVersion';
 }

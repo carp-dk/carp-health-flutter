@@ -13,8 +13,13 @@ mixin HealthDataReads on _HealthPageReads {
   ///
   /// Assuming above data are coming from your database.
   ///
+  /// On Android, without the read permission for [type] this returns the
+  /// app's own records, which Health Connect lets an app read, and `null` for
+  /// those of other apps.
+  ///
   /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports
-  /// an error other than the record not being found.
+  /// an error other than the record not being found, with
+  /// [HealthErrorCode.notSupported] for a type this iOS version does not have.
   Future<HealthDataPoint?> getHealthDataByUUID({required String uuid, required HealthDataType type}) async {
     if (uuid.isEmpty) {
       throw HealthException(type, 'UUID is empty!', errorCode: HealthErrorCode.invalidArgument);

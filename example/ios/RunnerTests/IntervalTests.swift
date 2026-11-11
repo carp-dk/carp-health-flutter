@@ -165,6 +165,13 @@ class IntervalTests: XCTestCase {
     // As a paged read of it replies.
     XCTAssertEqual(code("ROWING_SPEED"), "NOT_SUPPORTED")
     XCTAssertEqual(code("ROWING_SPEED", paged: true), "NOT_SUPPORTED")
+    // And as a read by UUID of it.
+    let byUUID = replies(
+      to: olderReader.getDataByUUID, method: "getDataByUUID",
+      arguments: ["dataTypeKey": "ROWING_SPEED", "uuid": UUID().uuidString]
+    )
+    XCTAssertEqual(byUUID.count, 1)
+    XCTAssertEqual((byUUID.first as? FlutterError)?.code, "NOT_SUPPORTED")
     // The types this iOS has without interval data keep their code.
     XCTAssertEqual(code("MINDFULNESS"), "INVALID_TYPE")
     XCTAssertEqual(code("GENDER"), "INVALID_TYPE")
