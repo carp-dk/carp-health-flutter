@@ -8,8 +8,18 @@ extension _DeleteDataActions on HealthAppState {
     final earlier = now.subtract(const Duration(hours: 24));
 
     bool success = true;
-    for (HealthDataType type in types) {
-      success &= await health.delete(type: type, startTime: earlier, endTime: now);
+    final access = permissions;
+    for (final (index, type) in types.indexed) {
+      // Nothing to delete for what the app cannot write: the types it may only read, and on
+      // Android BODY_MASS_INDEX (computed from WEIGHT and HEIGHT) and WORKOUT_ROUTE (part of its
+      // workout).
+      if (access[index] == HealthDataAccess.READ ||
+          (Platform.isAndroid && const {HealthDataType.BODY_MASS_INDEX, HealthDataType.WORKOUT_ROUTE}.contains(type))) {
+        continue;
+      }
+      final deleted = await health.delete(type: type, startTime: earlier, endTime: now);
+      if (!deleted) debugPrint('Could not delete $type');
+      success &= deleted;
     }
 
     // To delete a record by UUID - call the `health.deleteByUUID` method:

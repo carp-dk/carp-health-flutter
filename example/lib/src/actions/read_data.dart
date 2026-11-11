@@ -125,13 +125,24 @@ extension _ReadDataActions on HealthAppState {
     final startDate = DateTime.now().subtract(const Duration(days: 7));
     final endDate = DateTime.now();
 
-    List<HealthDataPoint> healthDataResponse = await health.getHealthIntervalDataFromTypes(
-      startDate: startDate,
-      endDate: endDate,
-      types: [HealthDataType.BLOOD_OXYGEN, HealthDataType.STEPS],
-      interval: 86400, // 86400 seconds = 1 day
-      // recordingMethodsToFilter: recordingMethodsToFilter,
-    );
+    List<HealthDataPoint> healthDataResponse;
+    try {
+      healthDataResponse = await health.getHealthIntervalDataFromTypes(
+        startDate: startDate,
+        endDate: endDate,
+        types: [HealthDataType.BLOOD_OXYGEN, HealthDataType.STEPS],
+        interval: 86400, // 86400 seconds = 1 day
+        // recordingMethodsToFilter: recordingMethodsToFilter,
+      );
+    } on HealthPlatformException catch (error) {
+      // For example HealthErrorCode.permissionDenied on Android without the steps read permission.
+      debugPrint(
+        "Exception in getHealthIntervalDataFromTypes: $error - "
+        "errorCode: ${error.errorCode}, retryable: ${error.isRetryable}",
+      );
+      setState(() => _state = AppState.DATA_NOT_FETCHED);
+      return;
+    }
     debugPrint(
       'Total number of interval data points: ${healthDataResponse.length}. '
       '${healthDataResponse.length > 100 ? 'Only showing the first 100.' : ''}',
