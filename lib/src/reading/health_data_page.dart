@@ -13,8 +13,9 @@ final class HealthDataPage {
   /// The data type of every point in this page.
   final HealthDataType type;
 
-  /// The data points, without duplicates and oldest first: by start time on
-  /// Android, by end time on iOS.
+  /// The data points, without duplicates and oldest first: on Android by the
+  /// start time of their record (the samples of a series record and the stages
+  /// of a sleep session come together), on iOS by end time.
   final List<HealthDataPoint> points;
 
   /// Whether this is the last page for [type]. Every requested type ends with
