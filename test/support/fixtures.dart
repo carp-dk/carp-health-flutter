@@ -26,6 +26,27 @@ class HealthFixtures {
     };
   }
 
+  /// A reply of the native getDataPage method.
+  static Map<String, dynamic> page(List<Map<String, dynamic>> data, {String? nextPageToken, bool? permissionDenied}) =>
+      {
+        'data': data,
+        'nextPageToken': nextPageToken,
+        if (permissionDenied != null) 'permissionDenied': permissionDenied,
+      };
+
+  /// [count] heart-rate-like points one second apart, with uuids
+  /// `uuid-<offset>` and on. 2000 of them make a reply far above the 64 KiB
+  /// that [HealthIsolateMode.auto] parses in a worker.
+  static List<Map<String, dynamic>> points(int count, {int offset = 0}) => [
+    for (var i = offset; i < offset + count; i++)
+      numericPoint(
+        uuid: 'uuid-$i',
+        value: 60 + i % 40,
+        from: start.add(Duration(seconds: i)),
+        to: start.add(Duration(seconds: i)),
+      ),
+  ];
+
   static Map<String, dynamic> workoutPoint({
     String uuid = 'workout-uuid-1',
     String activityType = 'RUNNING',
@@ -94,15 +115,8 @@ class HealthFixtures {
   }) {
     return {
       'changes': [
-        {
-          'type': 'upsert',
-          'dataTypeKey': HealthDataType.HEART_RATE.name,
-          'dataPoint': numericPoint(),
-        },
-        {
-          'type': 'delete',
-          'recordId': 'deleted-record-1',
-        },
+        {'type': 'upsert', 'dataTypeKey': HealthDataType.HEART_RATE.name, 'dataPoint': numericPoint()},
+        {'type': 'delete', 'recordId': 'deleted-record-1'},
       ],
       'nextChangesToken': nextToken,
       'hasMore': hasMore,

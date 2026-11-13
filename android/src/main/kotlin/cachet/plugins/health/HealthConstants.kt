@@ -30,6 +30,7 @@ object HealthConstants {
     const val HEART_RATE_VARIABILITY_RMSSD = "HEART_RATE_VARIABILITY_RMSSD"
     const val HEIGHT = "HEIGHT"
     const val MENSTRUATION_FLOW = "MENSTRUATION_FLOW"
+    const val MINDFULNESS = "MINDFULNESS"
     const val RESPIRATORY_RATE = "RESPIRATORY_RATE"
     const val RESTING_HEART_RATE = "RESTING_HEART_RATE"
     const val STEPS = "STEPS"
@@ -37,8 +38,11 @@ object HealthConstants {
     const val WEIGHT = "WEIGHT"
     const val TOTAL_CALORIES_BURNED = "TOTAL_CALORIES_BURNED"
     const val SPEED = "SPEED"
+    const val POWER = "POWER"
+    const val CYCLING_CADENCE = "CYCLING_CADENCE"
     const val ACTIVITY_INTENSITY = "ACTIVITY_INTENSITY"
     const val SKIN_TEMPERATURE = "SKIN_TEMPERATURE"
+    const val VO2_MAX = "VO2_MAX"
 
     // Meal types
     const val BREAKFAST = "BREAKFAST"
@@ -105,9 +109,13 @@ object HealthConstants {
         RESPIRATORY_RATE to RespiratoryRateRecord::class,
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord::class,
         MENSTRUATION_FLOW to MenstruationFlowRecord::class,
+        MINDFULNESS to MindfulnessSessionRecord::class,
         SPEED to SpeedRecord::class,
+        POWER to PowerRecord::class,
+        CYCLING_CADENCE to CyclingPedalingCadenceRecord::class,
         ACTIVITY_INTENSITY to ActivityIntensityRecord::class,
         SKIN_TEMPERATURE to SkinTemperatureRecord::class,
+        VO2_MAX to Vo2MaxRecord::class,
     )
     
     /**
@@ -122,14 +130,16 @@ object HealthConstants {
         STEPS to StepsRecord.COUNT_TOTAL,
         AGGREGATE_STEP_COUNT to StepsRecord.COUNT_TOTAL,
         ACTIVE_ENERGY_BURNED to ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
-        HEART_RATE to HeartRateRecord.MEASUREMENTS_COUNT,
+        HEART_RATE to HeartRateRecord.BPM_AVG,
         DISTANCE_DELTA to DistanceRecord.DISTANCE_TOTAL,
         WATER to HydrationRecord.VOLUME_TOTAL,
-        SLEEP_ASLEEP to SleepSessionRecord.SLEEP_DURATION_TOTAL,
-        SLEEP_AWAKE to SleepSessionRecord.SLEEP_DURATION_TOTAL,
-        SLEEP_IN_BED to SleepSessionRecord.SLEEP_DURATION_TOTAL,
+        // No sleep types: SleepSessionRecord.SLEEP_DURATION_TOTAL is the whole session, whatever the
+        // stage. Their intervals are the minutes of their data points (reading/SleepIntervalReader.kt).
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord.ENERGY_TOTAL,
+        POWER to PowerRecord.POWER_AVG,
+        CYCLING_CADENCE to CyclingPedalingCadenceRecord.RPM_AVG,
         ACTIVITY_INTENSITY to ActivityIntensityRecord.INTENSITY_MINUTES_TOTAL,
+        MINDFULNESS to MindfulnessSessionRecord.MINDFULNESS_DURATION_TOTAL,
         SKIN_TEMPERATURE to SkinTemperatureRecord.TEMPERATURE_DELTA_AVG,
     )
 
@@ -179,8 +189,26 @@ object HealthConstants {
     )
 
     /**
+     * Maps mindfulness session type strings (the names of the Dart MindfulnessSessionType) to Health
+     * Connect MindfulnessSessionRecord types. Health Connect has no "other" type: UNKNOWN is its
+     * type for a session that fits none of the others.
+     *
+     * @return Map<String, Int> Session type strings to Health Connect mindfulness type constants
+     */
+    val mindfulnessSessionTypeMap = mapOf(
+        "UNKNOWN" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNKNOWN,
+        "MEDITATION" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MEDITATION,
+        "BREATHING" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_BREATHING,
+        "MUSIC" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MUSIC,
+        "MOVEMENT" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_MOVEMENT,
+        "UNGUIDED" to MindfulnessSessionRecord.MINDFULNESS_SESSION_TYPE_UNGUIDED,
+    )
+
+    /**
      * Maps workout/exercise type strings to Health Connect ExerciseSessionRecord types.
      * Comprehensive mapping of all supported exercise activities for workout tracking.
+     * Several names share an exercise type (e.g. CARDIO_DANCE, DANCING and SOCIAL_DANCE): reads
+     * report the generic one ([workoutTypeName]).
      * 
      * @return Map<String, Int> Workout type strings to Health Connect exercise type constants
      */
@@ -191,6 +219,7 @@ object HealthConstants {
         "BASEBALL" to ExerciseSessionRecord.EXERCISE_TYPE_BASEBALL,
         "BASKETBALL" to ExerciseSessionRecord.EXERCISE_TYPE_BASKETBALL,
         "BIKING" to ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+        "BIKING_STATIONARY" to ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY,
         "BOXING" to ExerciseSessionRecord.EXERCISE_TYPE_BOXING,
         "CALISTHENICS" to ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS,
         "CARDIO_DANCE" to ExerciseSessionRecord.EXERCISE_TYPE_DANCING,
@@ -207,8 +236,10 @@ object HealthConstants {
         "HANDBALL" to ExerciseSessionRecord.EXERCISE_TYPE_HANDBALL,
         "HIGH_INTENSITY_INTERVAL_TRAINING" to ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING,
         "HIKING" to ExerciseSessionRecord.EXERCISE_TYPE_HIKING,
+        "HOCKEY" to ExerciseSessionRecord.EXERCISE_TYPE_ICE_HOCKEY,
         "ICE_SKATING" to ExerciseSessionRecord.EXERCISE_TYPE_ICE_SKATING,
         "MARTIAL_ARTS" to ExerciseSessionRecord.EXERCISE_TYPE_MARTIAL_ARTS,
+        "PADDLE_SPORTS" to ExerciseSessionRecord.EXERCISE_TYPE_PADDLING,
         "PARAGLIDING" to ExerciseSessionRecord.EXERCISE_TYPE_PARAGLIDING,
         "PILATES" to ExerciseSessionRecord.EXERCISE_TYPE_PILATES,
         "RACQUETBALL" to ExerciseSessionRecord.EXERCISE_TYPE_RACQUETBALL,
@@ -224,6 +255,7 @@ object HealthConstants {
         "SKIING" to ExerciseSessionRecord.EXERCISE_TYPE_SKIING,
         "SNOWBOARDING" to ExerciseSessionRecord.EXERCISE_TYPE_SNOWBOARDING,
         "SNOWSHOEING" to ExerciseSessionRecord.EXERCISE_TYPE_SNOWSHOEING,
+        "SOCCER" to ExerciseSessionRecord.EXERCISE_TYPE_SOCCER,
         "SOCIAL_DANCE" to ExerciseSessionRecord.EXERCISE_TYPE_DANCING,
         "SOFTBALL" to ExerciseSessionRecord.EXERCISE_TYPE_SOFTBALL,
         "SQUASH" to ExerciseSessionRecord.EXERCISE_TYPE_SQUASH,
@@ -245,7 +277,4 @@ object HealthConstants {
         "YOGA" to ExerciseSessionRecord.EXERCISE_TYPE_YOGA,
         "OTHER" to ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT,
     )
-
-    val workoutTypeReverseMap: Map<Int, String> =
-        workoutTypeMap.entries.associate { (key, value) -> value to key }
 }

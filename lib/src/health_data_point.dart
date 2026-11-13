@@ -55,9 +55,9 @@ class HealthDataPoint {
   /// The metadata for this data point.
   Map<String, dynamic>? metadata;
 
-  /// The source of the data, whether from the iPhone or Watch or something else.
-  /// Only available fo iOS
-  /// On Android: always return null
+  /// The model of the device that recorded the data: on iOS HealthKit's `HKDevice.model`, such as `iPhone`
+  /// or `Watch`, and on Android the `model` of Health Connect's `Device`, such as `Pixel Watch 2`. Null when
+  /// the app that wrote the data reported no device, or no model for it.
   String? deviceModel;
 
   HealthDataPoint({
@@ -75,31 +75,34 @@ class HealthDataPoint {
     this.workoutSummary,
     this.metadata,
     this.deviceModel,
-  }) {
-    // set the value to minutes rather than the category
-    // returned by the native API
-    if (type == HealthDataType.MINDFULNESS ||
-        type == HealthDataType.HEADACHE_UNSPECIFIED ||
-        type == HealthDataType.HEADACHE_NOT_PRESENT ||
-        type == HealthDataType.HEADACHE_MILD ||
-        type == HealthDataType.HEADACHE_MODERATE ||
-        type == HealthDataType.HEADACHE_SEVERE ||
-        type == HealthDataType.SLEEP_ASLEEP ||
-        type == HealthDataType.SLEEP_AWAKE ||
-        type == HealthDataType.SLEEP_AWAKE_IN_BED ||
-        type == HealthDataType.SLEEP_DEEP ||
-        type == HealthDataType.SLEEP_IN_BED ||
-        type == HealthDataType.SLEEP_LIGHT ||
-        type == HealthDataType.SLEEP_REM ||
-        type == HealthDataType.SLEEP_UNKNOWN ||
-        type == HealthDataType.SLEEP_OUT_OF_BED) {
-      value = _convertMinutes();
-    }
-  }
+  });
 
-  /// Converts dateTo - dateFrom to minutes.
-  NumericHealthValue _convertMinutes() =>
-      NumericHealthValue(numericValue: (dateTo.millisecondsSinceEpoch - dateFrom.millisecondsSinceEpoch) / (1000 * 60));
+  /// The types whose native value is a category, not an amount:
+  /// [HealthDataPoint.fromHealthDataPoint] sets their value to the minutes
+  /// from `date_from` to `date_to` instead.
+  static const _durationTypes = {
+    HealthDataType.MINDFULNESS,
+    HealthDataType.HEADACHE_UNSPECIFIED,
+    HealthDataType.HEADACHE_NOT_PRESENT,
+    HealthDataType.HEADACHE_MILD,
+    HealthDataType.HEADACHE_MODERATE,
+    HealthDataType.HEADACHE_SEVERE,
+    HealthDataType.SLEEP_ASLEEP,
+    HealthDataType.SLEEP_AWAKE,
+    HealthDataType.SLEEP_AWAKE_IN_BED,
+    HealthDataType.SLEEP_DEEP,
+    HealthDataType.SLEEP_IN_BED,
+    HealthDataType.SLEEP_LIGHT,
+    HealthDataType.SLEEP_REM,
+    HealthDataType.SLEEP_UNKNOWN,
+    HealthDataType.SLEEP_OUT_OF_BED,
+  };
+
+  static final Map<String, HealthDataUnit> _unitsByName = HealthDataUnit.values.asNameMap();
+
+  /// The minutes from [from] to [to].
+  static NumericHealthValue _minutesBetween(DateTime from, DateTime to) =>
+      NumericHealthValue(numericValue: (to.millisecondsSinceEpoch - from.millisecondsSinceEpoch) / (1000 * 60));
 
   /// Create a [HealthDataPoint] from json.
   factory HealthDataPoint.fromJson(Map<String, dynamic> json) => _$HealthDataPointFromJson(json);
@@ -108,9 +111,24 @@ class HealthDataPoint {
   Map<String, dynamic> toJson() => _$HealthDataPointToJson(this);
 
   /// Create a [HealthDataPoint] based on a health data point from native data format.
-  factory HealthDataPoint.fromHealthDataPoint(HealthDataType dataType, dynamic dataPoint, String? unitName) {
+  ///
+  /// [sourceDeviceId] is 'unknown' if omitted. The plugin passes the id of the
+  /// device it runs on (see [Health.deviceId]).
+  factory HealthDataPoint.fromHealthDataPoint(
+    HealthDataType dataType,
+    dynamic dataPoint,
+    String? unitName, {
+    String? sourceDeviceId,
+  }) {
+    // Parsing can run in a worker isolate, which has its own registry.
+    _registerFromJsonFunctions();
+
+    final DateTime from = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_from'] as int);
+    final DateTime to = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_to'] as int);
+
     // Handling different [HealthValue] types
     HealthValue value = switch (dataType) {
+      _ when _durationTypes.contains(dataType) => _minutesBetween(from, to),
       HealthDataType.AUDIOGRAM => AudiogramHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.WORKOUT => WorkoutHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.WORKOUT_ROUTE => WorkoutRouteHealthValue.fromHealthDataPoint(dataPoint),
@@ -123,26 +141,22 @@ class HealthDataPoint {
       _ => NumericHealthValue.fromHealthDataPoint(dataPoint),
     };
 
-    final DateTime from = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_from'] as int);
-    final DateTime to = DateTime.fromMillisecondsSinceEpoch(dataPoint['date_to'] as int);
     final String sourceId = dataPoint["source_id"] as String;
     final String sourceName = dataPoint["source_name"] as String;
     final Map<String, dynamic>? metadata = dataPoint["metadata"] == null
         ? null
         : Map<String, dynamic>.from(dataPoint['metadata'] as Map);
-    final HealthDataUnit unit = HealthDataUnit.values.firstWhere(
-      (value) => value.name == unitName,
-      orElse: () => dataTypeToUnit[dataType] ?? HealthDataUnit.UNKNOWN_UNIT,
-    );
+    final HealthDataUnit unit = _unitsByName[unitName] ?? dataTypeToUnit[dataType] ?? HealthDataUnit.UNKNOWN_UNIT;
     final String? uuid = dataPoint["uuid"] as String?;
     final String? deviceModel = dataPoint["device_model"] as String?;
 
-    // Set WorkoutSummary, if available.
+    // Set WorkoutSummary, if available. Android sends only the camelCase keys.
     WorkoutSummary? workoutSummary;
     if (dataPoint["workout_type"] != null ||
         dataPoint["total_distance"] != null ||
         dataPoint["total_energy_burned"] != null ||
-        dataPoint["total_steps"] != null) {
+        dataPoint["total_steps"] != null ||
+        dataPoint["workoutActivityType"] != null) {
       workoutSummary = WorkoutSummary.fromHealthDataPoint(dataPoint);
     }
 
@@ -155,8 +169,8 @@ class HealthDataPoint {
       unit: unit,
       dateFrom: from,
       dateTo: to,
-      sourcePlatform: Health().platformType,
-      sourceDeviceId: Health().deviceId,
+      sourcePlatform: Platform.isIOS ? HealthPlatformType.appleHealth : HealthPlatformType.googleHealthConnect,
+      sourceDeviceId: sourceDeviceId ?? 'unknown',
       sourceId: sourceId,
       sourceName: sourceName,
       recordingMethod: RecordingMethod.fromInt(recordingMethod),
@@ -198,7 +212,7 @@ class HealthDataPoint {
       sourceId == other.sourceId &&
       sourceName == other.sourceName &&
       recordingMethod == other.recordingMethod &&
-      metadata == other.metadata &&
+      _deepEquals(metadata, other.metadata) &&
       deviceModel == other.deviceModel;
 
   @override
@@ -213,7 +227,7 @@ class HealthDataPoint {
     sourceDeviceId,
     sourceId,
     sourceName,
-    metadata,
+    _deepHash(metadata),
     deviceModel,
   );
 }
