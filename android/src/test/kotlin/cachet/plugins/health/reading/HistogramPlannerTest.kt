@@ -20,20 +20,21 @@ class HistogramPlannerTest {
             return counts.asList()
         }
 
-        fun plan(cursor: Long, end: Long, window: Long, budget: Int) =
-            runBlocking { HistogramPlanner.plan(cursor, end, window, budget, ::histogram) }
+        fun plan(cursor: Long, end: Long, window: Long, budget: Int, split: Boolean = true) =
+            runBlocking { HistogramPlanner.plan(cursor, end, window, budget, ::histogram, split) }
 
         fun samples(from: Long, to: Long) = times.count { it in from until to }.toLong()
     }
 
     private fun everySecond(from: Long, seconds: Int) = List(seconds) { from + it * 1000L }
 
-    /** The slices of [plan] from [cursor], each with at most [budget] samples, and the first counted right. */
+    /** The slices of [plan] from [cursor], each with at most [budget] samples, all counted right. */
     private fun assertSlices(data: Data, cursor: Long, plan: SlicePlan, budget: Int) {
         val starts = listOf(cursor) + plan.ends.dropLast(1)
         for ((from, to) in starts.zip(plan.ends)) {
             assertTrue("[$from, $to) holds ${data.samples(from, to)}", to > from && data.samples(from, to) <= budget)
         }
+        assertEquals(starts.zip(plan.ends).map { (from, to) -> data.samples(from, to) }, plan.samples)
         assertEquals(data.samples(cursor, plan.ends.first()), plan.firstSamples)
     }
 
@@ -85,6 +86,24 @@ class HistogramPlannerTest {
         assertEquals(1, plan.ends.size)
         assertEquals(5000L, plan.firstSamples)
         assertTrue("${plan.ends}", plan.ends.first() - 10_000L <= MIN_SLICE_MS)
+    }
+
+    @Test
+    fun withoutSplittingTakesADenseBucketAsASliceOfItsOwn() {
+        // One sample per minute, and 5000 samples in a second at half past: one histogram, no finer one.
+        val dense = 30 * 60_000L
+        val data = Data(List(60) { it * 60_000L } + List(5000) { dense + it / 10 })
+        val plan = data.plan(0, hour, hour, 1000, split = false)!!
+        assertEquals(1, data.histograms)
+        val bucket = hour / PLAN_BUCKETS
+        val starts = listOf(0L) + plan.ends.dropLast(1)
+        val denseSlice = plan.ends.indexOfFirst { it > dense }
+        assertEquals(starts[denseSlice] + bucket, plan.ends[denseSlice])
+        assertTrue(plan.samples[denseSlice] > 5000)
+        assertEquals(hour, plan.ends.last())
+        assertEquals(60L + 5000, plan.samples.sum())
+        // Every other slice holds at most the budget.
+        assertTrue(plan.samples.filterIndexed { i, _ -> i != denseSlice }.all { it <= 1000 })
     }
 
     @Test

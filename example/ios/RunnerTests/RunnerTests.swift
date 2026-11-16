@@ -1,5 +1,6 @@
 import Flutter
 import Foundation
+import HealthKit
 
 @testable import health
 
@@ -30,4 +31,28 @@ func replies(
 /// A date as the Dart side sends it: milliseconds since the epoch.
 func milliseconds(_ date: Date) -> Int {
   Int(date.timeIntervalSince1970 * 1000)
+}
+
+/// A health store that keeps the queries it is given and the objects it is asked to save, without
+/// HealthKit: it runs no query, and answers [saveSucceeds] to each save.
+final class RecordingHealthStore: HKHealthStore, @unchecked Sendable {
+  private let saveSucceeds: Bool
+  private(set) var queries = [HKQuery]()
+  private(set) var saved = [HKObject]()
+
+  init(saveSucceeds: Bool = true) {
+    self.saveSucceeds = saveSucceeds
+    super.init()
+  }
+
+  override func execute(_ query: HKQuery) {
+    queries.append(query)
+  }
+
+  override func save(
+    _ object: HKObject, withCompletion completion: @escaping @Sendable (Bool, (any Error)?) -> Void
+  ) {
+    saved.append(object)
+    completion(saveSucceeds, nil)
+  }
 }

@@ -141,7 +141,7 @@ class SwimmingDetailsTest {
         // Without permission to read the totals, nothing else is read.
         val read = mutableListOf<Map<String, Any?>>()
         val client = fakeOf<HealthConnectClient> { error("Unexpected call of $it") }
-        val converter = WorkoutConverter(client, HealthRecordingFilter())
+        val converter = WorkoutConverter(client, HealthRecordingFilter(), OWN_PACKAGE)
         runBlocking { converter.handleWorkoutData(workouts, emptyList(), read, emptySet()) }
         assertEquals(expected, read.map { it["swimming"] })
         assertEquals(expected, changedDataPoints(workouts).map { it["swimming"] })

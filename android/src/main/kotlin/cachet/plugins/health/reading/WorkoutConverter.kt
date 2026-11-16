@@ -1,7 +1,8 @@
 package cachet.plugins.health.reading
 
+import android.os.Build
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.Record
@@ -15,10 +16,19 @@ import kotlin.reflect.KClass
 
 internal const val WORKOUT = "WORKOUT"
 
-/** Converts exercise sessions to workout data points, with totals read from Health Connect. */
+/**
+ * Converts exercise sessions to workout data points, with totals read from Health Connect.
+ *
+ * @param packageName This app, whose own workouts' totals may be read with only the write
+ * permission of their type
+ * @param sdkInt The Android version, which decides whether a refused read of such a total leaves it
+ * null or fails ([ReadAccess.isOwnReadRefused])
+ */
 internal class WorkoutConverter(
     private val healthConnectClient: HealthConnectClient,
     private val recordingFilter: HealthRecordingFilter,
+    private val packageName: String,
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
 ) {
     /**
      * Handles special processing for workout/exercise session data.
@@ -30,7 +40,9 @@ internal class WorkoutConverter(
      * @param records List of ExerciseSessionRecord objects
      * @param recordingMethodsToFilter Recording methods to exclude (empty list means no filtering)
      * @param healthConnectData Mutable list to append processed workout data
-     * @param grantedPermissions Granted permissions; a total whose type may not be read stays null
+     * @param grantedPermissions Granted permissions; a total whose type may not be read stays null.
+     * The totals of a workout this app wrote are also read with only the write permission of their
+     * type: they are read from the workout's app only, which Health Connect allows for its own records.
      */
     suspend fun handleWorkoutData(
         records: List<Record>,
@@ -38,14 +50,6 @@ internal class WorkoutConverter(
         healthConnectData: MutableList<Map<String, Any?>>,
         grantedPermissions: Set<String>,
     ) {
-        // Reading a type without permission throws, which used to drop every workout.
-        val canRead = { type: KClass<out Record> ->
-            grantedPermissions.contains(HealthPermission.getReadPermission(type))
-        }
-        val readDistance = canRead(DistanceRecord::class)
-        val readEnergy = canRead(TotalCaloriesBurnedRecord::class)
-        val readSteps = canRead(StepsRecord::class)
-
         val filteredRecords = if (recordingMethodsToFilter.isEmpty()) {
             records
         } else {
@@ -57,66 +61,10 @@ internal class WorkoutConverter(
 
         for (rec in filteredRecords) {
             val record = rec as ExerciseSessionRecord
-            // Only the records of the app that wrote the workout: other apps' records of the same activity,
-            // such as the phone's own step and distance tracking, would count it twice.
-            val workoutOrigin = setOf(record.metadata.dataOrigin)
-
-            // Get distance data
-            var totalDistance = 0.0
-            if (readDistance) {
-                val distanceRequest = healthConnectClient.readRecords(
-                    ReadRecordsRequest(
-                        recordType = DistanceRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(
-                            record.startTime,
-                            record.endTime,
-                        ),
-                        dataOriginFilter = workoutOrigin,
-                        pageSize = HC_MAX_RECORDS,
-                    ),
-                )
-                for (distanceRec in distanceRequest.records) {
-                    totalDistance += distanceRec.distance.inMeters
-                }
-            }
-
-            // Get energy burned data
-            var totalEnergyBurned = 0.0
-            if (readEnergy) {
-                val energyBurnedRequest = healthConnectClient.readRecords(
-                    ReadRecordsRequest(
-                        recordType = TotalCaloriesBurnedRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(
-                            record.startTime,
-                            record.endTime,
-                        ),
-                        dataOriginFilter = workoutOrigin,
-                        pageSize = HC_MAX_RECORDS,
-                    ),
-                )
-                for (energyBurnedRec in energyBurnedRequest.records) {
-                    totalEnergyBurned += energyBurnedRec.energy.inKilocalories
-                }
-            }
-
-            // Get steps data
-            var totalSteps = 0.0
-            if (readSteps) {
-                val stepRequest = healthConnectClient.readRecords(
-                    ReadRecordsRequest(
-                        recordType = StepsRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(
-                            record.startTime,
-                            record.endTime
-                        ),
-                        dataOriginFilter = workoutOrigin,
-                        pageSize = HC_MAX_RECORDS,
-                    ),
-                )
-                for (stepRec in stepRequest.records) {
-                    totalSteps += stepRec.count
-                }
-            }
+            val totalDistance = total(DistanceRecord::class, record, grantedPermissions) { it.distance.inMeters }
+            val totalEnergyBurned =
+                total(TotalCaloriesBurnedRecord::class, record, grantedPermissions) { it.energy.inKilocalories }
+            val totalSteps = total(StepsRecord::class, record, grantedPermissions) { it.count.toDouble() }
 
             // Add final datapoint
             healthConnectData.add(
@@ -139,5 +87,52 @@ internal class WorkoutConverter(
                 ),
             )
         }
+    }
+
+    /**
+     * The sum of [value] over the records of [type] in the time of [session], every page of them, or
+     * 0.0 without permission to read them ([granted]). Only the records of the app that wrote the
+     * workout: other apps' records of the same activity, such as the phone's own step and distance
+     * tracking, would count it twice. A read of this app's own records that the Health Connect APK
+     * (Android 13 and lower) refuses also gives 0.0, as without permission.
+     */
+    private suspend fun <T : Record> total(
+        type: KClass<T>,
+        session: ExerciseSessionRecord,
+        granted: Set<String>,
+        value: (T) -> Double,
+    ): Double {
+        // Reading a type without permission throws, which used to drop every workout.
+        val access = ReadAccess.of(granted, type)
+        val mayRead = when (access) {
+            ReadAccess.ALL -> true
+            // Health Connect lets an app read its own records with the write permission.
+            ReadAccess.OWN -> session.metadata.dataOrigin.packageName == packageName
+            ReadAccess.NONE -> false
+        }
+        if (!mayRead) return 0.0
+        var sum = 0.0
+        var pageToken: String? = null
+        try {
+            do {
+                val page = healthConnectClient.readPastTies(
+                    ReadRecordsRequest(
+                        recordType = type,
+                        timeRangeFilter = TimeRangeFilter.between(session.startTime, session.endTime),
+                        dataOriginFilter = setOf(session.metadata.dataOrigin),
+                        pageSize = HC_MAX_RECORDS,
+                        pageToken = pageToken,
+                    ),
+                )
+                sum += page.records.sumOf(value)
+                pageToken = page.pageToken
+            } while (pageToken != null)
+        } catch (e: SecurityException) {
+            // Thrown on, the refusal would drop every workout of the page, not just this total.
+            if (access != ReadAccess.OWN || !ReadAccess.isOwnReadRefused(e, sdkInt)) throw e
+            Log.w("FLUTTER_HEALTH", "${type.simpleName}: Health Connect refused to read this app's own records: $e")
+            return 0.0
+        }
+        return sum
     }
 }

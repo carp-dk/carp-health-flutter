@@ -8,8 +8,8 @@ part of '../../health.dart';
 /// * [totalEnergyBurnedUnit] - the unit of the total energy burned
 /// * [totalDistance] - the total distance of the workout
 /// * [totalDistanceUnit] - the unit of the total distance
-/// * [totalSteps] - the total steps of the workout
-/// * [totalStepsUnit] - the unit of the total steps
+/// * [totalSteps] - the total steps of the workout (Android only)
+/// * [totalStepsUnit] - the unit of the total steps (Android only)
 /// * [totalFlightsClimbed] - the flights of stairs climbed during the workout (iOS only)
 /// * [totalSwimmingStrokeCount] - the swimming strokes of the workout (iOS only)
 /// * [swimming] - the pool length and laps of a swimming workout
@@ -18,14 +18,20 @@ part of '../../health.dart';
 ///   [maximumSpeed] and [workoutEvents] - what HealthKit records about the
 ///   workout besides its totals (iOS only, null on Android)
 ///
-/// On Android, [totalDistance], [totalEnergyBurned] and [totalSteps] count the Health Connect
-/// records that the app which wrote the workout recorded in its time, so an activity that two apps
-/// recorded (for example a watch app and the phone) does not count twice. Such a total is `null`
-/// when that app wrote no such records, or without permission to read them: `READ_DISTANCE`
-/// ([HealthDataType.DISTANCE_DELTA]) for [totalDistance], `READ_TOTAL_CALORIES_BURNED`
-/// ([HealthDataType.TOTAL_CALORIES_BURNED]) for [totalEnergyBurned] and `READ_STEPS`
-/// ([HealthDataType.STEPS]) for [totalSteps]. Read those types over the workout's time to count the
-/// data of other apps too.
+/// On iOS, [totalDistance] and [totalEnergyBurned] are the HealthKit workout's own totals, its
+/// distance and its active energy. [Health.writeWorkoutData] stores them only on the workout, without
+/// samples, so they do not appear in reads or intervals of [HealthDataType.ACTIVE_ENERGY_BURNED] or
+/// the `DISTANCE_*` types.
+///
+/// On Android, [totalDistance], [totalEnergyBurned] (Health Connect's total calories, active and
+/// basal) and [totalSteps] count the Health Connect records that the app which wrote the workout
+/// recorded in its time, so an activity that two apps recorded (for example a watch app and the
+/// phone) does not count twice. Such a total is `null` when that app wrote no such records, or
+/// without permission to read them: `READ_DISTANCE` ([HealthDataType.DISTANCE_DELTA]) for
+/// [totalDistance], `READ_TOTAL_CALORIES_BURNED` ([HealthDataType.TOTAL_CALORIES_BURNED]) for
+/// [totalEnergyBurned] and `READ_STEPS` ([HealthDataType.STEPS]) for [totalSteps]; for a workout
+/// this app wrote, the matching `WRITE_` permission is enough. Read those types over the workout's
+/// time to count the data of other apps too.
 @JsonSerializable(includeIfNull: false, explicitToJson: true)
 class WorkoutHealthValue extends HealthValue {
   /// The type of the workout.
@@ -48,11 +54,11 @@ class WorkoutHealthValue extends HealthValue {
   HealthDataUnit? totalDistanceUnit;
 
   /// The total steps covered during the workout.
-  /// Might not be available for all workouts.
+  /// Might not be available for all workouts. Android only, always `null` on iOS.
   int? totalSteps;
 
   /// The unit of the total steps covered during the workout.
-  /// Might not be available for all workouts.
+  /// Might not be available for all workouts. Android only, always `null` on iOS.
   HealthDataUnit? totalStepsUnit;
 
   /// The total number of flights of stairs climbed during the workout: HealthKit's total for the

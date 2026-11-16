@@ -7,6 +7,7 @@ import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SpeedRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Instant
@@ -20,16 +21,19 @@ internal class SeriesLookback(private val healthConnectClient: HealthConnectClie
      * the range. One small, newest-first read of the [SERIES_LOOKBACK] before [startTime] finds those
      * records; the converter keeps only their samples inside the range. Records that started earlier
      * than that, or behind [limit] newer ones, are missed. Used for speed, power, cycling cadence and
-     * skin temperature, whose records are few; heart rate scans the whole look-back range
+     * skin temperature, whose records are few, and for heart rate read by record
+     * ([DataPageRequest.isSliced]); a heart rate read in time slices scans the whole look-back range
      * ([HeartRatePageReader]).
      *
      * @param pageRecordIds Ids of the records read for the range itself, which are left out
+     * @param origins The apps whose records are read, as the read itself asks ([ReadAccess.origins])
      */
     suspend fun readLookbackRecords(
         recordType: KClass<out Record>,
         startTime: Instant,
         limit: Int,
         pageRecordIds: Set<String>,
+        origins: Set<DataOrigin>,
     ): List<Record> {
         // Nothing to look back at from a read that starts at the epoch, a common "everything" start.
         val lookbackStart = maxOf(startTime.minus(SERIES_LOOKBACK), Instant.EPOCH)
@@ -38,6 +42,7 @@ internal class SeriesLookback(private val healthConnectClient: HealthConnectClie
             ReadRecordsRequest(
                 recordType = recordType,
                 timeRangeFilter = TimeRangeFilter.between(lookbackStart, startTime),
+                dataOriginFilter = origins,
                 ascendingOrder = false,
                 pageSize = limit,
             )

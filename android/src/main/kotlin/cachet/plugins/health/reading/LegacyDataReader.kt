@@ -1,10 +1,11 @@
 package cachet.plugins.health.reading
 
+import android.os.Build
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import cachet.plugins.health.HealthConstants
@@ -18,7 +19,12 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.reflect.KClass
 
-/** Reads a whole range into one reply, for the deprecated getData. */
+/**
+ * Reads a whole range into one reply, for the deprecated getData. Without read permission but with
+ * write permission, only the records this app ([packageName]) wrote are read, as getDataPage reads
+ * them ([ReadAccess.OWN]); with neither, the reply is empty. Exercise sessions that Android 14 or 15
+ * ([sdkInt]) fails to read for a route outside the page are read again ([readRecordsPage]).
+ */
 internal class LegacyDataReader(
     private val healthConnectClient: HealthConnectClient,
     private val scope: CoroutineScope,
@@ -26,6 +32,8 @@ internal class LegacyDataReader(
     private val routes: WorkoutRoutes,
     private val lookback: SeriesLookback,
     private val sleepLookback: SleepLookback,
+    private val packageName: String,
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
 ) {
     fun getData(call: MethodCall, result: Result) {
         val dataType = call.argument<String>("dataTypeKey")!!
@@ -62,18 +70,20 @@ internal class LegacyDataReader(
                 }
 
                 val classType = HealthConstants.mapToType[dataType]
-                if (classType != null &&
-                    grantedPermissions.contains(HealthPermission.getReadPermission(classType))
-                ) {
-                    val records = readRecords(classType, startTime, endTime, limit)
+                val access = classType?.let { ReadAccess.of(grantedPermissions, it) } ?: ReadAccess.NONE
+                if (classType != null && access != ReadAccess.NONE) {
+                    val origins = ReadAccess.origins(access == ReadAccess.OWN, packageName)
+                    val records = readRecords(classType, startTime, endTime, limit, origins)
                     val recordIds = records.mapTo(HashSet()) { it.metadata.id }
                     // The records that began before the range and reach into it, as getDataPage reads them.
                     val earlier =
                         when {
                             limit != null -> emptyList()
-                            classType in HealthDataConverter.seriesTypes ->
-                                lookback.readLookbackRecords(classType, startTime, LEGACY_PROBE_RECORDS, recordIds)
-                            isSleepStageType(dataType) -> sleepLookback.readLookbackSessions(startTime, recordIds)
+                            classType in HealthDataConverter.seriesTypes -> lookback.readLookbackRecords(
+                                classType, startTime, LEGACY_PROBE_RECORDS, recordIds, origins
+                            )
+                            isSleepStageType(dataType) ->
+                                sleepLookback.readLookbackSessions(startTime, recordIds, origins)
                             else -> emptyList()
                         }
                     converter.convertRecords(
@@ -89,7 +99,8 @@ internal class LegacyDataReader(
                 }
                 result.success(healthConnectData)
             } catch (e: SecurityException) {
-                // A missing permission means no data, as for the permission check above.
+                // A missing permission means no data, as for the permission check above. That includes
+                // the Health Connect APK (Android 13 and lower) refusing a read of the app's own records.
                 Log.w("FLUTTER_HEALTH", "No permission to read $dataType: ${e.message}")
                 result.success(emptyList<Map<String, Any?>>())
             } catch (e: Throwable) {
@@ -98,27 +109,35 @@ internal class LegacyDataReader(
         }
     }
 
-    /** The records in the range, or with a [limit] the [limit] that start last ([readNewestRecords]). */
+    /**
+     * The records of [origins] (every app if empty) in the range, or with a [limit] the [limit] that
+     * start last ([readNewestRecords]).
+     */
     private suspend fun readRecords(
         classType: KClass<out Record>,
         startTime: Instant,
         endTime: Instant,
         limit: Int?,
+        origins: Set<DataOrigin>,
     ): List<Record> {
-        if (limit != null) return healthConnectClient.readNewestRecords(classType, startTime, endTime, limit)
+        if (limit != null) {
+            return healthConnectClient.readNewestRecords(classType, startTime, endTime, limit, origins, sdkInt)
+        }
         val records = mutableListOf<Record>()
         var pageToken: String? = null
         do {
-            val response = healthConnectClient.readRecords(
+            val response = healthConnectClient.readRecordsPage(
                 ReadRecordsRequest(
                     recordType = classType,
                     timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                    dataOriginFilter = origins,
                     pageSize = HC_MAX_RECORDS,
                     pageToken = pageToken,
-                )
+                ),
+                sdkInt,
             )
             records.addAll(response.records)
-            pageToken = response.pageToken?.takeIf { it.isNotEmpty() }
+            pageToken = response.pageToken
         } while (pageToken != null)
         return records
     }
@@ -131,16 +150,17 @@ internal class LegacyDataReader(
         grantedPermissions: Set<String>,
         limit: Int?,
     ) {
-        val workoutPermission = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
-        if (!grantedPermissions.contains(workoutPermission)) {
+        val access = ReadAccess.of(grantedPermissions, ExerciseSessionRecord::class)
+        if (access == ReadAccess.NONE) {
             Log.w(
                 "FLUTTER_HEALTH",
-                "Workout route access requires ExerciseSession read permission"
+                "Workout route access requires ExerciseSession read or write permission"
             )
             return
         }
 
-        val sessions = readRecords(ExerciseSessionRecord::class, startTime, endTime, limit)
+        val origins = ReadAccess.origins(access == ReadAccess.OWN, packageName)
+        val sessions = readRecords(ExerciseSessionRecord::class, startTime, endTime, limit, origins)
             .filterIsInstance<ExerciseSessionRecord>()
         routes.appendWorkoutRoutes(sessions, recordingMethodsToFilter, healthConnectData)
     }

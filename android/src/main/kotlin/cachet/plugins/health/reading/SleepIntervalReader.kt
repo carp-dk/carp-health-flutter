@@ -39,7 +39,7 @@ internal class SleepIntervalReader(
         val covered = mutableListOf<CoveredInterval>()
         var pageToken: String? = null
         do {
-            val response = healthConnectClient.readRecords(
+            val page = healthConnectClient.readPastTies(
                 ReadRecordsRequest(
                     recordType = SleepSessionRecord::class,
                     timeRangeFilter = TimeRangeFilter.between(readStart, endTime),
@@ -47,12 +47,12 @@ internal class SleepIntervalReader(
                     pageToken = pageToken,
                 )
             )
-            val sessions = recordingFilter.filterRecordsByRecordingMethods(recordingMethodsToFilter, response.records)
+            val sessions = recordingFilter.filterRecordsByRecordingMethods(recordingMethodsToFilter, page.records)
             for (session in sessions.filterIsInstance<SleepSessionRecord>()) {
                 val source = session.metadata.dataOrigin.packageName
                 sleepPoints(session, dataType).mapTo(covered) { CoveredInterval(it.startTime, it.endTime, source) }
             }
-            pageToken = response.pageToken?.takeIf { it.isNotEmpty() }
+            pageToken = page.pageToken
         } while (pageToken != null)
 
         return minutesPerBucket(covered, startTime, endTime, interval).map { bucket ->

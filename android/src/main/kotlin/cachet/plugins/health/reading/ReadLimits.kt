@@ -9,10 +9,8 @@ internal const val HC_MAX_RECORDS = 5000
 internal const val DEFAULT_PAGE_SIZE = 20000
 internal const val MAX_PAGE_SIZE = 50000
 
-// Heart rate is read in time slices of at most a page of samples: their shortest span, and how
-// many sample counts may be spent planning one look-back slice (SlicePlanner).
+// Heart rate is read in time slices of at most a page of samples: their shortest span.
 internal const val MIN_SLICE_MS = 1_000L
-internal const val MAX_PLAN_STEPS = 8
 
 // The pages of a heart rate read are planned from histograms (HistogramPlanner): buckets per
 // histogram, pages each plan aims to cover, the most slices one plan (and page token) holds, how
@@ -42,6 +40,14 @@ internal const val ROUTE_MAX_RECORDS = 5
 // many as one page may hold, fewer after a page did not fit in memory).
 internal val SERIES_LOOKBACK: Duration = Duration.ofHours(24)
 internal const val SERIES_PROBE_RECORDS_RETRY = 1
+
+// The heart rate look-back (HeartRateLookback) reads slices of at least this many samples, whatever
+// the page size, and makes at most this many Health Connect calls; a page makes at most
+// MAX_HEART_RATE_PAGE_CALLS in all (planning, reading and re-reading its slice, and the look-back),
+// and one more for each read that ends inside the records of one start time (readPastTies).
+internal const val LOOKBACK_SLICE_SAMPLES = DEFAULT_PAGE_SIZE
+internal const val MAX_LOOKBACK_CALLS = 24
+internal const val MAX_HEART_RATE_PAGE_CALLS = 40
 
 // How far before the requested start sleep intervals and sleep stage reads look for sessions: Health
 // Connect matches sessions by start time, but a session that began earlier counts with its part in

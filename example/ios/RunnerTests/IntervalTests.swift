@@ -4,8 +4,9 @@ import XCTest
 
 @testable import health
 
-/// Interval data: heart rate is the average per bucket, a sleep type the minutes of each bucket
-/// its samples cover, overlapping samples counted once. Buckets without data are left out.
+/// Interval data: heart rate is the average per bucket, a sleep type or MINDFULNESS the minutes of
+/// each bucket its samples cover, overlapping samples counted once, from the apps of those samples.
+/// Buckets without data are left out.
 class IntervalTests: XCTestCase {
   private let reader: HealthDataReader = {
     let plugin = HealthPlugin()
@@ -20,43 +21,45 @@ class IntervalTests: XCTestCase {
   /// The start of the reads below, in milliseconds since the epoch.
   private let t0 = 1_700_000_000_000
   private let minute = 60_000
+  /// The source of the intervals below that name none.
+  private let app = "com.example.sleep"
 
   func testIntervalInsideOneBucket() {
-    XCTAssertEqual(buckets([(10, 40)]), [bucket(0, 60, covered: 30, first: 0)])
+    XCTAssertEqual(buckets([(10, 40)]), [bucket(0, 60, covered: 30)])
   }
 
   func testIntervalOverSeveralBuckets() {
     XCTAssertEqual(
       buckets([(30, 150)]),
       [
-        bucket(0, 60, covered: 30, first: 0),
-        bucket(60, 120, covered: 60, first: 0),
-        bucket(120, 180, covered: 30, first: 0),
+        bucket(0, 60, covered: 30),
+        bucket(60, 120, covered: 60),
+        bucket(120, 180, covered: 30),
       ]
     )
   }
 
   func testOverlappingIntervalsCountOnce() {
-    XCTAssertEqual(buckets([(0, 30), (15, 45)]), [bucket(0, 60, covered: 45, first: 0)])
-    XCTAssertEqual(buckets([(10, 20), (10, 20)]), [bucket(0, 60, covered: 10, first: 0)])
+    XCTAssertEqual(buckets([(0, 30), (15, 45)]), [bucket(0, 60, covered: 45)])
+    XCTAssertEqual(buckets([(10, 20), (10, 20)]), [bucket(0, 60, covered: 10)])
     XCTAssertEqual(
       buckets([(0, 120), (30, 60)]),
-      [bucket(0, 60, covered: 60, first: 0), bucket(60, 120, covered: 60, first: 0)]
+      [bucket(0, 60, covered: 60), bucket(60, 120, covered: 60)]
     )
   }
 
   func testBucketsWithoutDataAreLeftOut() {
     XCTAssertEqual(
       buckets([(10, 20), (130, 140)]),
-      [bucket(0, 60, covered: 10, first: 0), bucket(120, 180, covered: 10, first: 1)]
+      [bucket(0, 60, covered: 10), bucket(120, 180, covered: 10)]
     )
     XCTAssertEqual(buckets([(30, 30)]), [])
     XCTAssertEqual(buckets([]), [])
   }
 
   func testIntervalsAreClippedToTheRead() {
-    XCTAssertEqual(buckets([(-30, 30)]), [bucket(0, 60, covered: 30, first: 0)])
-    XCTAssertEqual(buckets([(170, 400)]), [bucket(120, 180, covered: 10, first: 0)])
+    XCTAssertEqual(buckets([(-30, 30)]), [bucket(0, 60, covered: 30)])
+    XCTAssertEqual(buckets([(170, 400)]), [bucket(120, 180, covered: 10)])
     XCTAssertEqual(buckets([(-60, 0), (180, 240)]), [])
   }
 
@@ -64,42 +67,68 @@ class IntervalTests: XCTestCase {
     XCTAssertEqual(
       buckets([(0, 200)], end: 150),
       [
-        bucket(0, 60, covered: 60, first: 0),
-        bucket(60, 120, covered: 60, first: 0),
-        bucket(120, 150, covered: 30, first: 0),
+        bucket(0, 60, covered: 60),
+        bucket(60, 120, covered: 60),
+        bucket(120, 150, covered: 30),
       ]
     )
     // An interval argument too long for Int milliseconds, which the reader passes as Int.max.
-    let interval = [(start: t0, end: t0 + 10 * minute)]
+    let interval = [(start: t0, end: t0 + 10 * minute, source: app)]
     XCTAssertEqual(
       HealthDataReader.minutesPerBucket(interval, start: t0, end: t0 + 150 * minute, bucket: .max),
-      [bucket(0, 150, covered: 10, first: 0)]
+      [bucket(0, 150, covered: 10)]
     )
   }
 
-  func testFirstIntervalCoversTheFirstCoveredMoment() {
-    // Unsorted, as samples may come; the second one starts first.
+  func testBucketsListTheSourcesOfTheirIntervals() {
+    // In the order the intervals start, unsorted as samples may come, each source once, also that
+    // of an interval which earlier ones cover entirely.
     XCTAssertEqual(
-      buckets([(20, 50), (10, 30), (55, 130)]),
+      buckets(of: [(20, 50, "b"), (10, 30, "a"), (55, 130, "c"), (25, 35, "a")]),
       [
-        bucket(0, 60, covered: 45, first: 1),
-        bucket(60, 120, covered: 60, first: 2),
-        bucket(120, 180, covered: 10, first: 2),
+        bucket(0, 60, covered: 45, sources: ["a", "b", "c"]),
+        bucket(60, 120, covered: 60, sources: ["c"]),
+        bucket(120, 180, covered: 10, sources: ["c"]),
       ]
+    )
+    // An interval inside another adds its source but no time.
+    XCTAssertEqual(
+      buckets(of: [(0, 120, "a"), (70, 80, "b")]),
+      [bucket(0, 60, covered: 60, sources: ["a"]), bucket(60, 120, covered: 60, sources: ["a", "b"])]
+    )
+  }
+
+  func testBucketsListASourceOnce() {
+    // A later interval of a source lists it in the buckets that its earlier ones do not reach.
+    XCTAssertEqual(
+      buckets(of: [(0, 70, "a"), (50, 65, "b"), (60, 150, "a"), (100, 110, "b"), (170, 175, "a")]),
+      [
+        bucket(0, 60, covered: 60, sources: ["a", "b"]),
+        bucket(60, 120, covered: 60, sources: ["a", "b"]),
+        bucket(120, 180, covered: 35, sources: ["a"]),
+      ]
+    )
+  }
+
+  func testSourcesOfIntervalsOutsideTheReadAreLeftOut() {
+    // Clipped intervals in the order they start; empty ones and those outside the read list none.
+    XCTAssertEqual(
+      buckets(of: [(-30, 30, "b"), (-60, 10, "a"), (-60, 0, "x"), (40, 40, "y"), (180, 240, "z")]),
+      [bucket(0, 60, covered: 30, sources: ["a", "b"])]
     )
   }
 
   func testEmptyReads() {
     XCTAssertEqual(buckets([(10, 20)], end: 0), [])
-    let interval = [(start: t0 + 10 * minute, end: t0 + 20 * minute)]
+    let interval = [(start: t0 + 10 * minute, end: t0 + 20 * minute, source: app)]
     XCTAssertEqual(
       HealthDataReader.minutesPerBucket(interval, start: t0, end: t0 + 180 * minute, bucket: 0), []
     )
   }
 
   func testMinutes() {
-    XCTAssertEqual(bucket(0, 60, covered: 45, first: 0).minutes, 45)
-    let short = IntervalBucket(start: 0, end: minute, covered: 1_500, firstInterval: 0)
+    XCTAssertEqual(bucket(0, 60, covered: 45).minutes, 45)
+    let short = IntervalBucket(start: 0, end: minute, covered: 1_500, sources: [])
     XCTAssertEqual(short.minutes, 0.025)
   }
 
@@ -173,7 +202,8 @@ class IntervalTests: XCTestCase {
     XCTAssertEqual(byUUID.count, 1)
     XCTAssertEqual((byUUID.first as? FlutterError)?.code, "NOT_SUPPORTED")
     // The types this iOS has without interval data keep their code.
-    XCTAssertEqual(code("MINDFULNESS"), "INVALID_TYPE")
+    XCTAssertEqual(code("WORKOUT"), "INVALID_TYPE")
+    XCTAssertEqual(code("APPLE_STAND_HOUR"), "INVALID_TYPE")
     XCTAssertEqual(code("GENDER"), "INVALID_TYPE")
   }
 
@@ -195,20 +225,26 @@ class IntervalTests: XCTestCase {
     )
   }
 
-  /// The hour buckets of [intervals] (in minutes after t0) in a read from t0 to [end] minutes
-  /// after it.
+  /// The hour buckets of [intervals] (in minutes after t0) of the app in a read from t0 to
+  /// [end] minutes after it.
   private func buckets(_ intervals: [(Int, Int)], end: Int = 180) -> [IntervalBucket] {
+    buckets(of: intervals.map { ($0.0, $0.1, app) }, end: end)
+  }
+
+  /// The hour buckets of [intervals] (in minutes after t0, and their source) in a read from t0
+  /// to [end] minutes after it.
+  private func buckets(of intervals: [(Int, Int, String)], end: Int = 180) -> [IntervalBucket] {
     HealthDataReader.minutesPerBucket(
-      intervals.map { (start: t0 + $0.0 * minute, end: t0 + $0.1 * minute) },
+      intervals.map { (start: t0 + $0.0 * minute, end: t0 + $0.1 * minute, source: $0.2) },
       start: t0, end: t0 + end * minute, bucket: 60 * minute
     )
   }
 
-  /// A bucket from [start] to [end] minutes after t0 of which [covered] minutes are covered.
-  private func bucket(_ start: Int, _ end: Int, covered: Int, first: Int) -> IntervalBucket {
+  /// A bucket from [start] to [end] minutes after t0 of which [covered] minutes are covered by
+  /// the intervals of [sources] (the app by default).
+  private func bucket(_ start: Int, _ end: Int, covered: Int, sources: [String]? = nil) -> IntervalBucket {
     IntervalBucket(
-      start: t0 + start * minute, end: t0 + end * minute, covered: covered * minute,
-      firstInterval: first
+      start: t0 + start * minute, end: t0 + end * minute, covered: covered * minute, sources: sources ?? [app]
     )
   }
 

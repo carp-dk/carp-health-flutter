@@ -88,6 +88,30 @@ class HealthErrorsTest {
     }
 
     @Test
+    fun recordsAndAggregatesThePlatformDoesNotHaveAreNotSupported() {
+        // The client's messages for a record class or an aggregate it has no platform mapping for, e.g.
+        // ActivityIntensityRecord below SDK extension 16.
+        val unsupported = listOf(
+            IllegalArgumentException("Unsupported record type class androidx.health.connect.client.records.X"),
+            IllegalArgumentException("Unsupported record ActivityIntensityRecord(startTime=...)"),
+            IllegalArgumentException("Unsupported aggregation type AggregateMetric(...)"),
+            // Wrapped, anywhere in the chain.
+            IllegalStateException(IllegalArgumentException("Unsupported record type X")),
+        )
+        for (error in unsupported) {
+            assertEquals(error.toString(), NOT_SUPPORTED, codeFor(error))
+        }
+        // Only IllegalArgumentExceptions, only at the start of the message, and a Health Connect error code wins.
+        assertEquals(HEALTH_ERROR, codeFor(IllegalStateException("Unsupported record X")))
+        assertEquals(INVALID_ARGUMENT, codeFor(IllegalArgumentException("Data type: Unsupported record X")))
+        assertEquals(
+            INVALID_ARGUMENT,
+            codeFor(IllegalArgumentException("Unsupported record X"), HealthConnectException.ERROR_INVALID_ARGUMENT),
+        )
+        assertEquals(INVALID_ARGUMENT, codeFor(IllegalArgumentException("Unsupported value")))
+    }
+
+    @Test
     fun healthConnectErrorCodes() {
         val expected = mapOf(
             HealthConnectException.ERROR_UNKNOWN to HEALTH_ERROR,

@@ -22,7 +22,7 @@ The plugin supports:
 - cleaning up duplicate data points via the `removeDuplicates` method.
 - removing data of a given type in a selected period of time using the `delete` method.
 
-Note that on Android 13 and lower, the phone **needs** the [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata&hl=en) app from Google Play: check with `isHealthConnectAvailable` and, if it returns `false`, offer `installHealthConnect`. From Android 14 on, Health Connect is part of Android.
+Note that on Android 13 and lower, the phone **needs** the [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata&hl=en) app from Google Play: check `getHealthConnectSdkStatus` and, if it is `sdkUnavailableProviderUpdateRequired`, offer `installHealthConnect`. From Android 14 on, Health Connect is part of Android and updates with the system, and `installHealthConnect` does nothing. `sdkUnavailable` means that Health Connect cannot be used here: Android older than 9, a work profile (on any Android version), private space (Android 15 and later), or a device without Health Connect. Hide the Health Connect integration then, rather than offering to install it.
 
 See the tables below for supported health and workout data types.
 
@@ -104,7 +104,7 @@ An example of asking for permission to read and write heart rate data is shown b
 <uses-permission android:name="android.permission.health.WRITE_HEART_RATE"/>
 ```
 
-If you plan to read or write Activity Intensity records (the `HealthDataType.ACTIVITY_INTENSITY` type), be sure to add the corresponding Health Connect permissions introduced with that data type:
+If you plan to read or write Activity Intensity records (the `HealthDataType.ACTIVITY_INTENSITY` type, which not every Health Connect has: see [Health Connect features](#health-connect-features)), be sure to add the corresponding Health Connect permissions introduced with that data type:
 
 ```xml
 <uses-permission android:name="android.permission.health.READ_ACTIVITY_INTENSITY"/>
@@ -120,11 +120,25 @@ VO2 max (`HealthDataType.VO2_MAX`) and mindfulness sessions (`HealthDataType.MIN
 <uses-permission android:name="android.permission.health.WRITE_MINDFULNESS"/>
 ```
 
-Workouts (`HealthDataType.WORKOUT`) need `READ_EXERCISE` and `WRITE_EXERCISE`, which also cover the laps of swims. The `totalDistance`, `totalEnergyBurned` and `totalSteps` of a workout are read only with `READ_DISTANCE`, `READ_TOTAL_CALORIES_BURNED` and `READ_STEPS` respectively, and are `null` without them, so an app that does not need them can leave them out. A workout written with a `totalDistance` or a `totalEnergyBurned` is saved with a distance or energy record of its own, which needs `WRITE_DISTANCE` or `WRITE_TOTAL_CALORIES_BURNED`: without it, the workout is not written (`writeWorkoutData` returns `false`).
+Workouts (`HealthDataType.WORKOUT`) need `READ_EXERCISE` and `WRITE_EXERCISE`, which also cover the laps of swims. The `totalDistance`, `totalEnergyBurned` and `totalSteps` of a workout are read only with `READ_DISTANCE`, `READ_TOTAL_CALORIES_BURNED` and `READ_STEPS` respectively (for a workout the app wrote itself, `WRITE_DISTANCE`, `WRITE_TOTAL_CALORIES_BURNED` and `WRITE_STEPS` are enough), and are `null` without them, so an app that does not need them can leave them out. A workout written with a `totalDistance` or a `totalEnergyBurned` is saved with a distance or energy record of its own, which needs `WRITE_DISTANCE` or `WRITE_TOTAL_CALORIES_BURNED`: without it, the workout is not written (`writeWorkoutData` returns `false`).
 
-By default, Health Connect restricts read data to 30 days from when permission has been granted.
+#### Health Connect features
 
-You can check and request access to historical data using the `isHealthDataHistoryAuthorized` and `requestHealthDataHistoryAuthorization` methods, respectively.
+Health Connect added some data types and permissions after its first release. On Android 14 and later they come with Android or with Google Play system updates (SDK extensions), on Android 13 and lower with updates of the Health Connect app. Check them before use: without the feature, reads and writes of the type throw a `HealthException` with `HealthErrorCode.notSupported` before Health Connect is called.
+
+| Feature                                                               | Android 14 and later                                  | Check                                                                                             |
+| --------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `SKIN_TEMPERATURE`, reading health data history and in the background | Android 15, or Android 14 with SDK extension 13       | `isSkinTemperatureAvailable`, `isHealthDataHistoryAvailable`, `isHealthDataInBackgroundAvailable` |
+| `MINDFULNESS`                                                         | Android 16, or Android 14 or 15 with SDK extension 15 | `isMindfulnessSessionAvailable`                                                                   |
+| `ACTIVITY_INTENSITY`                                                  | Android 16, or Android 14 or 15 with SDK extension 16 | `isActivityIntensityAvailable`                                                                    |
+
+On Android 13 and lower, each needs a recent Health Connect app. A base Android 15 device (SDK extension 13) therefore has skin temperature and the history and background reads, but neither mindfulness sessions nor activity intensity until a system update brings them.
+
+`hasPermissions` is no feature check. Android 15 at SDK extension 13 already defines `READ_MINDFULNESS` and `WRITE_MINDFULNESS`, so they can be granted (for example with `adb shell pm grant`) and `hasPermissions([HealthDataType.MINDFULNESS])` can return `true` while `isMindfulnessSessionAvailable()` returns `false`. The Health Connect permission dialog does not offer them there: a `requestAuthorization` call for only `MINDFULNESS` closes at once and returns `false`, and in a call with other types the dialog shows only those. The activity intensity permissions are not defined before SDK extension 16, so there `hasPermissions` returns `false` for `ACTIVITY_INTENSITY`. Check the feature with the method in the table.
+
+By default, Health Connect restricts read data to 30 days from when permission has been granted. The records the app wrote itself are not limited this way: they were read without `READ_HEALTH_DATA_HISTORY` on Android 15 and 17.
+
+You can check and request access to historical data using the `isHealthDataHistoryAuthorized` and `requestHealthDataHistoryAuthorization` methods, respectively, where `isHealthDataHistoryAvailable` is `true`.
 
 The above methods require the following permission to be declared:
 
@@ -266,9 +280,11 @@ Below is a simplified flow of how to use the plugin.
   int steps = await health.getTotalStepsInInterval(midnight, now);
 ```
 
+`true` from `requestAuthorization` does not mean that every requested permission was granted. On Android it means that at least one of the requested permissions is granted when the Health Connect permission dialog closes, also one granted before; it is `false` when none is, when the dialog cannot be shown (see [MainActivity: FlutterFragmentActivity](#mainactivity-flutterfragmentactivity)) or while another permission request waits for the dialog. The user may allow some permissions and not others, and the dialog does not offer those of a type that the device's Health Connect does not have (see [Health Connect features](#health-connect-features)). `hasPermissions` returns `true` only when every type given to it has its permission, so ask it about one type at a time to find the missing ones. On iOS, `true` only means that HealthKit handled the request (see [Authorization on iOS](#authorization-on-ios)).
+
 ### Authorization on iOS
 
-HealthKit does not tell apps whether the user granted read access, so on iOS `hasPermissions` returns `null` for read access, and `true` from `requestAuthorization` does not mean that read access was granted. `getRequestStatusForAuthorization` tells whether `requestAuthorization` with the same types and permissions would show the authorization sheet (`HealthAuthorizationRequestStatus.shouldRequest`) or not (`unnecessary`), so an app can tell a first request from one the user has already answered:
+HealthKit does not tell apps whether the user granted read access, so on iOS `hasPermissions` returns `null` for read access, and `true` from `requestAuthorization` does not mean that read access was granted: it means that HealthKit completed the request, whether it showed the authorization sheet or not (`false` means that HealthKit reported an error, or that this iOS version has none of the types). A denied read returns only the samples the app saved itself (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)). `getRequestStatusForAuthorization` tells whether `requestAuthorization` with the same types and permissions would show the authorization sheet (`HealthAuthorizationRequestStatus.shouldRequest`) or not (`unnecessary`), so an app can tell a first request from one the user has already answered:
 
 ```dart
 final status = await health.getRequestStatusForAuthorization(types, permissions: permissions);
@@ -281,6 +297,13 @@ if (status == HealthAuthorizationRequestStatus.shouldRequest) {
 It throws a `PlatformException` when HealthKit cannot determine the status, and returns `null` on Android, where `hasPermissions` tells whether the permissions were granted.
 
 HealthKit lets apps only read `ELECTROCARDIOGRAM`, `HIGH_HEART_RATE_EVENT`, `LOW_HEART_RATE_EVENT`, `IRREGULAR_HEART_RATE_EVENT`, `WALKING_HEART_RATE`, `ATRIAL_FIBRILLATION_BURDEN`, `APPLE_STAND_HOUR`, `APPLE_MOVE_TIME`, `APPLE_STAND_TIME`, `EXERCISE_TIME`, `SLEEP_WRIST_TEMPERATURE`, `WALKING_ASYMMETRY_PERCENTAGE`, `APPLE_WALKING_STEADINESS` and `APPLE_SLEEPING_BREATHING_DISTURBANCES`, and raises an exception that crashes the app when write access to one of them is requested. `requestAuthorization` and `getRequestStatusForAuthorization` therefore throw an `ArgumentError` for `WRITE` or `READ_WRITE` access to them, and so do `writeHealthData` and `writeHealthDataUUID` for them on iOS.
+
+### Reads without the read permission (iOS & Android)
+
+In `getHealthDataFromTypes` and `getHealthDataPages`, a missing read permission is not an error: the read returns only the data the app wrote itself.
+
+- **Android:** Health Connect lets an app read the records it wrote with the type's write permission. Such a read returns the app's own records, and every page of it has `HealthDataPage.readPermissionDenied` set. Without the write permission either, the type has one empty page with `readPermissionDenied`. The app's own heart rate is read in time slices of about `pageSize` samples, as with the read permission. Health Connect counts an app's own samples without the read permission only from Android 14 QPR2 on, and in the background only with `READ_HEALTH_DATA_IN_BACKGROUND`; where it refuses (and possibly in the Health Connect app on Android 13 and lower), the read goes record by record instead, which costs many more calls (see [Health Connect limits](#health-connect-limits)). The first page decides this, so a heart rate read that started in the foreground can fail with `HealthErrorCode.permissionDenied` on a later page once the app is in the background: for heart rate reads that may go on in the background, also of the app's own records, request `READ_HEALTH_DATA_IN_BACKGROUND` (see [Android: Reading Health Data in Background](#android-reading-health-data-in-background)). The app's own records are not limited to the 30 days of history that Health Connect otherwise allows without `READ_HEALTH_DATA_HISTORY`. `getHealthDataByUUID` returns the app's own record and `null` for another app's, and throws a `HealthPlatformException` with `HealthErrorCode.permissionDenied` without either permission. The totals of a workout the app wrote are read with the write permission of each total's type. `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` cover the data of every app, so without the read permission they throw `permissionDenied`, also with the write permission.
+- **iOS:** HealthKit hides a denied read: reads, `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` see only the samples the app saved (0 steps if none), and `getHealthDataByUUID` returns `null` for the samples of other apps. A type the app never requested authorization for throws a `HealthPlatformException` with `HealthErrorCode.permissionDenied` (HealthKit error code 5). On iOS 27 the user can share only a limited window of recent history; older samples then do not appear in any read. HealthKit's `getEarliestAuthorizedSampleDate(for:completion:)` tells the start of that window, which the plugin does not expose.
 
 ### Writing workouts (iOS & Android)
 
@@ -298,6 +321,7 @@ bool saved = await health.writeWorkoutData(
 );
 ```
 
+- On iOS, `totalDistance` and `totalEnergyBurned` are stored only on the workout (HealthKit's totals of the `HKWorkout`), without samples, so they do not appear in reads or intervals of `ACTIVE_ENERGY_BURNED` or the `DISTANCE_*` types. On Android they are a `DISTANCE_DELTA` and a `TOTAL_CALORIES_BURNED` record of their own (see below).
 - `metadata` is HealthKit metadata of the workout, which Android ignores: a `WorkoutMetadata` with its brand name, whether it was indoors (`indoorWorkout`), whether it was a group fitness class or coached, and its sync identifier and version (see below). HealthKit lets only Apple's apps mark a workout as an Apple Fitness+ session, so `WorkoutMetadata` has no field for it. A run written with `WorkoutMetadata(indoorWorkout: true)` reads back as `RUNNING_TREADMILL` (see [Workout Types](#workout-types)).
 - On Android, `startZoneOffset` and `endZoneOffset` set the offsets from UTC of the local time at the start and at the end of the workout, at most 18 hours either way (a larger offset throws an `ArgumentError`). Without them, the workout's records get Health Connect's default. iOS ignores them.
 - A workout type that the platform has no workout type for, such as `ARCHERY` on Android or `DANCING` on iOS, throws a `HealthException` with `HealthErrorCode.notSupported`.
@@ -318,7 +342,7 @@ await health.writeWorkoutData(
 
 On Android, the workout's distance and energy burned are records of their own, with the client record ids `<clientRecordId>:distance` and `<clientRecordId>:calories` and the workout's version, so a rewrite without a distance or energy keeps the one written before. To delete such a workout on Android, call `deleteByClientRecordId(dataTypeKey: HealthDataType.WORKOUT, clientRecordId: 'run-42')`, and the same for `DISTANCE_DELTA` with `'run-42:distance'` and for `TOTAL_CALORIES_BURNED` with `'run-42:calories'`.
 
-**Reading workouts.** Reads return a workout as a `WORKOUT` data point whose value is a `WorkoutHealthValue`, with the workout's `workoutActivityType`, `totalDistance` (in meters), `totalEnergyBurned` (in kilocalories) and, on Android, `totalSteps`. On Android these totals count only the records of the app that wrote the workout, so an activity that two apps recorded (for example a watch app and the phone) does not count twice, and a total is `null` when that app wrote no such records or the read permission for it is missing; read `DISTANCE_DELTA`, `TOTAL_CALORIES_BURNED` or `STEPS` over the workout's time to count the data of other apps too. On iOS the value also holds what HealthKit records about the workout: `totalFlightsClimbed`, `totalSwimmingStrokeCount`, `duration` (its time without pauses, in seconds), `avgMets`, `elevationAscended`, `elevationDescended`, `indoorWorkout`, `weatherTemperature`, `weatherHumidity`, `averageSpeed`, `maximumSpeed` and `workoutEvents`: its pauses, laps, segments and other `WorkoutEvent`s, each with a `WorkoutEventType`, a `start` and an `end`. These are `null` when the workout has none, and always on Android. `swimming` holds the pool length and laps of a swim on both platforms (see [Swimming workouts](#swimming-workouts)). The data point's `workoutSummary` holds the name of the workout type and the totals on both platforms, with 0 for a missing total.
+**Reading workouts.** Reads return a workout as a `WORKOUT` data point whose value is a `WorkoutHealthValue`, with the workout's `workoutActivityType`, `totalDistance` (in meters), `totalEnergyBurned` (in kilocalories) and, on Android, `totalSteps` (`null` on iOS). On iOS the totals are the workout's own, and `totalEnergyBurned` is its active energy. On Android `totalEnergyBurned` is Health Connect's total calories (active and basal), and these totals count only the records of the app that wrote the workout, so an activity that two apps recorded (for example a watch app and the phone) does not count twice. A total is `null` when that app wrote no such records or the read permission for it is missing (for a workout this app wrote, its write permission is enough); read `DISTANCE_DELTA`, `TOTAL_CALORIES_BURNED` or `STEPS` over the workout's time to count the data of other apps too. On iOS the value also holds what HealthKit records about the workout: `totalFlightsClimbed`, `totalSwimmingStrokeCount`, `duration` (its time without pauses, in seconds), `avgMets`, `elevationAscended`, `elevationDescended`, `indoorWorkout`, `weatherTemperature`, `weatherHumidity`, `averageSpeed`, `maximumSpeed` and `workoutEvents`: its pauses, laps, segments and other `WorkoutEvent`s, each with a `WorkoutEventType`, a `start` and an `end`. These are `null` when the workout has none, and always on Android. `swimming` holds the pool length and laps of a swim on both platforms (see [Swimming workouts](#swimming-workouts)). The data point's `workoutSummary` holds the name of the workout type and the totals on both platforms, with 0 for a missing total.
 
 #### Swimming workouts
 
@@ -421,7 +445,7 @@ bool saved = await health.writeSleepSession(
 
 To remove a session, call `delete` over its time range. On Android, any sleep type deletes the app's sleep sessions in that range with all their stages. On iOS, `delete` removes only the app's samples of the type given, so delete `SLEEP_IN_BED` and each type the stages are read as.
 
-Reads return a sleep data point when it starts in the range: a stage when the stage starts in it, whichever session it belongs to, and on Android a `SLEEP_SESSION` when the session starts in it. Reads of consecutive ranges therefore return each point once; to read a whole night, read up to its end. On Android, the stages of sessions that began up to 24 hours before `startTime` are found, and the stages of one session come together, so the stages of overlapping sessions (from different apps) are not in one time order.
+Reads return a sleep data point when it starts in the range: a stage when the stage starts in it, whichever session it belongs to, and on Android a `SLEEP_SESSION` when the session starts in it. Reads of consecutive ranges therefore return each point once; to read a whole night, read up to its end. On Android, the stages of sessions that began up to 24 hours before `startTime` are found, and the stages of one session come together, so the stages of overlapping sessions (from one app or several) are not in one time order.
 
 ### Writing a mindfulness session (iOS & Android)
 
@@ -438,10 +462,10 @@ if (await health.isMindfulnessSessionAvailable()) {
 }
 ```
 
-- **Android** stores a Health Connect mindfulness session with its `sessionType` (a `MindfulnessSessionType`: `UNKNOWN` by default, `MEDITATION`, `BREATHING`, `MUSIC`, `MOVEMENT` or `UNGUIDED`), `title` and `notes`. Health Connect added mindfulness sessions after its first release: `isMindfulnessSessionAvailable` tells whether the Health Connect on the device has them, and where it does not, reading or writing `MINDFULNESS` throws a `HealthException` with `HealthErrorCode.notSupported`.
+- **Android** stores a Health Connect mindfulness session with its `sessionType` (a `MindfulnessSessionType`: `UNKNOWN` by default, `MEDITATION`, `BREATHING`, `MUSIC`, `MOVEMENT` or `UNGUIDED`), `title` and `notes`. Health Connect added mindfulness sessions after its first release (see [Health Connect features](#health-connect-features)): `isMindfulnessSessionAvailable` tells whether the Health Connect on the device has them, and where it does not, reading or writing `MINDFULNESS` throws a `HealthException` with `HealthErrorCode.notSupported`.
 - **iOS** stores a HealthKit mindful session, which has no type, title or notes, so iOS ignores them. `isMindfulnessSessionAvailable` returns `true` on iOS.
 
-Reads return a session as a `MINDFULNESS` data point whose value is its minutes, without its type, title and notes. `writeHealthData` with `HealthDataType.MINDFULNESS` writes a session of type `UNKNOWN` without a title and notes. `getHealthIntervalDataFromTypes` returns the minutes of the sessions in each interval on Android; on iOS, `MINDFULNESS` has no intervals.
+Reads return a session as a `MINDFULNESS` data point whose value is its minutes, without its type, title and notes. `writeHealthData` with `HealthDataType.MINDFULNESS` writes a session of type `UNKNOWN` without a title and notes. `getHealthIntervalDataFromTypes` returns the minutes of mindfulness sessions in each interval on both platforms (see [Reading data over intervals](#reading-data-over-intervals)).
 
 ### Health Data
 
@@ -510,6 +534,62 @@ List<HealthDataPoint> latest = await health.getHealthDataFromTypes(
 
 `null` or 0 means no limit, and a negative `limit` throws an `ArgumentError`. Pages are read newest first until `limit` points are in, so records that give no point, such as sleep sessions without the stage asked for or data left out by `recordingMethodsToFilter`, cost more platform calls. On Android the pages go by the start time of the records, and a read with a `limit` does not look for sleep sessions or heart rate, speed, power, cycling cadence and skin temperature records that began before `startTime`.
 
+### Fetch single health data by UUID
+
+`getHealthDataByUUID` reads one data point by its `uuid` and `type`, for example of a point your app stored in its database:
+
+```dart
+HealthDataPoint? healthPoint = await health.getHealthDataByUUID(
+  uuid: 'E9F2EEAD-8FC5-4CE5-9FF5-7C4E535FB8B8',
+  type: HealthDataType.WORKOUT,
+);
+```
+
+It returns `null` if no record has that UUID, and on Android also if the record has no data of `type`, for example a sleep session without the stage asked for, or a workout without a route for `WORKOUT_ROUTE`. Without the read permission it returns only the app's own data (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)). Printed, a workout read on iOS looks like this:
+
+```
+data by UUID: HealthDataPoint -
+    uuid: E9F2EEAD-8FC5-4CE5-9FF5-7C4E535FB8B8,
+    value: WorkoutHealthValue - workoutActivityType: RUNNING,
+           totalEnergyBurned: null,
+           totalEnergyBurnedUnit: KILOCALORIE,
+           totalDistance: 2400,
+           totalDistanceUnit: METER
+           totalSteps: null,
+           totalStepsUnit: null,
+           totalFlightsClimbed: null,
+           totalSwimmingStrokeCount: null,
+           swimming: null,
+           avgMets: null,
+           elevationAscended: null,
+           elevationDescended: null,
+           duration: 3240.0,
+           indoorWorkout: null,
+           weatherTemperature: null,
+           weatherHumidity: null,
+           averageSpeed: null,
+           maximumSpeed: null,
+           workoutEvents: null events,
+    unit: NO_UNIT,
+    dateFrom: 2025-05-02 07:31:00.000,
+    dateTo: 2025-05-02 08:25:00.000,
+    dataType: WORKOUT,
+    platform: HealthPlatformType.appleHealth,
+    deviceId: F74938B9-C011-4DE4-AA5E-CF41B60B96E7,
+    sourceId: com.apple.Health,
+    sourceName: Health
+    recordingMethod: RecordingMethod.manual
+    workoutSummary: WorkoutSummary - workoutType: RUNNING, totalDistance: 2400, totalEnergyBurned: 0, totalSteps: 0
+    metadata: null
+    deviceModel: null
+```
+
+On Android the plugin also logs the record it found, for example of `STEPS`:
+
+```
+I/FLUTTER_HEALTH( 9161): Success: {uuid=random-uuid-string, source_id=, source_name=com.google.android.apps.fitness, recording_method=0, device_model=null, value=12, date_from=1742259061009, date_to=1742259092888}
+```
+
 ### Reading large amounts of data
 
 `getHealthDataFromTypes` returns all data points in one list. A few months of heart rate data can be millions of points, so for large time ranges use `getHealthDataPages`, which returns a `Stream<HealthDataPage>`. The stream is lazy: nothing is read until you listen to it, and the next page is read only when you are ready for it. With `await for`, memory therefore stays bounded as long as you process each page and let it go.
@@ -524,13 +604,17 @@ await for (final page in health.getHealthDataPages(
 }
 ```
 
-- Types are read one after another, each type once. Within a type, points are oldest first and without duplicates: on Android in the order of their records' start times, on iOS by end time. On Android the samples of one heart rate, speed, power, cycling cadence or skin temperature record come together, as do the stages of one sleep session, so the samples of overlapping records from different apps are not merged into one time order.
+- Types are read one after another, each type once. Within a type, points are oldest first and without duplicates: on Android in the order of their records' start times, on iOS by end time. On Android the samples of one heart rate, speed, power, cycling cadence or skin temperature record come together, as do the stages of one sleep session, so the samples of overlapping records, from one app or several, are not merged into one time order.
 - Each type ends with exactly one page whose `isLastPageForType` is true; it is empty if the type had no more data. All other pages hold at least one point.
-- A missing read permission is not an error. On Android, the type then has a single empty page with `readPermissionDenied` set.
+- A missing read permission is not an error: the type returns only the data the app wrote itself, and on Android its pages have `readPermissionDenied` set (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)).
 - An error ends the stream; pages already delivered stay valid. Cancelling the subscription stops the read: no platform call is made after it, and `cancel()` completes once the call in flight has returned (an error it reports is dropped).
 - `getHealthDataFromTypes` keeps every point in memory until it returns, which means long garbage collection pauses at millions of points. On iOS it still returns points newest first.
 
-**Page size.** `pageSize` is the target number of data points per platform call: 20,000 by default, at most 50,000. Bigger pages need fewer Health Connect calls (see [Health Connect limits](#health-connect-limits)) but more memory per call. On Android a heart rate page holds at most about `pageSize` samples, however they are spread over records; a record is never split, so one record with more samples makes a larger page. Set it for an instance with `Health(pageSize: 5000)` or `health.pageSize = 5000`, or for one read with `getHealthDataPages(..., pageSize: 5000)`.
+**Page size.** `pageSize` is the target number of data points per platform call: 20,000 by default, at most 50,000. Bigger pages need fewer Health Connect calls (see [Health Connect limits](#health-connect-limits)) but more memory per call. On Android a heart rate page holds at most about `pageSize` samples on every Android version, however they are spread over records; a record is never split, so one record with more samples makes a larger page, as do records that share a start time where a page ends among them (see below), and the first page also holds the samples in the range of the records that began before `startTime`. Set it for an instance with `Health(pageSize: 5000)` or `health.pageSize = 5000`, or for one read with `getHealthDataPages(..., pageSize: 5000)`.
+
+**Workouts on Android 14 and 15.** Workouts are read 20 per page and workout routes 5 per page (fewer if `pageSize` is smaller). Health Connect on Android 14 and 15 fails such a read when the app may read routes (`READ_EXERCISE_ROUTES`, or `WRITE_EXERCISE_ROUTE` for its own, which the plugin requests for `WORKOUT_ROUTE` writes) and a session with such a route starts in the range but outside the page. That is a Health Connect bug, fixed in Android 16; a Health Connect that a system update brought up to date may not have it. The plugin catches exactly this error and reads the page again together with the rest of the range, up to 5,000 sessions with their routes, but still replies a page of the usual size: 20 workouts or 5 routes, and any further sessions that start at the same time as its last one. The next page goes on with the first session left out, so each session is returned once, in order, and a workout page reads the totals of its own workouts only. Each such page costs one more Health Connect call (the failed call counts against the quota too). As every read again also returns the rest of the range with its routes, such pages take more time and memory the more sessions with long routes follow them; reading shorter time ranges keeps them small. With a `limit`, only the newest sessions are converted until `limit` points are in, and the read ends there. If a session with a route lies more than 5,000 sessions after the start of such a page, the read again fails too, and the read fails with a `HealthPlatformException` with `HealthErrorCode.unknown` (platform code `HEALTH_ERROR`), as before.
+
+**Records that share a start time on Android.** Health Connect returns a type's records in the order of their start times, a limited number per call: `pageSize` records, at most 5,000, for most types; 20 workouts, 5 workout routes or 500 sleep sessions; and fewer for heart rate, speed, power, cycling cadence and skin temperature, whose records can hold many samples each. Imported or synced data is often written with identical timestamps, and since Android 14 QPR2 Health Connect's page tokens lose count of records that share one start time, to the millisecond, where a page ends among them. Following the tokens then returns some of those records twice, or the same records on every further call, and on Android 15 also records without some of their samples, sleep stages or laps (measured on Android 15, 16 and 17). An Android 14 Health Connect older than QPR2 instead returns an empty page, on every further call too, where more records share the first start time of a call than it asks for. Before 14.0.0, such reads returned records twice or in part, or read again and again until the app ran out of memory or Health Connect quota. Now, where a page ends among such records or is such an empty page, the plugin reads all records of the type that start at that millisecond in one more Health Connect call, and the next page starts after them, so each record is returned once, whole and in order. The reads behind workout totals, sleep intervals, `getTotalStepsInInterval(includeManualEntry: false)` and the look-back for sleep sessions and heart rate records that began before `startTime` do the same. Each such page costs that one more call and holds more records than asked for: all those of its last start time, which for heart rate, speed, power, cycling cadence and skin temperature can be many more samples than `pageSize`. Where more than 5,000 records of a type start at the same millisecond, which one call cannot hold, the read fails with `HealthErrorCode.unknown` instead of reading the same records forever, as does a read on Android 13 and lower if the Health Connect app returns the same page token twice.
 
 **Where parsing runs.** The platform call is always made from the isolate that calls the plugin. `isolateMode` decides where the reply is decoded and parsed into `HealthDataPoint`s:
 
@@ -568,7 +652,7 @@ final count = await Isolate.run(() async {
 });
 ```
 
-**Resuming.** The plugin does not keep track of what you have read. To sync a long range robustly, read it in time windows and record your progress per finished window; after an interruption, read the unfinished window again. Every read has a fixed cost in Health Connect calls (see [Health Connect limits](#health-connect-limits)), so prefer windows of a week or a month to windows of a day. Each window returns the samples inside it: a heart rate, speed, power, cycling cadence or skin temperature record that crosses a boundary is split between the two windows (on Android, records that began more than 24 hours before a window are not looked for). Reads are at-least-once at such a boundary: a point you already stored can be returned again. A sleep data point is returned in the window it starts in, so consecutive windows return it once (on Android, the stages of sessions that began more than 24 hours before a window are not looked for). Store points with an upsert keyed by `(type, uuid, dateFrom)`; on Android, the heart rate samples of one record share the record's `uuid`.
+**Resuming.** The plugin does not keep track of what you have read. To sync a long range robustly, read it in time windows and record your progress per finished window; after an interruption, read the unfinished window again. Every read has a fixed cost in Health Connect calls (see [Health Connect limits](#health-connect-limits)), so prefer windows of a week or a month to windows of a day. Each window returns the samples inside it: a heart rate, speed, power, cycling cadence or skin temperature record that crosses a boundary is split between the two windows (on Android, records that began more than 24 hours before a window are not looked for, and with very dense heart rate data in those 24 hours only the newest records are: see [Health Connect limits](#health-connect-limits)). Reads are at-least-once at such a boundary: a point you already stored can be returned again. A sleep data point is returned in the window it starts in, so consecutive windows return it once (on Android, the stages of sessions that began more than 24 hours before a window are not looked for). Store points with an upsert keyed by `(type, uuid, dateFrom)`; on Android, the heart rate samples of one record share the record's `uuid`.
 
 ### Reading data over intervals
 
@@ -585,8 +669,14 @@ List<HealthDataPoint> hourly = await health.getHealthIntervalDataFromTypes(
 
 - Each type has one data point per interval that has data. Intervals without data are left out on both platforms.
 - The value of every point is a `NumericHealthValue` in the type's unit (see [Data Types](#data-types)): the sum for cumulative types such as steps, energy, distance and water, and the average for other types. For heart rate, that is the average beats per minute: HealthKit weights each sample by the time it covers, Health Connect takes the mean of the samples. On Android, activity intensity intervals hold the intensity minutes Health Connect computes, and mindfulness intervals the minutes of the mindfulness sessions.
-- For a sleep type, the value is the number of minutes of the interval that the type's data points cover (the points `getHealthDataFromTypes` returns for the type), with overlapping points counted once. A point that began before `startDate` counts with its part after it; on Android, sleep sessions that began up to 24 hours before `startDate` are read for this. For the time in bed, use `SLEEP_SESSION` (the whole session) on Android and `SLEEP_IN_BED` on iOS.
+- For a sleep type, the value is the number of minutes of the interval that the type's data points cover (the points `getHealthDataFromTypes` returns for the type), with overlapping points counted once. A point that began before `startDate` counts with its part after it; on Android, sleep sessions that began up to 24 hours before `startDate` are read for this. For the time in bed, use `SLEEP_SESSION` (the whole session) on Android and `SLEEP_IN_BED` on iOS. On iOS, `MINDFULNESS` intervals are computed the same way from the mindful sessions.
 - Not every type has intervals. On Android, a type without them returns no data points; on iOS, it throws a `HealthPlatformException` with `HealthErrorCode.invalidArgument`, and a type this iOS version does not have (such as `ROWING_SPEED` before iOS 18) throws one with `HealthErrorCode.notSupported`, as reads of it do. The documentation of `getHealthIntervalDataFromTypes` lists the types of each platform.
+- On both platforms, a point's `sourceName` names the apps whose data it holds, joined by `", "` (Android package names, iOS bundle identifiers), and its `sourceId` is empty. For sums and averages, these are the apps with data in that interval; on iOS they are sorted and can include devices. For the sleep types, and for `MINDFULNESS` on iOS, they are the apps whose samples cover part of the interval, each once, in the order their samples start.
+- Without the read permission, Android throws a `HealthPlatformException` with `HealthErrorCode.permissionDenied`, and iOS returns the intervals of the app's own samples (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)).
+
+**Health Connect's app priority list.** On Android, the sums of the activity types (`STEPS`, `DISTANCE_DELTA`, `ACTIVE_ENERGY_BURNED`, `TOTAL_CALORIES_BURNED` and the `ACTIVITY_INTENSITY` minutes), on recent Health Connect versions also the `MINDFULNESS` minutes, and `getTotalStepsInInterval` (unless `includeManualEntry` is `false`) are Health Connect aggregates. They count only the apps in the user's priority list for the data's category, and where the data of several apps overlap, only the app with the highest priority. Health Connect ranks only activity, sleep and wellness data this way: other intervals, such as heart rate averages, combine the data of every app, and the plugin computes sleep intervals itself from the sessions of every app. An app joins the priority list when the user grants it a write permission of the category in Health Connect's permission screen (`requestAuthorization`), or adds it to the list in Health Connect's settings. Health Connect may also add apps with data to an empty list on its own.
+
+> **Testing note:** permissions granted with `adb shell pm grant` do not add the app to the priority list, so the app's own data is missing from these sums until a write permission is granted through Health Connect's permission screen or the app is added to the list in Health Connect's settings.
 
 ### Error handling
 
@@ -610,7 +700,7 @@ try {
 | `HealthErrorCode`   | Native code                 | Meaning                                                                                                                                                                                   | `isRetryable` |
 | ------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | `rateLimitExceeded` | `RATE_LIMIT_EXCEEDED`       | The app used up its Health Connect API quota. See [Health Connect limits](#health-connect-limits).                                                                                        | yes           |
-| `permissionDenied`  | `PERMISSION_DENIED`         | The call needs a permission the app does not have, for example a background read without `READ_HEALTH_DATA_IN_BACKGROUND`, on Android `getHealthIntervalDataFromTypes` or `getTotalStepsInInterval` without the type's read permission, or, on iOS, a type the app never requested authorization for. In `getHealthDataFromTypes` and `getHealthDataPages`, a denied read permission for a type is not an error: the type returns no data. | no            |
+| `permissionDenied`  | `PERMISSION_DENIED`         | The call needs a permission the app does not have, for example a background read without `READ_HEALTH_DATA_IN_BACKGROUND`, on Android `getHealthIntervalDataFromTypes` or `getTotalStepsInInterval` without the type's read permission, or, on iOS, a type the app never requested authorization for. In `getHealthDataFromTypes` and `getHealthDataPages`, a denied read permission for a type is not an error: the type returns only the data the app wrote itself (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)). | no            |
 | `invalidArgument`   | `INVALID_ARGUMENT`          | The request is not valid, for example a preferred unit that cannot express the data type. On Android, besides each type's default unit, Health Connect values are only converted to `POUND` (weight), `CENTIMETER` and `INCH` (height), `DEGREE_FAHRENHEIT` and `KELVIN` (body and skin temperature) and `MILLIMOLES_PER_LITER` (blood glucose). | no            |
 | `notSupported`      | `NOT_SUPPORTED`             | The data type is not available on this platform or device.                                                                                                                                | no            |
 | `unavailable`       | `UNAVAILABLE`               | Health Connect cannot be reached or is busy, for example while it syncs data.                                                                                                             | yes           |
@@ -624,11 +714,11 @@ What each method does on failure:
 
 | Method                                                                   | On failure                                                                                                                                                                                       |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `getHealthDataFromTypes`                                                 | Throws `HealthPlatformException`. An empty list only means no data or, on Android, no read permission. Before 14.0.0, Android returned an empty list on any failure.                            |
+| `getHealthDataFromTypes`                                                 | Throws `HealthPlatformException`. An empty list only means no data that the app may read (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)). Before 14.0.0, Android returned an empty list on any failure. |
 | `getHealthDataPages`                                                     | The stream emits the `HealthPlatformException` (or `HealthException`) and closes.                                                                                                                |
 | `getHealthIntervalDataFromTypes`                                         | Throws `HealthPlatformException`, for example with `permissionDenied` on Android without the type's read permission.                                                                             |
-| `getHealthDataByUUID`                                                    | Returns `null` if the record is not found, and throws `HealthPlatformException` on other failures.                                                                                              |
-| `getTotalStepsInInterval`                                                | Throws `HealthPlatformException`, for example with `permissionDenied` on Android without the steps read permission (HealthKit returns 0 without it). It returns 0 when there are no steps. Before 14.0.0, Android returned `null` on any failure. |
+| `getHealthDataByUUID`                                                    | Returns `null` if the record is not found or, without the read permission, was written by another app, and throws `HealthPlatformException` on other failures, on Android with `permissionDenied` without either the read or the write permission. |
+| `getTotalStepsInInterval`                                                | Throws `HealthPlatformException`, for example with `permissionDenied` on Android without the steps read permission (HealthKit then counts only the steps the app saved). It returns 0 when there are no steps. Before 14.0.0, Android returned `null` on any failure. |
 | `getChangesToken`, `getChanges`                                          | Throw `HealthPlatformException`. They return `null` only on iOS, which has no Health Connect. If Health Connect cannot return the pending changes because they are too many, or a single change holds more than 100,000 data points, `getChanges` returns `changesTokenExpired: true`: create a new token and read the data again. A larger page of changes is read again with fewer changes. Before 14.0.0, both returned `null` on any failure. |
 | `getHealthAggregateDataFromTypes`                                        | Deprecated: throws an `UnsupportedError` without calling the platform. It has not worked on either platform since Google Fit was removed; use `getHealthIntervalDataFromTypes` instead.        |
 | `writeSleepSession`                                                      | Throws an `ArgumentError` before anything is written if `startTime` is not before `endTime`, a stage is not valid (see [Writing a night of sleep](#writing-a-night-of-sleep-ios--android)) or, on iOS, `recordingMethod` is not `manual` or `automatic`. Returns `false` if the platform does not save the session. On iOS, a session HealthKit does not accept, such as one longer than 4 days, throws a `PlatformException` with code `INVALID_ARGUMENT`. |
@@ -637,53 +727,42 @@ What each method does on failure:
 | `getRequestStatusForAuthorization`                                       | Throws a `PlatformException` when HealthKit cannot determine the status, and an `ArgumentError` for write access to a type that HealthKit lets apps only read (see [Authorization on iOS](#authorization-on-ios)). Returns `null` on Android. |
 | Other writes, deletes, permissions and the Health Connect helpers        | As before 14.0.0, most return `false` on failure. Calls that crashed the app or never returned now fail instead: on iOS, data HealthKit does not accept, such as a sample longer than its type allows, throws a `PlatformException` with code `INVALID_ARGUMENT`, and on Android, `hasPermissions` throws a `PlatformException` when Health Connect fails. On Android, `writeHealthData` and `writeHealthDataUUID` of a type Health Connect stores with a duration (such as `STEPS`) whose `endTime` equals `startTime` throw a `PlatformException` with code `INVALID_ARGUMENT`. On iOS, `writeHealthData` and `writeHealthDataUUID` throw an `ArgumentError` for a type that HealthKit lets apps only read. On Android, a permission request made while the Health Connect permission dialog is open returns `false`. |
 
-New in 14.0.0, on Android a `preferredUnits` entry that Health Connect values are not converted to throws a `HealthException` with `errorCode` `invalidArgument` before anything is read; before, the values were labelled with that unit without being converted to it. Other errors are as before: a `HealthException` (now with `errorCode` `notSupported`) when a data type is not available on the platform, which is checked for all types before anything is read; an `UnsupportedError` when Health Connect is not installed; and `ArgumentError`s for invalid arguments. A `MissingPluginException` is passed on as it is.
+New in 14.0.0, on Android a `preferredUnits` entry that Health Connect values are not converted to throws a `HealthException` with `errorCode` `invalidArgument` before anything is read; before, the values were labelled with that unit without being converted to it. Other errors are as before: a `HealthException` (now with `errorCode` `notSupported`) when a data type is not available on the platform, which is checked for all types before anything is read (on Android also the [Health Connect features](#health-connect-features) of the device); an `UnsupportedError` when Health Connect is not available, whose message now says why (see `getHealthConnectSdkStatus`); and `ArgumentError`s for invalid arguments. A `MissingPluginException` is passed on as it is.
 
 ### Health Connect limits
 
-Health Connect limits how often each app may call it. When a quota is used up, reads throw a `HealthPlatformException` with `HealthErrorCode.rateLimitExceeded` until the quota window has passed (writes return `false`). The quotas are part of the Health Connect module, so **they vary with the Health Connect version** and may change at any time. These are the values measured on two devices:
+Health Connect limits how often each app may call it. When a quota is used up, reads throw a `HealthPlatformException` with `HealthErrorCode.rateLimitExceeded` until the quota has refilled (writes return `false`). The quotas are part of the Health Connect module, so **they vary with the Health Connect version** and may change at any time. These are the values measured on three devices:
 
-| Quota per app           | Pixel 8a, Android 17               | Android 16 emulator               |
-| ----------------------- | ---------------------------------- | --------------------------------- |
-| Reads in the foreground | 80,000 per 15 min, 80,000 per 24 h | 2,000 per 15 min, 16,000 per 24 h |
-| Reads in the background | 1,000 per 15 min, 8,000 per 24 h   | 1,000 per 15 min, 8,000 per 24 h  |
-| Writes                  | 1,000 per 15 min, 8,000 per 24 h   | 1,000 per 15 min, 8,000 per 24 h  |
-| Data written            | 35 MB per 15 min                   | 35 MB per 15 min                  |
-| Size of a request       | 5 MB, and 1 MB per record          | 5 MB, and 1 MB per record         |
+| Quota per app           | Pixel 8a, Android 17               | Android 16 emulator               | Android 15 emulator (SDK extension 13) |
+| ----------------------- | ---------------------------------- | --------------------------------- | -------------------------------------- |
+| Reads in the foreground | 80,000 per 15 min, 80,000 per 24 h | 2,000 per 15 min, 16,000 per 24 h | 2,000 per 15 min, 16,000 per 24 h      |
+| Reads in the background | 1,000 per 15 min, 8,000 per 24 h   | 1,000 per 15 min, 8,000 per 24 h  | 1,000 per 15 min, 8,000 per 24 h       |
+| Writes                  | 1,000 per 15 min, 8,000 per 24 h   | 1,000 per 15 min, 8,000 per 24 h  | 1,000 per 15 min, 8,000 per 24 h       |
+| Data written            | 35 MB per 15 min                   | 35 MB per 15 min                  | 35 MB per 15 min                       |
+| Size of a request       | 5 MB, and 1 MB per record          | 5 MB, and 1 MB per record         | not checked                            |
+
+A quota refills continuously rather than all at once when its window ends. On the Android 15 emulator, 2,075 one-record reads went through in the foreground after 15 idle minutes, after which reads came back at about 2.2 per second; an emptied 15-minute quota was full again after about 15 minutes. The quotas of Android 14 and of the Health Connect app on Android 13 and lower were not measured.
 
 The plugin reads Health Connect page by page, and every page is a call. What a read costs:
 
 | Read                                                  | Health Connect calls                                                                                                                                                                                                                                                                                         |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A type with one value per record (steps, weight, ...) | 1 permission check + 1 per 5,000 records (per `pageSize` records if that is smaller)                                                                                                                                                                                                                                        |
-| Heart rate                                            | 1 permission check + 1 per page + 1 count of the samples per about 8 pages (a page holds at most `pageSize` samples, give or take one record) + 1 per record that holds more than `pageSize / 2` samples + 1–4 to look for records that began before `startTime`, if one reaches into the read. For example, a week of heart rate at one sample per second (600,000 samples) costs about 37 calls at the default `pageSize`, and 30 days at one sample per minute about 13. The same on every Android version. |
-| Speed, power, cycling cadence and skin temperature    | 1 permission check + 1 look-back read + 1 per `pageSize / 3600` records (5 at the default `pageSize`): a record may hold an hour of samples at one per second, and Health Connect has no count of these samples to plan by. |
-| Workouts                                              | Per 20 workouts: 1 permission check + 1 read + up to 3 per workout for its distance, calories and steps                                                                                                                                                                                                      |
+| Heart rate                                            | 1 permission check + 1 per page + 1 count of the samples per about 8 pages (a page holds at most `pageSize` samples, give or take one record) + 1 per record that holds more than `pageSize / 2` samples. The first page also looks for the records that began in the 24 hours before `startTime` and reach into the read, with at most 24 calls: 2 if those hours hold no heart rate, otherwise about 1 per 15,000 samples in them (fewer with a `pageSize` above 20,000), but about 1 per 4,000 records where each record holds one sample. So a day at one sample per second takes about 6 calls in records of a minute or an hour, but all 24 as one record per sample (86,400 records did on the Android 15 emulator). Where those hours hold more, for example such a day of one-sample records from two apps, or more than about 250,000 to 350,000 samples in longer records (depending on the records and the Android version), only the newest records are looked at, and a warning is logged. Every Android version makes this look-back, except that a read of only the app's own heart rate (write permission without read permission) that fits in one page makes it, on Android 16 and later, only when Health Connect's count of its samples shows such a record. Each page makes at most 40 calls, whatever the data and `pageSize`. For example, with no heart rate in the day before `startTime`, a week of heart rate at one sample per second (600,000 samples) costs about 40 calls at the default `pageSize`, and 30 days at one sample per minute (a record per sample) about 15. |
+| Speed, power, cycling cadence and skin temperature    | 1 permission check + 1 look-back read + 1 per `pageSize / 3600` records (5 at the default `pageSize`): a record may hold an hour of samples at one per second, and Health Connect has no count of these samples to plan by. A page whose records hold more than twice `pageSize` samples is read again with the records that fit in `pageSize`: 1 more call each time, at most 3 per page. |
+| A series type read with only its write permission (the app's own records) | As with the read permission: heart rate in time slices, the other series types as for speed. Where Health Connect refuses to count the app's own heart rate samples (an Android 14 Health Connect older than QPR2, a read started in the background without `READ_HEALTH_DATA_IN_BACKGROUND`, possibly the Health Connect app on Android 13 and lower), heart rate costs 1 refused count + as for speed. A week of heart rate written once a minute with `writeHealthData` (one record per sample) then costs about 2,000 calls, the whole 15-minute foreground quota of Android 15 and 16, against about 10 in time slices. |
+| Workouts                                              | Per 20 workouts: 1 permission check + 1 read + up to 3 per workout for its distance, calories and steps (1 more per further 5,000 records of a total). Workout routes: 1 permission check + 1 per 5 sessions. On Android 14 and 15, both cost 1 more for each page that Health Connect fails to read for a route outside it (see [Workouts on Android 14 and 15](#reading-large-amounts-of-data)) |
 | Sleep types                                           | 1 permission check + 1 per 500 sleep sessions (per `pageSize` sessions if that is smaller); a stage type (not `SLEEP_SESSION`) also reads the sessions that began in the 24 hours before `startTime`: 1 more per 500 sessions                                                                                |
 | `getHealthDataFromTypes` with a `limit`               | 1 permission check + 1 per page, reading the pages newest first until `limit` points are in (the first page asks for at most `limit` records), without the reads of records that began before `startTime`; workouts also read their totals, as above. The latest weight (`limit: 1`) costs 1 permission check + 1 read. |
 | `getTotalStepsInInterval(includeManualEntry: false)`  | 1 per 5,000 step records                                                                                                                                                                                                                                                                                     |
 | `getHealthIntervalDataFromTypes`                      | 1 per type. A sleep type reads the sleep sessions from 24 hours before `startDate` to `endDate` instead: 1 per 500 sessions                                                                                                                                                                                  |
 | `getChanges`                                          | 1 per call, and 1 more each time a page of changes that holds more than 100,000 data points is read again with fewer changes                                                                                                                                                                                 |
 
+On Android 14 and later, every read whose page ends among records that share one start time costs 1 more call, also in the totals and look-backs above, and beyond the caps of 24 and 40 calls for heart rate (see [Records that share a start time on Android](#reading-large-amounts-of-data)).
+
 Checking the granted permissions did not count against the read quota on the Android 16 emulator.
 
 To stay within the quotas, read large ranges in the foreground (the background quota is much smaller), prefer a few long reads over many short ones, keep the default `pageSize` or raise it for heart rate data, and call `getChanges` instead of re-reading data you already have.
-
-### Fetch single health data by UUID
-
-In order to retrieve a single record, it is required to provide `String uuid` and `HealthDataType type`.
-
-Please see example below:
-```dart
-HealthDataPoint? healthPoint = await health.getHealthDataByUUID(
-  uuid: 'random-uuid-string',
-  type: HealthDataType.STEPS,
-);
-```
-```
-I/FLUTTER_HEALTH( 9161): Success: {uuid=random-uuid-string, source_id=, source_name=com.google.android.apps.fitness, recording_method=0, device_model=null, value=12, date_from=1742259061009, date_to=1742259092888}
-```
-> Assuming that the `uuid` and `type` are coming from your database.
 
 ### Filtering by recording method
 
@@ -705,7 +784,9 @@ List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
 
 **Note that for this to work, the information needs to have been provided when writing the data to Health Connect or Apple Health**. For example, steps added manually through the Apple Health App will set `HKWasUserEntered` to true (corresponding to `RecordingMethod.manual`), however it seems that adding steps manually to Google Fit does not write the data with the `RecordingMethod.manual` in the metadata, instead it shows up as `RecordingMethod.unknown`. This is an open issue, and as such filtering manual entries when querying step count on Android with `getTotalStepsInInterval(includeManualEntry: false)` does not necessarily filter out manual steps.
 
-**NOTE**: On iOS, only `RecordingMethod.manual` can be filtered out: HealthKit marks only the samples the user entered (`HKMetadataKeyWasUserEntered`), so the other recording methods in `recordingMethodsToFilter` are ignored. In `getHealthIntervalDataFromTypes` on Android, only the sleep types are filtered: the intervals of the other types are Health Connect aggregates, which include data of every recording method. A filter that cannot be applied prints a warning to the console.
+On Android, `getTotalStepsInInterval(includeManualEntry: false)` adds up the step records of every app that start in the interval, as Health Connect's aggregates cannot filter by recording method. Unlike the default, Health Connect's step aggregate, it does not leave out apps outside Health Connect's app priority list (see [Reading data over intervals](#reading-data-over-intervals)), counts the overlapping data of several apps twice, and does not split records that cross the interval's bounds.
+
+**NOTE**: On iOS, only `RecordingMethod.manual` can be filtered out: HealthKit marks only the samples the user entered (`HKMetadataKeyWasUserEntered`). Most other samples read as `RecordingMethod.automatic`, but `RecordingMethod.automatic` or another method in `recordingMethodsToFilter` does not leave them out. In `getHealthIntervalDataFromTypes` on Android, only the sleep types are filtered: the intervals of the other types are Health Connect aggregates, which include data of every recording method. `getHealthIntervalDataFromTypes` prints a warning to the console for a filter it cannot apply; the other reads ignore it silently.
 
 ### Filtering out duplicates
 
@@ -734,65 +815,16 @@ points = points.where((p) => seen.add((p.type, p.uuid, p.dateFrom))).toList();
 ```
 
 ### Android: Reading Health Data in Background
-Currently health connect allows apps to read health data in the background. In order to achieve this add the following permission to your `AndroidManifest.XML`:
-```XML
-<!-- For reading data in background -->
+
+Health Connect lets an app read health data in the background with the permission `READ_HEALTH_DATA_IN_BACKGROUND`. Declare it in `AndroidManifest.xml`:
+
+```xml
 <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"/>
 ```
-Furthermore, the plugin now exposes three new functions to help you check and request access to read data in the background:
-1. `isHealthDataInBackgroundAvailable()`: Checks if the Health Data in Background feature is available
-2. `isHealthDataInBackgroundAuthorized()`: Checks the current status of the Health Data in Background permission
-3. `requestHealthDataInBackgroundAuthorization()`: Requests the Health Data in Background permission.
 
-### Fetch single health data by UUID
+Where `isHealthDataInBackgroundAvailable()` is `true` (see [Health Connect features](#health-connect-features)), `isHealthDataInBackgroundAuthorized()` tells whether it is granted and `requestHealthDataInBackgroundAuthorization()` asks the user for it. On iOS, which has no such permission, `isHealthDataInBackgroundAvailable()` returns `false` and the other two `true`.
 
-In order to retrieve a single record, it is required to provide `String uuid` and `HealthDataType type`.
-
-Please see example below:
-```dart
-HealthDataPoint? healthPoint = await health.getHealthDataByUUID(
-  uuid: 'E9F2EEAD-8FC5-4CE5-9FF5-7C4E535FB8B8',
-  type: HealthDataType.WORKOUT,
-);
-```
-```
-data by UUID: HealthDataPoint -
-    uuid: E9F2EEAD-8FC5-4CE5-9FF5-7C4E535FB8B8,
-    value: WorkoutHealthValue - workoutActivityType: RUNNING,
-           totalEnergyBurned: null,
-           totalEnergyBurnedUnit: KILOCALORIE,
-           totalDistance: 2400,
-           totalDistanceUnit: METER
-           totalSteps: null,
-           totalStepsUnit: null,
-           totalFlightsClimbed: null,
-           totalSwimmingStrokeCount: null,
-           swimming: null,
-           avgMets: null,
-           elevationAscended: null,
-           elevationDescended: null,
-           duration: 3240.0,
-           indoorWorkout: null,
-           weatherTemperature: null,
-           weatherHumidity: null,
-           averageSpeed: null,
-           maximumSpeed: null,
-           workoutEvents: null events,
-    unit: NO_UNIT,
-    dateFrom: 2025-05-02 07:31:00.000,
-    dateTo: 2025-05-02 08:25:00.000,
-    dataType: WORKOUT,
-    platform: HealthPlatformType.appleHealth,
-    deviceId: F74938B9-C011-4DE4-AA5E-CF41B60B96E7,
-    sourceId: com.apple.Health,
-    sourceName: Health
-    recordingMethod: RecordingMethod.manual
-    workoutSummary: WorkoutSummary - workoutType: RUNNING, totalDistance: 2400, totalEnergyBurned: 0, totalSteps: 0
-    metadata: null
-    deviceModel: null
-```
-> Assuming that the `uuid` and `type` are coming from your database.
-
+Without it, Health Connect lets an app in the background read only the records it wrote itself, and no aggregates. A read of a type with its read permission (which asks for the data of every app), `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` therefore fail there with a `HealthPlatformException` with `HealthErrorCode.permissionDenied`, also on a later page of a read that started in the foreground. A read with only the write permission returns the app's own records in the background too, but a heart rate read that started in the foreground can fail on a later page, as its pages are planned from Health Connect's counts of its samples (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)).
 
 ## Data Types
 
@@ -801,7 +833,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | **Data Type**                         | **Unit**                                | **Apple Health** | **Google Health Connect** | **Comments**                                                                                                                       |
 | ------------------------------------- | --------------------------------------- | ---------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | ACTIVE_ENERGY_BURNED                  | KILOCALORIE                             | yes              | yes                       |                                                                                                                                    |
-| ACTIVITY_INTENSITY                    | MINUTE                                  |                  | yes                       | Write with `writeActivityIntensity`, not `writeHealthData`; reads give an `ActivityIntensityHealthValue`                           |
+| ACTIVITY_INTENSITY                    | MINUTE                                  |                  | yes                       | Only where `isActivityIntensityAvailable()` is true (see [Health Connect features](#health-connect-features)); write with `writeActivityIntensity`, not `writeHealthData`; reads give an `ActivityIntensityHealthValue` |
 | ATRIAL_FIBRILLATION_BURDEN            | PERCENT                                 | yes              |                           | READ Only - iOS 16+                                                                                                                |
 | BASAL_BODY_TEMPERATURE                | DEGREE_CELSIUS                          | yes              |                           |                                                                                                                                    |
 | BASAL_ENERGY_BURNED                   | KILOCALORIE                             | yes              | yes                       | on Android, Health Connect's basal metabolic rate (`BasalMetabolicRateRecord`) in kilocalories per day                             |
@@ -849,7 +881,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | PUSH_COUNT                            | COUNT                                   | yes              |                           | Wheelchair pushes                                                                                                                  |
 | SWIMMING_STROKE_COUNT                 | COUNT                                   | yes              |                           |                                                                                                                                    |
 | DISTANCE_DELTA                        | METER                                   |                  | yes                       |                                                                                                                                    |
-| MINDFULNESS                           | MINUTE                                  | yes              | yes                       | On Android only where `isMindfulnessSessionAvailable()` is true; see [Writing a mindfulness session](#writing-a-mindfulness-session-ios--android) |
+| MINDFULNESS                           | MINUTE                                  | yes              | yes                       | On Android only where `isMindfulnessSessionAvailable()` is true (see [Health Connect features](#health-connect-features)); see [Writing a mindfulness session](#writing-a-mindfulness-session-ios--android) |
 | SLEEP_ASLEEP                          | MINUTE                                  | yes              | yes                       | on iOS, this refers to asleepUnspecified, and on Android this refers to STAGE_TYPE_SLEEPING (asleep but specific stage is unknown) |
 | SLEEP_AWAKE                           | MINUTE                                  | yes              | yes                       |                                                                                                                                    |
 | SLEEP_AWAKE_IN_BED                    | MINUTE                                  |                  | yes                       |                                                                                                                                    |
@@ -889,7 +921,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | WATER_TEMPERATURE                     | DEGREE_CELSIUS                          | yes              |                           | iOS 16+; related to/requires Apple Watch Ultra's Underwater Diving Workout                                                         |
 | SLEEP_WRIST_TEMPERATURE               | DEGREE_CELSIUS                          | yes              |                           | READ Only - iOS 16+ (`appleSleepingWristTemperature`)                                                                              |
 | APPLE_SLEEPING_BREATHING_DISTURBANCES | COUNT                                   | yes              |                           | READ Only - iOS 18+                                                                                                                |
-| SKIN_TEMPERATURE                      | DEGREE_CELSIUS                          |                  | yes                       | Must check health connect for availability                                                                                         |
+| SKIN_TEMPERATURE                      | DEGREE_CELSIUS                          |                  | yes                       | Only where `isSkinTemperatureAvailable()` is true (see [Health Connect features](#health-connect-features))                         |
 | UNDERWATER_DEPTH                      | METER                                   | yes              |                           | iOS 16+; related to/requires Apple Watch Ultra's Underwater Diving Workout                                                         |
 | UV_INDEX                              | COUNT                                   | yes              |                           | iOS 16+                                                                                                                            |
 | TIME_IN_DAYLIGHT                      | MINUTE                                  | yes              |                           | iOS 17+                                                                                                                            |

@@ -33,8 +33,18 @@ mixin HealthConnectStatus on _HealthSupport {
   Future<bool> isHealthConnectAvailable() async =>
       !Platform.isAndroid ? true : (await getHealthConnectSdkStatus() == HealthConnectSdkStatus.sdkAvailable);
 
-  /// Prompt the user to install the Google Health Connect app via the
-  /// installed store (most likely Play Store).
+  /// Prompt the user to install or update the Google Health Connect app via
+  /// the installed store (most likely Play Store), which is needed on Android
+  /// 13 and lower when [getHealthConnectSdkStatus] is
+  /// [HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired].
+  ///
+  /// From Android 14 on, Health Connect is part of Android and updates with
+  /// the system, so there is nothing to install: this does nothing (and the
+  /// status is never [HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired]
+  /// there). [HealthConnectSdkStatus.sdkUnavailable] means that Health Connect
+  /// cannot be used on this device or in this profile (Android older than 9,
+  /// a work profile or Android 15 private space, or no Health Connect): hide
+  /// the Health Connect integration rather than offering to install it.
   ///
   /// Android only. On iOS this does nothing.
   Future<void> installHealthConnect() async {

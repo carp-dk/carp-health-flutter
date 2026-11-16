@@ -4,6 +4,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import cachet.plugins.health.reading.OWN_PACKAGE
 import cachet.plugins.health.reading.WorkoutConverter
 import cachet.plugins.health.reading.WorkoutRoutes
 import java.time.Instant
@@ -76,7 +77,8 @@ class WorkoutTypeNamesTest {
 
         // Workouts, also read by UUID. Without permission to read the totals, nothing else is read.
         val workouts = mutableListOf<Map<String, Any?>>()
-        val converter = WorkoutConverter(fakeOf<HealthConnectClient> { error("Unexpected call of $it") }, HealthRecordingFilter())
+        val client = fakeOf<HealthConnectClient> { error("Unexpected call of $it") }
+        val converter = WorkoutConverter(client, HealthRecordingFilter(), OWN_PACKAGE)
         runBlocking { converter.handleWorkoutData(sessions, emptyList(), workouts, emptySet()) }
         assertEquals(expected, workouts.map { it["workoutActivityType"] })
 

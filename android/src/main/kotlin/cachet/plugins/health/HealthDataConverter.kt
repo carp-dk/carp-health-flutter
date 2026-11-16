@@ -143,6 +143,8 @@ class HealthDataConverter {
                     ChronoUnit.MINUTES.between(record.startTime, record.endTime)
                 )
             )
+            // connect-client 1.2.0-alpha06 reads a null title or notes as the string "null" (the
+            // framework returns null), which is why neither is returned.
             is MindfulnessSessionRecord -> listOf(createIntervalRecord(
                 metadata, record.startTime, record.endTime, ChronoUnit.MINUTES.between(record.startTime, record.endTime)
             ))

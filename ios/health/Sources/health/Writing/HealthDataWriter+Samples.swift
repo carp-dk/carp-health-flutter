@@ -104,9 +104,9 @@ extension HealthDataWriter {
             throw PluginError(message: "Invalid Arguments")
         }
 
-        // Handle mindfulness sessions specifically
+        // Handle mindfulness sessions specifically, replying their UUID as for other types
         if type == HealthConstants.MINDFULNESS {
-            try writeMindfulness(call: call, result: result)
+            try writeMindfulnessUUID(call: call, result: result)
             return
         }
 
@@ -169,11 +169,28 @@ extension HealthDataWriter {
             })
     }
 
-    /// Writes mindfulness session data
+    /// Writes mindfulness session data and replies whether it was saved, as writeData does
     /// - Parameters:
     ///   - call: Flutter method call
     ///   - result: Flutter result callback
     func writeMindfulness(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        try saveMindfulness(call: call, replyingUUID: false, result: result)
+    }
+
+    /// Writes mindfulness session data and replies its UUID on success, otherwise an empty
+    /// string, as writeDataUUID does
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    func writeMindfulnessUUID(call: FlutterMethodCall, result: @escaping FlutterResult) throws {
+        try saveMindfulness(call: call, replyingUUID: true, result: result)
+    }
+
+    /// Saves a mindful session from the call's start to its end time and replies its UUID (an empty
+    /// string if it was not saved) if [replyingUUID], otherwise whether it was saved.
+    private func saveMindfulness(
+        call: FlutterMethodCall, replyingUUID: Bool, result: @escaping FlutterResult
+    ) throws {
         guard let arguments = call.arguments as? NSDictionary,
               let startTime = (arguments["startTime"] as? NSNumber),
               let endTime = (arguments["endTime"] as? NSNumber),
@@ -211,7 +228,11 @@ extension HealthDataWriter {
                     print("Error Saving Mindfulness Session: \(err.localizedDescription)")
                 }
                 DispatchQueue.main.async {
-                    result(success)
+                    if replyingUUID {
+                        result(success ? sample.uuid.uuidString : "")
+                    } else {
+                        result(success)
+                    }
                 }
             }
         )

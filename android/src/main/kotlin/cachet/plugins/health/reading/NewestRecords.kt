@@ -2,6 +2,7 @@ package cachet.plugins.health.reading
 
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import cachet.plugins.health.optionalLong
@@ -30,19 +31,28 @@ internal fun MethodCall.recordLimit(): Int? =
  * The [limit] records of [recordType] that start last in [startTime, endTime), newest first, for the
  * deprecated getData, which replies in one go. Unlike the first page of a read without a limit, it
  * does not look for records that began before [startTime] ([SeriesLookback], [SleepLookback]), and
- * it reads heart rate by record, not in time slices ([HeartRatePageReader]).
+ * it reads heart rate by record, not in time slices ([HeartRatePageReader]). Only the records of
+ * [origins] are read, if any are given ([ReadAccess.origins]). Exercise sessions that Android 14 or 15
+ * ([sdkInt]) reads with the rest of the range ([readRecordsPage]) are cut to [limit].
  */
 internal suspend fun HealthConnectClient.readNewestRecords(
     recordType: KClass<out Record>,
     startTime: Instant,
     endTime: Instant,
     limit: Int,
+    origins: Set<DataOrigin>,
+    sdkInt: Int,
 ): List<Record> =
-    readRecords(
+    readRecordsPage(
         ReadRecordsRequest(
             recordType = recordType,
             timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+            dataOriginFilter = origins,
             ascendingOrder = false,
             pageSize = limit,
-        )
-    ).records
+        ),
+        sdkInt,
+        // One page, whose token is not followed: its records of the start time it ends inside need not be whole.
+        // An empty one (android14-release, where more records start at the newest time than 'limit') reads them all.
+        wholeTies = false,
+    ).records.take(limit)

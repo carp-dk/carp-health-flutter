@@ -1,8 +1,10 @@
 package cachet.plugins.health.reading
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SliceTokenTest {
@@ -35,6 +37,24 @@ class SliceTokenTest {
         val token = SliceToken(100, 5, plan = listOf(200, 300))
         assertEquals("v2:100:5:200,300:-:-:-", token.encode())
         assertEquals(listOf(200L, 300L), SliceToken.decode(token.encode())!!.plan)
+    }
+
+    @Test
+    fun aReadOfTheAppsOwnRecordsHasSliceTokensOfItsOwn() {
+        val token = SliceToken(100, 5, 200, 3, "a:b", listOf(300), ownOnly = true)
+        assertEquals("o2:100:5:300:200:3:a:b", token.encode())
+        val decoded = SliceToken.decode(token.encode())!!
+        assertTrue(decoded.ownOnly)
+        assertEquals(200L, decoded.sliceEnd)
+        assertEquals("a:b", decoded.healthConnectToken)
+        assertEquals("o2:100:5:-:-:-:-", SliceToken(100, 5, ownOnly = true).encode())
+        // The tokens of other reads are as before.
+        assertFalse(SliceToken.decode("v2:100:5:-:-:-:-")!!.ownOnly)
+        assertEquals("v2:100:5:-:-:-:-", SliceToken(100, 5).encode())
+        val malformed = listOf("o2", "o2:1:2:-:-:-", "O2:1:2:-:-:-:-", "o1:1:2:-:-:-:-", "o2:1:0:-:-:-:-", "o1:1:2")
+        for (token in malformed) {
+            assertThrows("'$token'", IllegalArgumentException::class.java) { SliceToken.decode(token) }
+        }
     }
 
     @Test

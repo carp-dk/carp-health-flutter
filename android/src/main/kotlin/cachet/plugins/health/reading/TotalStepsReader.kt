@@ -85,7 +85,7 @@ internal class TotalStepsReader(
         var totalSteps = 0L
         var pageToken: String? = null
         do {
-            val response = healthConnectClient.readRecords(
+            val page = healthConnectClient.readPastTies(
                 ReadRecordsRequest(
                     recordType = StepsRecord::class,
                     timeRangeFilter = TimeRangeFilter.between(start, end),
@@ -94,9 +94,9 @@ internal class TotalStepsReader(
                 )
             )
             totalSteps += recordingFilter
-                .filterRecordsByRecordingMethods(recordingMethodsToFilter, response.records)
+                .filterRecordsByRecordingMethods(recordingMethodsToFilter, page.records)
                 .sumOf { (it as StepsRecord).count }
-            pageToken = response.pageToken?.takeIf { it.isNotEmpty() }
+            pageToken = page.pageToken
         } while (pageToken != null)
 
         Log.i(

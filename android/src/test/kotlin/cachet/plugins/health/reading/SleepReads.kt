@@ -60,7 +60,7 @@ internal class SleepReads {
         val reader = DataPageReader(
             client, CoroutineScope(job), HealthDataConverter(), converter(client),
             WorkoutRoutes(HealthRecordingFilter()), SeriesLookback(client), SleepLookback(client),
-            HeartRatePageReader(FakeHeartRateSource(emptyList()), 37),
+            HeartRatePageReader(FakeHeartRateSource(emptyList()), 37), OWN_PACKAGE,
         )
         val pages = mutableListOf<List<ReadPoint>>()
         val tokens = mutableListOf<String?>()
@@ -98,7 +98,7 @@ internal class SleepReads {
     ): List<ReadPoint> {
         val reader = LegacyDataReader(
             client, CoroutineScope(job), converter(client), WorkoutRoutes(HealthRecordingFilter()),
-            SeriesLookback(client), SleepLookback(client),
+            SeriesLookback(client), SleepLookback(client), OWN_PACKAGE,
         )
         val arguments = hashMapOf(
             "dataTypeKey" to dataType, "startTime" to from.toEpochMilli(), "endTime" to to.toEpochMilli(),
@@ -111,7 +111,8 @@ internal class SleepReads {
         val dataConverter = HealthDataConverter()
         val recordingFilter = HealthRecordingFilter()
         val sleep = SleepConverter(dataConverter, recordingFilter)
-        return RecordConverter(dataConverter, recordingFilter, WorkoutConverter(client, recordingFilter), sleep)
+        val workouts = WorkoutConverter(client, recordingFilter, OWN_PACKAGE)
+        return RecordConverter(dataConverter, recordingFilter, workouts, sleep)
     }
 
     // The one reply that [send] gets, once the reader's coroutine is done.

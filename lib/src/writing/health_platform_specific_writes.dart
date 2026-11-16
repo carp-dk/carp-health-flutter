@@ -106,7 +106,13 @@ mixin HealthPlatformSpecificWrites on _HealthSupport {
 
   /// Writes an `ActivityIntensityRecord` to Google Health Connect.
   ///
-  /// This API is Android only.
+  /// This API is Android only: throws an [UnsupportedError] on iOS.
+  ///
+  /// Throws an [ArgumentError], before anything is sent, if [startTime] is
+  /// after [endTime] or [intensityLevel] is [ActivityIntensityLevel.unknown].
+  /// Throws an [UnsupportedError] if Health Connect is not available, and a
+  /// [HealthException] with [HealthErrorCode.notSupported] if it has no
+  /// activity intensity records (see [Health.isActivityIntensityAvailable]).
   Future<bool> writeActivityIntensity({
     required ActivityIntensityLevel intensityLevel,
     required DateTime startTime,
@@ -115,11 +121,10 @@ mixin HealthPlatformSpecificWrites on _HealthSupport {
     String? clientRecordId,
     double? clientRecordVersion,
   }) async {
-    if (!Platform.isAndroid) {
+    // Only Health Connect has activity intensity.
+    if (!isDataTypeAvailable(HealthDataType.ACTIVITY_INTENSITY)) {
       throw UnsupportedError('writeActivityIntensity is only available on Android');
     }
-
-    await _checkIfHealthConnectAvailableOnAndroid();
 
     endTime ??= startTime;
     if (startTime.isAfter(endTime)) {
@@ -130,6 +135,9 @@ mixin HealthPlatformSpecificWrites on _HealthSupport {
     if (intensityValue == -1) {
       throw ArgumentError('Unknown activity intensity level provided.');
     }
+
+    await _checkIfHealthConnectAvailableOnAndroid();
+    await _checkIfDataTypeAvailableOnDevice(HealthDataType.ACTIVITY_INTENSITY);
 
     Map<String, dynamic> args = {
       'intensityType': intensityValue,

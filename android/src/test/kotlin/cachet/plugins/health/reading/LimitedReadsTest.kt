@@ -228,11 +228,11 @@ class LimitedReadsTest {
         val dataConverter = HealthDataConverter()
         val filter = HealthRecordingFilter()
         val converter = RecordConverter(
-            dataConverter, filter, WorkoutConverter(client, filter), SleepConverter(dataConverter, filter),
+            dataConverter, filter, WorkoutConverter(client, filter, OWN_PACKAGE), SleepConverter(dataConverter, filter),
         )
         val reader = DataPageReader(
             client, CoroutineScope(job), dataConverter, converter, WorkoutRoutes(filter), SeriesLookback(client),
-            SleepLookback(client), heartRate,
+            SleepLookback(client), heartRate, OWN_PACKAGE,
         )
         val arguments = hashMapOf(
             "dataTypeKey" to dataType, "startTime" to time("09:00").toEpochMilli(),

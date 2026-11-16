@@ -55,10 +55,12 @@ enum HealthErrorCode {
 
   /// The app does not have the permission the call needs, for example a read
   /// in the background without the Health Connect background read permission,
-  /// or, on Android, [Health.getTotalStepsInInterval] without the steps read
-  /// permission. In [Health.getHealthDataFromTypes] and
-  /// [Health.getHealthDataPages], a missing read permission for a data type is
-  /// not an error: the type simply returns no data.
+  /// on Android [Health.getHealthIntervalDataFromTypes] or
+  /// [Health.getTotalStepsInInterval] without the type's read permission, or,
+  /// on iOS, a type the app never requested authorization for. In
+  /// [Health.getHealthDataFromTypes] and [Health.getHealthDataPages], a missing
+  /// read permission for a data type is not an error: the type returns only
+  /// the data this app wrote itself (see [HealthDataPage.readPermissionDenied]).
   permissionDenied('PERMISSION_DENIED'),
 
   /// The request was not valid, for example a unit that cannot express the

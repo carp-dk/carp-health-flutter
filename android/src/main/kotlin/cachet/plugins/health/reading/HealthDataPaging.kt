@@ -1,5 +1,6 @@
 package cachet.plugins.health.reading
 
+import android.os.Build
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
@@ -15,38 +16,46 @@ import java.time.Instant
 import kotlin.reflect.KClass
 
 /**
- * The page token of getDataPage: "v1:<records>:<hcToken>". [records] is the number of Health
- * Connect records to request for the next page, and [healthConnectToken] is the token Health
- * Connect returned, passed through untouched (a decimal long on Android 14 and later). Dart sends
- * it back verbatim, so it is only valid with the same other arguments. It is never persisted.
+ * The page token of getDataPage: "v1:<records>:<hcToken>", or "o1:<records>:<hcToken>" for a read
+ * of this app's own records only ([ownOnly]). [records] is the number of Health Connect records to
+ * request for the next page, and [healthConnectToken] is the token Health Connect returned (a decimal
+ * long on Android 14 and later), or a position at offset 0 of the plugin's own: past the records of
+ * the start time a page ended inside ([readPastTies]), or past a cut page ([RecordsPage.cut]). Dart
+ * sends it back verbatim, so it is only valid with the same other arguments. It is never persisted.
  */
-internal class DataPageToken(val records: Int, val healthConnectToken: String) {
+internal class DataPageToken(val records: Int, val healthConnectToken: String, val ownOnly: Boolean = false) {
     init {
         require(records in 1..HC_MAX_RECORDS) { "Page token record count $records is not in 1..$HC_MAX_RECORDS" }
         require(healthConnectToken.isNotEmpty()) { "Page token has no Health Connect token" }
     }
 
-    fun encode(): String = "$VERSION:$records:$healthConnectToken"
+    fun encode(): String = "${if (ownOnly) OWN_VERSION else VERSION}:$records:$healthConnectToken"
 
     companion object {
         private const val VERSION = "v1"
+        private const val OWN_VERSION = "o1"
 
         /** The token [encode] made, or null for the first page. Throws IllegalArgumentException if malformed. */
         fun decode(token: String?): DataPageToken? {
             if (token == null) return null
             val parts = token.split(":", limit = 3)
-            require(parts.size == 3 && parts[0] == VERSION) { "Malformed page token '$token'" }
+            val ownOnly = parts[0] == OWN_VERSION
+            require(parts.size == 3 && (parts[0] == VERSION || ownOnly)) { "Malformed page token '$token'" }
             val records = requireNotNull(parts[1].toIntOrNull()) { "Malformed page token '$token'" }
-            return DataPageToken(records, parts[2])
+            return DataPageToken(records, parts[2], ownOnly)
         }
+
+        /** Whether [token] is one of a read of this app's own records ([ownOnly]), as [encode] makes it. */
+        fun isOwnOnly(token: String?): Boolean = token?.startsWith("$OWN_VERSION:") == true
     }
 }
 
 /**
  * Sizes the pages of speed, power, cycling cadence and skin temperature, whose records hold any
  * number of samples and have no sample count to plan by (heart rate is read in counted time
- * slices, [SlicePlanner]). A request asks for at most [cap] records, so even records of an hour
- * of 1 Hz samples keep a page near pageSize samples.
+ * slices, [HeartRatePageReader], unless [DataPageRequest.isSliced] is false: then it is sized here too).
+ * A request asks for at most [cap] records, so even records of an hour of 1 Hz samples keep a page
+ * near pageSize samples, and a page that holds far more is read again with fewer ([shrinkForOversize]).
  *
  * Health Connect page tokens are positional on Android 14 and later, so the number of records may
  * change along a token chain (verified on Android 17). That is not verified for the Health Connect
@@ -58,24 +67,31 @@ internal object SeriesPageSizer {
 
     /** Records for the first page, before anything is known about their size. */
     fun firstRecords(sdkInt: Int, pageSize: Int): Int =
-        if (sdkInt >= 34) SERIES_FIRST_RECORDS else minOf(cap(pageSize), SERIES_FIXED_RECORDS_PRE34)
+        if (sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) SERIES_FIRST_RECORDS
+        else minOf(cap(pageSize), SERIES_FIXED_RECORDS_PRE34)
 
     /**
      * Records for the page after one of [current] records, the largest of which held
      * [maxSamplesPerRecord] samples. Grows at most fourfold and never past [cap].
      */
-    fun nextRecords(current: Int, pageSize: Int, maxSamplesPerRecord: Int, sdkInt: Int): Int =
-        if (sdkInt < 34) current
-        else minOf(4 * current, pageSize / maxOf(1, maxSamplesPerRecord), cap(pageSize)).coerceAtLeast(1)
+    fun nextRecords(current: Int, pageSize: Int, maxSamplesPerRecord: Int, sdkInt: Int): Int {
+        if (sdkInt < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return current
+        return minOf(4 * current, pageSize / maxOf(1, maxSamplesPerRecord), cap(pageSize)).coerceAtLeast(1)
+    }
 
     /**
-     * Fewer records to read the same position with when a page of [current] records holds more than
-     * [OVERSIZE_FACTOR] times [pageSize] samples ([rawSamples]), or null to keep the page.
+     * Fewer records to read the same position with when the records a page returned, of [samples]
+     * samples each in order, hold more than [OVERSIZE_FACTOR] times [pageSize] samples; or null to
+     * keep the page. It is the leading records that fit in [pageSize] samples, at least one: sized
+     * from what came back, not from what was asked for, which may be far more than came back.
      */
-    fun shrinkForOversize(current: Int, pageSize: Int, rawSamples: Int): Int? =
-        if (current > 1 && rawSamples > OVERSIZE_FACTOR * pageSize)
-            maxOf(1, (current.toLong() * pageSize / rawSamples).toInt())
-        else null
+    fun shrinkForOversize(samples: List<Int>, pageSize: Int): Int? {
+        if (samples.size <= 1 || samples.sumOf { it.toLong() } <= OVERSIZE_FACTOR.toLong() * pageSize) return null
+        var total = 0L
+        var fit = 0
+        while (fit < samples.size && total + samples[fit] <= pageSize) total += samples[fit++]
+        return maxOf(1, fit)
+    }
 }
 
 /**
@@ -107,6 +123,18 @@ internal class DataPageRequest(
      * Dart side has 'limit' points; it reads heart rate by record, and does not look back.
      */
     val limit: Int? = null,
+    /**
+     * Whether only the records this app wrote are read, as it may write the type but not read it
+     * ([ReadAccess.OWN]): every Health Connect call of the read asks for them only, and every page
+     * is flagged 'permissionDenied'. The first page decides it from the grants ([ownRecordsOnly]),
+     * later pages take it from [token] or [sliceToken].
+     */
+    val ownOnly: Boolean = token?.ownOnly == true || sliceToken?.ownOnly == true,
+    /**
+     * Whether heart rate without a limit is read by record rather than in slices: a read of the app's
+     * own records whose samples Health Connect does not count ([readByRecord]). Later pages carry a [token].
+     */
+    private val byRecord: Boolean = token != null,
 ) {
     /** The Health Connect record type to read. */
     val recordType: KClass<out Record> = recordTypeFor(dataType)
@@ -115,10 +143,12 @@ internal class DataPageRequest(
     val isSeries: Boolean get() = recordType in HealthDataConverter.seriesTypes
 
     /**
-     * Whether this is a heart rate read without a limit, which goes slice by slice ([SlicePlanner],
-     * [sliceToken]). With a limit, heart rate is paged by record like the other series.
+     * Whether this is a heart rate read without a limit, which goes slice by slice ([HeartRatePageReader],
+     * [sliceToken]), also of this app's own records only ([ownOnly]): their samples are counted with a
+     * data origin filter of this app. With a limit, or [byRecord], heart rate is paged by record like
+     * the other series.
      */
-    val isSliced: Boolean get() = isSlicedRead(dataType, limit)
+    val isSliced: Boolean get() = isSlicedRead(dataType, limit) && !byRecord
 
     /** Whether this is a read of a sleep stage type, whose first page also looks back ([SleepLookback]). */
     val isSleepStage: Boolean get() = isSleepStageType(dataType)
@@ -135,6 +165,28 @@ internal class DataPageRequest(
      * limit starts at the other end of the range.
      */
     val looksBack: Boolean get() = isFirstPage && limit == null
+
+    /** This first page as a read of this app's own records only ([ownOnly]). */
+    fun ownRecordsOnly(): DataPageRequest {
+        check(isFirstPage) { "Only the first page decides whether a read is of the app's own records" }
+        return DataPageRequest(
+            dataType, dataUnit, startTime, endTime, recordingMethodsToFilter, pageSize, token, sliceToken, limit,
+            ownOnly = true,
+        )
+    }
+
+    /**
+     * This first page of a read of the app's own heart rate, read by record with the page tokens of
+     * the other types: Health Connect counts the samples of an app without read permission only since
+     * Android 14 QPR2 (and only in the foreground), and refuses it before with SecurityException.
+     */
+    fun readByRecord(): DataPageRequest {
+        check(isFirstPage && ownOnly) { "Only the first page of a read of the app's own records turns to records" }
+        return DataPageRequest(
+            dataType, dataUnit, startTime, endTime, recordingMethodsToFilter, pageSize, token, sliceToken, limit,
+            ownOnly = true, byRecord = true,
+        )
+    }
 
     /**
      * Records to request for the first page, at most [limit]; later pages take the number from
@@ -163,7 +215,9 @@ internal class DataPageRequest(
             val dataType = call.requireString("dataTypeKey")
             val pageToken = call.optionalString("pageToken")
             val limit = call.recordLimit()
-            val sliced = isSlicedRead(dataType, limit)
+            // A heart rate read of the app's own records whose samples Health Connect did not count goes on by
+            // record, with the tokens of the other types ([readByRecord]).
+            val sliced = isSlicedRead(dataType, limit) && !DataPageToken.isOwnOnly(pageToken)
             return DataPageRequest(
                 dataType = dataType,
                 dataUnit = call.optionalString("dataUnitKey"),

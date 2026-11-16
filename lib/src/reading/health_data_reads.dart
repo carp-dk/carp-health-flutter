@@ -13,9 +13,11 @@ mixin HealthDataReads on _HealthPageReads {
   ///
   /// Assuming above data are coming from your database.
   ///
-  /// On Android, without the read permission for [type] this returns the
-  /// app's own records, which Health Connect lets an app read, and `null` for
-  /// those of other apps.
+  /// Without the read permission for [type], this returns the app's own
+  /// records and `null` for those of other apps: on Android with the type's
+  /// write permission (without it, it throws a [HealthPlatformException] with
+  /// [HealthErrorCode.permissionDenied]), on iOS because HealthKit hides the
+  /// samples of other apps.
   ///
   /// Throws a [HealthPlatformException] if Health Connect or HealthKit reports
   /// an error other than the record not being found, with
@@ -63,7 +65,8 @@ mixin HealthDataReads on _HealthPageReads {
   /// sessions without the stage asked for, workouts without a route or data
   /// left out by [recordingMethodsToFilter], cost more platform calls. On
   /// Android the pages go by the start time of Health Connect's records, at
-  /// most [limit] records each, and the read does not look for sleep sessions
+  /// most [limit] records each (and any further ones that start at the same
+  /// time as a page's last), and the read does not look for sleep sessions
   /// and records of a series, such as heart rate, that began before
   /// [startTime].
   ///
@@ -86,7 +89,8 @@ mixin HealthDataReads on _HealthPageReads {
   /// and a [HealthPlatformException] if Health Connect or HealthKit reports an
   /// error, for example [HealthErrorCode.rateLimitExceeded]. The call then
   /// fails as a whole, so do not record sync progress for any of [types].
-  /// A missing read permission is not an error: that type simply returns no data.
+  /// A missing read permission is not an error: that type returns only the
+  /// data this app wrote itself (see [HealthDataPage.readPermissionDenied]).
   Future<List<HealthDataPoint>> getHealthDataFromTypes({
     required List<HealthDataType> types,
     Map<HealthDataType, HealthDataUnit>? preferredUnits,
@@ -156,12 +160,17 @@ mixin HealthDataReads on _HealthPageReads {
   ///
   /// Use this instead of [getHealthDataFromTypes] for large ranges, for example
   /// a first sync of months of heart rate data. Each page holds about
-  /// [pageSize] points (default [Health.pageSize]). The stream is lazy: nothing
-  /// is read until it is listened to, and the next page is read only when the
-  /// listener is ready for it (with `await for`, once the loop body has
-  /// finished). Memory therefore stays bounded if you process each page and
-  /// let it go. [Health.isolateMode] and [Health.pageSize] are read when the
-  /// stream is listened to.
+  /// [pageSize] points (default [Health.pageSize]). On Android a heart rate
+  /// record is never split, so a longer one makes a larger page, and the first
+  /// page also holds the samples in the range of the records that began up to
+  /// 24 hours before [startTime]. On Android 14 and later, records of a type
+  /// that share one start time are not split over pages either: a page that
+  /// ends among them holds all of them. The stream is lazy: nothing is read until it
+  /// is listened to, and the next page is read only when the listener is ready
+  /// for it (with `await for`, once the loop body has finished). Memory
+  /// therefore stays bounded if you process each page and let it go.
+  /// [Health.isolateMode] and [Health.pageSize] are read when the stream is
+  /// listened to.
   ///
   /// Types are read one after another, in the order of [types], each type
   /// once. Within a type, points are oldest first: in the order of their
@@ -190,11 +199,17 @@ mixin HealthDataReads on _HealthPageReads {
   /// stops the read: no platform call is made after the one in flight, whose
   /// page or error is dropped, and the future that `cancel` returns completes
   /// once that call has returned. A missing read permission is not an error:
-  /// that type returns one empty page, with
-  /// [HealthDataPage.readPermissionDenied] set on Android.
+  /// that type returns only the data this app wrote itself, on Android with
+  /// [HealthDataPage.readPermissionDenied] set.
   ///
   /// On Android every page costs Health Connect calls, which count against its
-  /// API quota. See the README section "Health Connect limits".
+  /// API quota. See the README section "Health Connect limits". In the
+  /// background, without the background read permission
+  /// ([Health.requestHealthDataInBackgroundAuthorization]), Health Connect lets
+  /// the app read only its own records: other reads end with
+  /// [HealthErrorCode.permissionDenied] there, also those that started in the
+  /// foreground, and so can a heart rate read of the app's own records
+  /// ([HealthDataPage.readPermissionDenied]) that started in the foreground.
   Stream<HealthDataPage> getHealthDataPages({
     required List<HealthDataType> types,
     required DateTime startTime,

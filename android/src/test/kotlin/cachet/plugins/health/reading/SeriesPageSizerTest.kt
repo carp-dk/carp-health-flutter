@@ -1,9 +1,14 @@
 package cachet.plugins.health.reading
 
+import androidx.health.connect.client.records.SpeedRecord
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.units.Velocity
+import cachet.plugins.health.HealthConstants
 import cachet.plugins.health.reading.SeriesPageSizer.cap
 import cachet.plugins.health.reading.SeriesPageSizer.firstRecords
 import cachet.plugins.health.reading.SeriesPageSizer.nextRecords
 import cachet.plugins.health.reading.SeriesPageSizer.shrinkForOversize
+import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -58,19 +63,47 @@ class SeriesPageSizerTest {
     }
 
     @Test
-    fun shrinksAPageWithMoreThanTwicePageSizeSamples() {
-        // 500 records grown on sparse data, then 6000 samples each: read 3 records (18,000 samples) instead.
-        assertEquals(3, shrinkForOversize(500, 20000, 3_000_000))
-        assertEquals(249, shrinkForOversize(500, 20000, 40_001))
-        assertEquals(2499, shrinkForOversize(5000, 50000, 100_001))
+    fun shrinksAPageWithMoreThanTwicePageSizeSamplesToTheRecordsThatFit() {
+        // 500 records of 6000 samples each: read the 3 that fit (18,000 samples) instead.
+        assertEquals(3, shrinkForOversize(List(500) { 6000 }, 20000))
+        // As on the Pixel 8a: 4096 records asked for, 735 came back, 635 of a sample and 100 of 6000. The
+        // re-read was sized from the 4096 (136 records, all of a sample), now from what came back.
+        assertEquals(635 + 3, shrinkForOversize(List(635) { 1 } + List(100) { 6000 }, 20000))
+        assertEquals(20000, shrinkForOversize(List(40_001) { 1 }, 20000))
         // Never below one record.
-        assertEquals(1, shrinkForOversize(2, 1, 1_000_000))
+        assertEquals(1, shrinkForOversize(listOf(1_000_000, 1), 1))
+        assertEquals(1, shrinkForOversize(listOf(50_000, 1, 1), 20000))
     }
 
     @Test
     fun keepsAPageWithUpToTwicePageSizeSamplesOrOneRecord() {
-        assertNull(shrinkForOversize(500, 20000, 40_000))
-        assertNull(shrinkForOversize(500, 20000, 0))
-        assertNull(shrinkForOversize(1, 20000, 1_000_000))
+        assertNull(shrinkForOversize(List(500) { 80 }, 20000))
+        assertNull(shrinkForOversize(List(500) { 0 }, 20000))
+        assertNull(shrinkForOversize(emptyList(), 20000))
+        assertNull(shrinkForOversize(listOf(1_000_000), 20000))
+    }
+
+    @Test
+    fun aSeriesPageIsReadAgainWithTheRecordsThatCameBackAndFit() {
+        // 8 speed records of a sample, then one of 120,000: the third request asks for 13 records and gets 4.
+        val start = Instant.parse("2026-11-01T00:00:00Z")
+        val singles = (0 until 8).map { speed(start.plusSeconds(60L * it), 1, "s$it") }
+        val records = singles + speed(start.plusSeconds(3600), 120_000, "long")
+        val requests = mutableListOf<ReadRecordsRequest<*>>()
+        val client = fakeRecordStore(SpeedRecord::class, records, requests)
+        val replies = PageReplies(client).read(HealthConstants.SPEED, start, start.plusSeconds(86400 * 2), 50000)
+
+        assertEquals(listOf(1, 4, 3, 120_000), replies.map { it.points.size })
+        // Read again with the 3 that fit, not with 13 * 50000 / 120,003 = 5 records, which hold 4 again.
+        val reads = requests.filter { it.timeRangeFilter.startTime == start }
+        assertEquals(listOf(1, 4, 13, 3, 12), reads.map { it.pageSize })
+    }
+
+    /** A speed record from [from] with [samples] samples, one a second. */
+    private fun speed(from: Instant, samples: Int, id: String): SpeedRecord {
+        val speed = Velocity.metersPerSecond(2.0)
+        val series = (0 until samples).map { SpeedRecord.Sample(from.plusSeconds(it.toLong()), speed) }
+        val to = from.plusSeconds(maxOf(60L, samples.toLong()))
+        return SpeedRecord(from, null, to, null, series, writtenBy(OWN_PACKAGE, id))
     }
 }

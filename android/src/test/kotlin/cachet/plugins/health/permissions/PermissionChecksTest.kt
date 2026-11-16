@@ -49,6 +49,7 @@ class PermissionChecksTest {
             "isHealthDataInBackgroundAvailable" to features::isHealthDataInBackgroundAvailable,
             "isSkinTemperatureAvailable" to features::isSkinTemperatureAvailable,
             "isMindfulnessSessionAvailable" to features::isMindfulnessSessionAvailable,
+            "isActivityIntensityAvailable" to features::isActivityIntensityAvailable,
         )
     }
 
@@ -129,6 +130,7 @@ class PermissionChecksTest {
                 "isHealthDataInBackgroundAvailable" to true,
                 "isSkinTemperatureAvailable" to true,
                 "isMindfulnessSessionAvailable" to true,
+                "isActivityIntensityAvailable" to true,
             ),
             replies,
         )
@@ -144,6 +146,7 @@ class PermissionChecksTest {
             "isHealthDataInBackgroundAvailable" to HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND,
             "isSkinTemperatureAvailable" to HealthConnectFeatures.FEATURE_SKIN_TEMPERATURE,
             "isMindfulnessSessionAvailable" to HealthConnectFeatures.FEATURE_MINDFULNESS_SESSION,
+            "isActivityIntensityAvailable" to HealthConnectFeatures.FEATURE_ACTIVITY_INTENSITY,
         )
         for ((name, available) in featureOf) {
             // A Health Connect that has this feature only.

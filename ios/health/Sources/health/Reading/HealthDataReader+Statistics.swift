@@ -18,14 +18,12 @@ extension HealthDataReader {
             HealthConstants.RecordingMethod.manual.rawValue
         )
 
-        // Sleep types are categories, not quantities: their value is the time their samples cover.
-        // (The headache types are categories of another type, without interval data.)
-        if dataTypesDict[dataTypeKey]?.identifier == HKCategoryTypeIdentifier.sleepAnalysis.rawValue,
-           let values = CategoryValues(dataTypeKey)
-        {
-            getSleepIntervalData(
+        // Sleep types and mindful sessions are categories, not quantities: their value is the time
+        // their samples cover. (The headache types are categories too, without interval data.)
+        if let category = coverageCategory(for: dataTypeKey) {
+            getCategoryIntervalData(
                 dataTypeKey: dataTypeKey, unitKey: dataUnitKey, start: startDate.intValue, end: endDate.intValue,
-                interval: intervalInSecond, includeManualEntry: includeManualEntry, values: values, result: result
+                interval: intervalInSecond, includeManualEntry: includeManualEntry, category: category, result: result
             )
             return
         }
@@ -80,7 +78,7 @@ extension HealthDataReader {
             )
         }
 
-        let statisticsOptions = statisticsOption(for: dataTypeKey)
+        let statisticsOptions = intervalQueryOptions(for: dataTypeKey)
 
         let query = HKStatisticsCollectionQuery(
             quantityType: quantityType,
@@ -124,56 +122,24 @@ extension HealthDataReader {
             collection.enumerateStatistics(from: dateFrom, to: dateTo) {
                 [weak self] statisticData, _ in
                 guard let self else { return }
-                if let dataUnitKey, let unit = unitDict[dataUnitKey] {
-                    var value: Double? = nil
-                    switch statisticsOptions {
-                    case .cumulativeSum:
-                        value = statisticData.sumQuantity()?.doubleValue(for: unit)
-                    case .discreteAverage:
-                        value = statisticData.averageQuantity()?.doubleValue(for: unit)
-                    case .discreteMin:
-                        value = statisticData.minimumQuantity()?.doubleValue(for: unit)
-                    case .discreteMax:
-                        value = statisticData.maximumQuantity()?.doubleValue(for: unit)
-                    default:
-                        value = statisticData.sumQuantity()?.doubleValue(for: unit)
-                    }
-                    if let value {
-                        let dict = [
-                            "value": value,
-                            "date_from": Int(statisticData.startDate.timeIntervalSince1970 * 1000),
-                            "date_to": Int(statisticData.endDate.timeIntervalSince1970 * 1000),
-                            "source_id": statisticData.sources?.first?.bundleIdentifier ?? "",
-                            "source_name": statisticData.sources?.first?.name ?? "",
-                        ]
-                        dictionaries.append(dict)
-                    }
+                if let dataUnitKey, let unit = unitDict[dataUnitKey],
+                   let value = HealthDataReader.intervalValue(of: statisticData, options: statisticsOptions, unit: unit)
+                {
+                    // The sources are set as the query separates them by source, all of them in
+                    // each interval: those without samples in it are left out.
+                    let sources = HealthDataReader.sourcesWithSamples(of: statisticData, options: statisticsOptions)
+                    var dict: [String: Any] = HealthDataReader.intervalSource(
+                        bundleIdentifiers: sources.map(\.bundleIdentifier)
+                    )
+                    dict["value"] = value
+                    dict["date_from"] = Int(statisticData.startDate.timeIntervalSince1970 * 1000)
+                    dict["date_to"] = Int(statisticData.endDate.timeIntervalSince1970 * 1000)
+                    dictionaries.append(dict)
                 }
             }
             result(dictionaries)
         }
         healthStore.execute(query)
-    }
-
-    /// Helper to select correct HKStatisticsOptions for a given dataTypeKey: the sum of a
-    /// cumulative type such as STEPS, the average of a discrete one such as HEART_RATE.
-    func statisticsOption(for dataTypeKey: String) -> HKStatisticsOptions {
-        guard let quantityType = dataQuantityTypesDict[dataTypeKey] else {
-            // Default to cumulativeSum for backward compatibility
-            return .cumulativeSum
-        }
-        // HealthKit raises an exception (crashing the app) for an option the style does not support,
-        // e.g. cumulativeSum for HEART_RATE, which is discreteTemporallyWeighted.
-        switch quantityType.aggregationStyle {
-        case .cumulative:
-            return .cumulativeSum
-        case .discreteArithmetic, .discreteTemporallyWeighted, .discreteEquivalentContinuousLevel:
-            // Other options are .discreteAverage, .discreteMin, or .discreteMax
-            return .discreteAverage
-        @unknown default:
-            // Every style added after .cumulative is a discrete one.
-            return .discreteAverage
-        }
     }
 
     /// Gets total steps in interval

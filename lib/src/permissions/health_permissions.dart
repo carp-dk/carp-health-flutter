@@ -29,6 +29,12 @@ mixin HealthPermissions on _HealthSupport {
   ///   with a READ or READ_WRITE access.
   ///
   ///  * On Android, this function returns true or false, depending on whether the specified access right has been granted.
+  ///    It returns true only if every type has it, so check one type per call to tell which are missing.
+  ///
+  ///  * On Android, a granted permission does not mean that the device's Health Connect has the type: on Android 15
+  ///    at SDK extension 13, the [HealthDataType.MINDFULNESS] permissions can be granted (for example with
+  ///    `adb shell pm grant`) while [Health.isMindfulnessSessionAvailable] is false. Check the type's feature with the
+  ///    `is...Available` methods instead.
   Future<bool?> hasPermissions(List<HealthDataType> types, {List<HealthDataAccess>? permissions}) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (permissions != null && permissions.length != types.length) {
@@ -54,7 +60,23 @@ mixin HealthPermissions on _HealthSupport {
 
   /// Requests permissions to access health data [types].
   ///
-  /// Returns true if successful, false otherwise.
+  /// Returns:
+  ///
+  ///  * on Android, true if at least one of the requested permissions is
+  ///    granted when the Health Connect permission dialog closes (also one
+  ///    granted before), and false if none is, if the dialog cannot be shown
+  ///    (for example when the app's activity is not a
+  ///    `FlutterFragmentActivity`), or while another permission request waits
+  ///    for the dialog. True does not mean that every requested permission
+  ///    was granted: the user may allow only some, and the dialog does not
+  ///    offer the permissions of a type the device's Health Connect does not
+  ///    have (on Android 15 at SDK extension 13, a request for only
+  ///    [HealthDataType.MINDFULNESS] returns false at once). Check
+  ///    [hasPermissions] for each type that matters;
+  ///  * on iOS, true if HealthKit completed the request, whether or not it
+  ///    showed the authorization sheet and whatever the user chose, and false
+  ///    if HealthKit reported an error or this iOS version has none of
+  ///    [types].
   ///
   /// Parameters:
   ///
@@ -69,9 +91,8 @@ mixin HealthPermissions on _HealthSupport {
   ///  * This method may block if permissions are already granted. Hence, check
   ///    [hasPermissions] before calling this method.
   ///  * As Apple HealthKit will not disclose if READ access has been granted for
-  ///    a data type due to privacy concern, this method will return **true if
-  ///    the window asking for permission was showed to the user without errors**
-  ///    if it is called on iOS with a READ or READ_WRITE access.
+  ///    a data type due to privacy concern, true on iOS does not mean that read
+  ///    access was granted (see [getRequestStatusForAuthorization]).
   ///
   /// Throws an [ArgumentError] for WRITE or READ_WRITE access to a type that
   /// HealthKit lets apps only read, where HealthKit would crash the app:

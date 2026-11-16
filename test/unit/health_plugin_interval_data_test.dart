@@ -92,6 +92,9 @@ void main() {
     });
 
     test('of activity intensity is the intensity minutes Health Connect computed', () async {
+      // A Health Connect that has activity intensity (see Health.isActivityIntensityAvailable).
+      ctx.channel.when('getHealthConnectSdkStatus', HealthConnectSdkStatus.sdkAvailable.nativeValue);
+      ctx.channel.when('isActivityIntensityAvailable', true);
       ctx.channel.when('getIntervalData', _intervals([12.5]));
 
       final points = await readHours([HealthDataType.ACTIVITY_INTENSITY], health: HealthOnAndroid());

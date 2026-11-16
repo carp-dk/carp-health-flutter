@@ -7,6 +7,7 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import cachet.plugins.health.reading.OWN_PACKAGE
 import cachet.plugins.health.reading.WorkoutConverter
 import cachet.plugins.health.reading.WorkoutRoutes
 import java.time.Instant
@@ -58,7 +59,7 @@ class DeviceModelTest {
         // Without permission to read the totals, nothing else is read.
         val workouts = mutableListOf<Map<String, Any?>>()
         val client = fakeOf<HealthConnectClient> { error("Unexpected call of $it") }
-        val converter = WorkoutConverter(client, HealthRecordingFilter())
+        val converter = WorkoutConverter(client, HealthRecordingFilter(), OWN_PACKAGE)
         runBlocking { converter.handleWorkoutData(sessions, emptyList(), workouts, emptySet()) }
         assertEquals(models, workouts.map { it.deviceModel() })
         assertEquals(models, changedDataPoints(sessions).map { it.deviceModel() })

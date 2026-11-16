@@ -15,37 +15,16 @@ class HeartRatePageReaderTest {
     private val day = 24 * hour
     private val t0 = 1_456_790_400_000L // 2016-03-01, the window of the device tests
 
-    private class Read(val pages: List<HeartRatePage>, val source: FakeHeartRateSource) {
-        val records get() = pages.flatMap { it.records }
-        val maxRequest get() = source.reads.maxOf { it.samples }
-    }
+    private fun readAll(
+        records: List<HeartRateRecord>,
+        start: Long,
+        end: Long,
+        budget: Int,
+        sdkInt: Int = 37,
+        ownOnly: Boolean = false,
+    ) = readHeartRate(FakeHeartRateSource(records), start, end, budget, sdkInt, ownOnly)
 
-    /** Reads [start, end) page by page, sending each token back in its encoded form, as Dart does. */
-    private fun readAll(records: List<HeartRateRecord>, start: Long, end: Long, budget: Int, sdkInt: Int = 37): Read {
-        val source = FakeHeartRateSource(records)
-        val reader = HeartRatePageReader(source, sdkInt)
-        val pages = mutableListOf<HeartRatePage>()
-        var token: String? = null
-        do {
-            val page = runBlocking {
-                reader.readPage(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end), budget, SliceToken.decode(token))
-            }
-            pages += page
-            val next = page.next?.encode()
-            assertTrue("The token did not move: $next", next == null || next != token)
-            token = next
-        } while (token != null && pages.size < 10_000)
-        return Read(pages, source)
-    }
-
-    /** (record id, sample time) of each sample in [start, end) that [records] hold, as the converter keeps them. */
-    private fun samples(records: List<HeartRateRecord>, start: Long, end: Long) =
-        records.flatMap { record ->
-            record.samples.map { it.time.toEpochMilli() }.filter { it in start until end }.map { record.metadata.id to it }
-        }.sortedWith(compareBy({ it.second }, { it.first }))
-
-    private fun assertEverySampleOnce(records: List<HeartRateRecord>, read: Read, start: Long, end: Long) =
-        assertEquals(samples(records, start, end), samples(read.records, start, end))
+    private fun samples(records: List<HeartRateRecord>, start: Long, end: Long) = samplesOf(records, start, end)
 
     /** [count] single-sample records, one every [every] ms. */
     private fun singles(id: String, from: Long, count: Int, every: Long) = List(count) { heartRate("$id$it", from + it * every, 1) }
@@ -85,9 +64,10 @@ class HeartRatePageReaderTest {
     }
 
     @Test
-    fun skipsTheLookBackWhenNoRecordReachesIntoTheRead() {
+    fun skipsTheLookBackWhenNoRecordOfTheAppReachesIntoTheRead() {
+        // Only in a read of the app's own records, which Health Connect counts by their samples' time.
         val records = singles("spot", t0, 3 * 24 * 60, minute)
-        val read = readAll(records, t0 + day, t0 + 2 * day, budget = 20000)
+        val read = readAll(records, t0 + day, t0 + 2 * day, budget = 20000, ownOnly = true)
         assertEverySampleOnce(records, read, t0 + day, t0 + 2 * day)
         assertTrue(read.source.reads.none { it.from < t0 + day })
         assertEquals(2, read.source.calls)
@@ -104,9 +84,11 @@ class HeartRatePageReaderTest {
 
     @Test
     fun readsADenseTieGroupInSmallRequests() {
-        // 50 records of ten minutes that all start together: one slice, too large to read at once.
+        // 50 records of ten minutes that all start together: one slice, too large to read at once. On the Health
+        // Connect APK (before Android 14), whose tokens are no positions; from Android 14 on such records come whole
+        // ([readPastTies]), and fewer records would bring them all again (HeartRateChainTest).
         val records = List(50) { heartRate("tie$it", t0, 600) }
-        val read = readAll(records, t0, t0 + hour, budget = 2000)
+        val read = readAll(records, t0, t0 + hour, budget = 2000, sdkInt = 33)
         assertEverySampleOnce(records, read, t0, t0 + hour)
         // Only the first request, made before anything was known, held more than twice the page size,
         // and it was read again with fewer records before anything was converted.
@@ -170,6 +152,76 @@ class HeartRatePageReaderTest {
     }
 
     @Test
+    fun aChainGoesOnAtFullSpeedAfterALongRecord() {
+        // Review finding: a day at 1 Hz in one record, then 330 records of one sample in the same slice. The
+        // slice is read again with the long record alone, and then went on at one record a request.
+        val records = listOf(heartRate("day", t0 + hour, 86_400)) + singles("spot", t0 + hour + minute, 330, minute)
+        val read = readAll(records, t0, t0 + 2 * day, budget = 20000)
+        assertEverySampleOnce(records, read, t0, t0 + 2 * day)
+        assertTrue("${read.pages.size} pages", read.pages.size <= 10)
+    }
+
+    @Test
+    fun aRecordThatBeganBeforeTheReadCostsFewCallsAtAnyPageSize() {
+        // Six hours at 1 Hz in one record, read from three hours in: once 10,809 calls at pageSize 3.
+        val records = listOf(heartRate("six", t0, 6 * 3600))
+        for (budget in listOf(3, 10, 20000)) {
+            val read = readAll(records, t0 + 3 * hour, t0 + day, budget)
+            assertEverySampleOnce(records, read, t0 + 3 * hour, t0 + day)
+            assertTrue("$budget: ${read.source.calls} calls", read.source.calls <= 8)
+        }
+    }
+
+    @Test
+    fun aReadOfManyPagesLooksBackOverTheWholeDayWithinItsCalls() {
+        // A record every two seconds: the first slice takes four requests and is a part of the read, so no
+        // count rules out records that began earlier. The first page reads all 43,200 records of the day before.
+        val records = singles("spot", t0, 64_800, 2000)
+        val night = heartRate("night", t0 + day - hour, 120, stepMs = minute)
+        for (data in listOf(records, records + night)) {
+            val read = readAll(data, t0 + day, t0 + 2 * day, budget = 20000)
+            assertEverySampleOnce(data, read, t0 + day, t0 + 2 * day)
+            assertTrue(read.source.reads.any { it.from == t0 })
+        }
+    }
+
+    @Test
+    fun findsARecordThatBeganEarlierWithNoSampleInTheFirstSlice() {
+        // Review finding: a watch's record from an hour before the read, off the wrist for its first six hours
+        // there, and six hours of this app at 1 Hz. The first slice's count held only the app's samples, so the
+        // watch's twelve samples after the gap were lost on Android 16 and later.
+        val start = t0 + day
+        val times = List(6) { start - hour + it * 10 * minute } + List(12) { start + 6 * hour + it * 10 * minute }
+        val watch = HeartRateRecord(
+            Instant.ofEpochMilli(start - hour), null, Instant.ofEpochMilli(start + 8 * hour), null,
+            times.map { HeartRateRecord.Sample(Instant.ofEpochMilli(it), 70) },
+            writtenBy("com.example.watch", "watch"),
+        )
+        val records = listOf(watch, heartRate("app", start, 6 * 3600))
+        for (budget in listOf(300, 20000)) {
+            val read = readAll(records, start, start + day, budget)
+            assertEverySampleOnce(records, read, start, start + day)
+            assertEquals(12, samples(read.records, start, start + day).count { it.first == "watch" })
+        }
+    }
+
+    @Test
+    fun findsARecordThatBeganEarlierBehindAFirstSliceOfManyRequests() {
+        // Review finding: two apps' six-hour workouts at 1 Hz from a few seconds in, and a band's record from
+        // 53 minutes before with a sample every ten minutes. The first slice is read a record a request, and a
+        // count up to the start of the last record read covered five seconds: the band's samples were lost.
+        val start = t0 + day
+        val records = listOf(
+            heartRate("band", start - 53 * minute, 12, stepMs = 10 * minute, packageName = "com.example.band"),
+            heartRate("watch", start + 5_000, 6 * 3600, packageName = "com.example.watch"),
+            heartRate("phone", start + 8_000, 6 * 3600, packageName = "com.example.phone"),
+        )
+        val read = readAll(records, start, start + day, budget = 20000)
+        assertEverySampleOnce(records, read, start, start + day)
+        assertEquals(6, samples(read.records, start, start + day).count { it.first == "band" })
+    }
+
+    @Test
     fun aTokenPastTheEndIsAnInvalidArgument() {
         val reader = HeartRatePageReader(FakeHeartRateSource(emptyList()), 37)
         val error = assertThrows(IllegalArgumentException::class.java) {
@@ -179,9 +231,14 @@ class HeartRatePageReaderTest {
     }
 
     @Test
-    fun anEmptyReadCostsTwoCalls() {
-        val read = readAll(singles("spot", t0, 10, minute), t0 + day, t0 + 2 * day, budget = 20000)
-        assertEquals(listOf<HeartRateRecord>(), read.records)
-        assertEquals(2, read.source.calls)
+    fun anEmptyReadCostsTwoCallsAndTheLookBack() {
+        val records = singles("spot", t0, 10, minute)
+        val own = readAll(records, t0 + day, t0 + 2 * day, budget = 20000, ownOnly = true)
+        assertEquals(listOf<HeartRateRecord>(), own.records)
+        assertEquals(2, own.source.calls)
+        // A read of every app's records also reads the day before: a histogram and the records there.
+        val all = readAll(records, t0 + day, t0 + 2 * day, budget = 20000)
+        assertEquals(listOf<HeartRateRecord>(), all.records)
+        assertEquals(4, all.source.calls)
     }
 }

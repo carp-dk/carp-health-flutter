@@ -59,6 +59,10 @@ object HealthErrors {
             chain.any { it.message?.contains(TOO_MANY_RECORDS) == true } -> DATA_TOO_LARGE
             chain.any { it is OutOfMemoryError } -> DATA_TOO_LARGE
             healthConnectErrorCode != null -> codeForHealthConnectErrorCode(healthConnectErrorCode)
+            // The client has no platform mapping for a record or aggregate that this Android's Health
+            // Connect lacks (e.g. activity intensity below SDK extension 16).
+            chain.any { it is IllegalArgumentException && it.message?.let(::isUnsupportedByPlatform) == true } ->
+                NOT_SUPPORTED
             // The Health Connect APK (Android 13 and lower) only says so in the message.
             chain.any { it.message?.lowercase()?.let { m -> "quota exceeded" in m || "rate limit" in m } == true } ->
                 RATE_LIMIT_EXCEEDED
@@ -70,6 +74,14 @@ object HealthErrors {
             else -> HEALTH_ERROR
         }
     }
+
+    /**
+     * Whether [message] is the client's IllegalArgumentException for a record type ("Unsupported
+     * record type ...", "Unsupported record ...") or an aggregate ("Unsupported aggregation type ...")
+     * that the platform's Health Connect does not have. None of the plugin's own messages start so.
+     */
+    private fun isUnsupportedByPlatform(message: String): Boolean =
+        message.startsWith("Unsupported record") || message.startsWith("Unsupported aggregation type")
 
     /** The error code for a HealthConnectException.ERROR_* value. */
     internal fun codeForHealthConnectErrorCode(code: Int): String = when (code) {

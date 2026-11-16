@@ -25,17 +25,20 @@ class HealthDataReader(
     private val dataConverter: HealthDataConverter
 ) {
     private val recordingFilter = HealthRecordingFilter()
-    private val workouts = WorkoutConverter(healthConnectClient, recordingFilter)
+    private val workouts = WorkoutConverter(healthConnectClient, recordingFilter, context.packageName)
     private val sleep = SleepConverter(dataConverter, recordingFilter)
     private val routes = WorkoutRoutes(recordingFilter)
     private val converter = RecordConverter(dataConverter, recordingFilter, workouts, sleep)
     private val lookback = SeriesLookback(healthConnectClient)
     private val sleepLookback = SleepLookback(healthConnectClient)
 
-    private val legacyReader = LegacyDataReader(healthConnectClient, scope, converter, routes, lookback, sleepLookback)
+    private val legacyReader =
+        LegacyDataReader(healthConnectClient, scope, converter, routes, lookback, sleepLookback, context.packageName)
     private val heartRate = HeartRatePageReader(HealthConnectHeartRateSource(healthConnectClient), Build.VERSION.SDK_INT)
-    private val pageReader =
-        DataPageReader(healthConnectClient, scope, dataConverter, converter, routes, lookback, sleepLookback, heartRate)
+    private val pageReader = DataPageReader(
+        healthConnectClient, scope, dataConverter, converter, routes, lookback, sleepLookback, heartRate,
+        context.packageName,
+    )
     private val recordByIdReader =
         RecordByIdReader(healthConnectClient, scope, dataConverter, workouts, sleep, routes)
     private val aggregateReader =
@@ -48,7 +51,9 @@ class HealthDataReader(
      * Supports special processing for workout and sleep data.
      *
      * The whole range is held in memory and sent as one reply, which runs the Java heap out of
-     * memory at a few hundred thousand points; the Dart side reads through [getDataPage].
+     * memory at a few hundred thousand points; the Dart side reads through [getDataPage]. Without
+     * read permission but with write permission, only the records this app wrote are read, as
+     * [getDataPage] reads them; with neither, the reply is empty.
      *
      * @param call Method call containing 'dataTypeKey', 'startTime', 'endTime', 'recordingMethodsToFilter'
      * and optionally 'limit' ([readNewestRecords])
@@ -68,12 +73,22 @@ class HealthDataReader(
      * A page holds about 'pageSize' data points. Health Connect pages by record, and one series
      * record can hold thousands of samples: heart rate is therefore read in time slices planned
      * from counts of its samples ([HistogramPlanner]), and speed, power, cycling cadence and skin
-     * temperature ask for few records per request ([SeriesPageSizer]).
+     * temperature ask for few records per request ([SeriesPageSizer]). A page that ends inside the
+     * records of one start time also holds every further one of them, read in one more request
+     * ([readPastTies]), so it may hold that many more records than asked for.
      * A sleep stage is returned when it starts in the range, whichever session it belongs to: the
      * first page also reads the sessions that began in the [SLEEP_LOOKBACK] before the range ([SleepLookback]).
      * The reply is {data, nextPageToken}; the token ([DataPageToken], [SliceToken]) is opaque to
-     * Dart and null on the last page. Without read permission the first page is empty, last, and flagged
-     * 'permissionDenied'. Failures are reported with the codes of [HealthErrors], never as data.
+     * Dart and null on the last page. Without read permission but with write permission, only the
+     * records this app wrote are read, and every page is flagged 'permissionDenied' ([ReadAccess.OWN]):
+     * every Health Connect call of the read asks for this app's records only, which Health Connect
+     * requires since Android 14 QPR2. Heart rate goes in time slices too, from counts of the app's own
+     * samples, or by record where Health Connect refuses those counts (before Android 14 QPR2).
+     * With neither permission the first page is empty, last, and flagged 'permissionDenied'; so is a
+     * page whose read of the app's own records the Health Connect APK (Android 13 and lower) refuses.
+     * Exercise sessions that Android 14 or 15 fails to read for a route outside the page are read
+     * again with the rest of the range in one page ([readRecordsPage]).
+     * Failures are reported with the codes of [HealthErrors], never as data.
      * A call with a 'limit' pages newest first, by record start time, with a first page of at most
      * 'limit' records ([DataPageRequest.limit]).
      *

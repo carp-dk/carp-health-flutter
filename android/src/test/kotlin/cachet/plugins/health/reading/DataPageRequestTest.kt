@@ -197,4 +197,40 @@ class DataPageRequestTest {
         }
         assertFalse(request("SPEED").isSliced)
     }
+
+    @Test
+    fun aReadOfTheAppsOwnRecordsPagesWithItsOwnTokens() {
+        fun read(dataType: String, token: String?) = DataPageRequest.from(
+            call("dataTypeKey" to dataType, "startTime" to 0, "endTime" to 1_000_000, "pageToken" to token)
+        )
+        // The first page decides from the grants; heart rate goes in slices of the app's own samples.
+        val first = read("HEART_RATE", null).ownRecordsOnly()
+        assertTrue(first.ownOnly)
+        assertTrue(first.isSliced)
+        // Where Health Connect does not count them, it goes by record and looks back as series do.
+        val byRecord = first.readByRecord()
+        assertTrue(byRecord.ownOnly)
+        assertFalse(byRecord.isSliced)
+        assertTrue(byRecord.looksBack)
+        assertEquals(1, byRecord.firstRecords(34))
+        assertThrows(IllegalStateException::class.java) { read("HEART_RATE", null).readByRecord() }
+        // Later heart rate pages take it from the slice token, or go on by record.
+        val sliced = read("HEART_RATE", "o2:500:100:-:-:-:-")
+        assertTrue(sliced.ownOnly)
+        assertTrue(sliced.isSliced)
+        assertEquals(500L, sliced.sliceToken!!.cursor)
+        assertFalse(read("HEART_RATE", "v2:500:100:-:-:-:-").ownOnly)
+        assertThrows(IllegalArgumentException::class.java) { read("SPEED", "o2:500:100:-:-:-:-") }
+        // Later pages of a read by record take it from the token, heart rate without a limit too.
+        for (dataType in listOf("HEART_RATE", "SPEED", "WORKOUT")) {
+            val later = read(dataType, "o1:4:12345")
+            assertTrue(dataType, later.ownOnly)
+            assertFalse(dataType, later.isSliced)
+            assertFalse(dataType, later.isFirstPage)
+            assertEquals(4, later.token!!.records)
+            assertFalse(read(dataType, null).ownOnly)
+        }
+        assertFalse(read("SPEED", "v1:4:12345").ownOnly)
+        assertThrows(IllegalStateException::class.java) { read("SPEED", "o1:4:12345").ownRecordsOnly() }
+    }
 }

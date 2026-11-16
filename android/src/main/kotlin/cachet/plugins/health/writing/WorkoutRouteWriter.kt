@@ -79,23 +79,7 @@ internal class WorkoutRouteWriter(
                 }
 
                 val route = ExerciseRoute(locations.sortedBy { it.time })
-                val updatedRecord =
-                    ExerciseSessionRecord(
-                        startTime = session.startTime,
-                        startZoneOffset = session.startZoneOffset,
-                        endTime = session.endTime,
-                        endZoneOffset = session.endZoneOffset,
-                        metadata = session.metadata,
-                        exerciseType = session.exerciseType,
-                        title = session.title,
-                        notes = session.notes,
-                        segments = session.segments,
-                        laps = session.laps,
-                        exerciseRoute = route,
-                        plannedExerciseSessionId = session.plannedExerciseSessionId
-                    )
-
-                healthConnectClient.updateRecords(listOf(updatedRecord))
+                healthConnectClient.updateRecords(listOf(session.withRoute(route)))
                 workoutRouteBuilders.remove(builderId)
                 result.success(mapOf("uuid" to workoutUUID))
             } catch (e: Exception) {
@@ -115,3 +99,23 @@ internal class WorkoutRouteWriter(
         result.success(true)
     }
 }
+
+/**
+ * This session with [route] as its route. Health Connect updates a record by replacing it, so the
+ * copy keeps every other field of the session.
+ */
+internal fun ExerciseSessionRecord.withRoute(route: ExerciseRoute) = ExerciseSessionRecord(
+    startTime = startTime,
+    startZoneOffset = startZoneOffset,
+    endTime = endTime,
+    endZoneOffset = endZoneOffset,
+    metadata = metadata,
+    exerciseType = exerciseType,
+    title = title,
+    notes = notes,
+    segments = segments,
+    laps = laps,
+    exerciseRoute = route,
+    plannedExerciseSessionId = plannedExerciseSessionId,
+    rateOfPerceivedExertion = rateOfPerceivedExertion,
+)

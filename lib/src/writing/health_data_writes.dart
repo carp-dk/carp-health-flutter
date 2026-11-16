@@ -78,12 +78,13 @@ mixin HealthDataWrites on _HealthSupport {
     RecordingMethod recordingMethod = RecordingMethod.automatic,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
+    // Before the device check: a type with a write method of its own is an ArgumentError on any device.
+    _checkWritable(type);
     await _checkIfDataTypeAvailableOnDevice(type);
     if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
 
-    _checkWritable(type);
     endTime ??= startTime;
     if (startTime.isAfter(endTime)) {
       throw ArgumentError("startTime must be equal or earlier than endTime");
@@ -128,7 +129,8 @@ mixin HealthDataWrites on _HealthSupport {
 
   /// Write health data and return UUID on success.
   ///
-  /// Returns the UUID of the written record if successful, null otherwise.
+  /// Returns the UUID of the written record if successful, an empty string
+  /// otherwise.
   ///
   /// Parameters:
   ///  * [value] - the health data's value in double
@@ -159,12 +161,11 @@ mixin HealthDataWrites on _HealthSupport {
     RecordingMethod recordingMethod = RecordingMethod.automatic,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
+    _checkWritable(type);
     await _checkIfDataTypeAvailableOnDevice(type);
     if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
       throw ArgumentError("recordingMethod must be manual or automatic on iOS");
     }
-
-    _checkWritable(type);
 
     endTime ??= startTime;
     if (startTime.isAfter(endTime)) {

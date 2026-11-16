@@ -34,7 +34,9 @@ part of '../health.dart';
 ///
 ///  * [getHealthConnectSdkStatus] to check the status of GHC
 ///  * [isHealthConnectAvailable] to check if GHC is installed on this phone
-///  * [installHealthConnect] to direct the user to the app store to install GHC
+///  * [installHealthConnect] to direct the user to the app store to install or
+///    update GHC (Android 13 and lower; from Android 14 on GHC is part of
+///    Android)
 ///
 /// **Note** that you should check the availability of GHC before using any setter
 /// or getter methods. Otherwise, the plugin will throw an exception.
@@ -93,10 +95,15 @@ class Health
   /// Health Connect returns at most 5000 records per call. One heart rate,
   /// speed, power, cycling cadence or skin temperature record holds many
   /// samples: heart rate is read in time slices of at most about this many
-  /// samples, and the others read at most `pageSize / 3600` records per call.
-  /// Sleep sessions, workouts and workout routes are read in smaller pages,
-  /// and so are ECGs and workout routes on iOS. Read once when a read starts,
-  /// so it can be changed at any time.
+  /// samples (a record is never split, so a longer one makes a larger page),
+  /// and the others read at most `pageSize / 3600` records per call. That
+  /// holds for the app's own heart rate read with only its write permission
+  /// too, except where Health Connect refuses to count its samples: then it
+  /// is read like the others. Sleep sessions, workouts and workout routes are
+  /// read in smaller pages, and so are ECGs and workout routes on iOS. On
+  /// Android 14 and later, a page that ends among records of one start time
+  /// also holds every further one of them, which costs one more call. Read
+  /// once when a read starts, so it can be changed at any time.
   @override
   int get pageSize => _pageSize;
 
@@ -148,15 +155,19 @@ class Health
   /// Throws a [HealthException] with [HealthErrorCode.notSupported] if a given
   /// data type is not available on this device. Only needed on Android, for
   /// the types that depend on the Health Connect features of the device: skin
-  /// temperature ([isSkinTemperatureAvailable]) and mindfulness sessions
-  /// ([isMindfulnessSessionAvailable]).
+  /// temperature ([isSkinTemperatureAvailable]), mindfulness sessions
+  /// ([isMindfulnessSessionAvailable]) and activity intensity
+  /// ([isActivityIntensityAvailable]). A type this platform does not have is
+  /// left to the callers' [isDataTypeAvailable] check, without asking Health
+  /// Connect.
   @override
   Future<void> _checkIfDataTypeAvailableOnDevice(HealthDataType dataType) async {
-    if (platformType != HealthPlatformType.googleHealthConnect) return;
+    if (platformType != HealthPlatformType.googleHealthConnect || !isDataTypeAvailable(dataType)) return;
 
     final available = switch (dataType) {
       HealthDataType.SKIN_TEMPERATURE => await isSkinTemperatureAvailable(),
       HealthDataType.MINDFULNESS => await isMindfulnessSessionAvailable(),
+      HealthDataType.ACTIVITY_INTENSITY => await isActivityIntensityAvailable(),
       _ => true,
     };
     if (!available) {
@@ -165,17 +176,21 @@ class Health
   }
 
   /// Checks if Google Health Connect is available and throws an [UnsupportedError]
-  /// if not.
+  /// if not, whose message says why ([HealthConnectSdkStatus]).
   /// Internal methods used to check availability before any getter or setter methods.
   @override
   Future<void> _checkIfHealthConnectAvailableOnAndroid() async {
     if (!Platform.isAndroid) return;
 
-    if (!(await isHealthConnectAvailable())) {
-      throw UnsupportedError(
-        "Google Health Connect is not available on this Android device. "
-        "You may prompt the user to install it using the 'installHealthConnect' method",
-      );
-    }
+    final status = await getHealthConnectSdkStatus();
+    if (status == HealthConnectSdkStatus.sdkAvailable) return;
+    throw UnsupportedError(switch (status) {
+      HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired =>
+        'Google Health Connect needs to be installed or updated on this Android device. '
+            "You may prompt the user to do so using the 'installHealthConnect' method",
+      _ =>
+        'Google Health Connect is not available on this Android device: it runs Android older than 9, '
+            'the app runs in a work profile or Android 15 private space, or the device has no Health Connect',
+    });
   }
 }

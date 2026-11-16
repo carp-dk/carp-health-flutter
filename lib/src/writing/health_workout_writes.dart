@@ -12,6 +12,8 @@ mixin HealthWorkoutWrites on _HealthSupport {
   ///  - [start] The start time of the workout.
   ///  - [end] The end time of the workout.
   ///  - [totalEnergyBurned] The total energy burned during the workout.
+  ///    On iOS it and [totalDistance] are stored only on the workout, without samples; on Android they are
+  ///    records of their own (see below and [WorkoutHealthValue]).
   ///  - [totalEnergyBurnedUnit] The UNIT used to measure [totalEnergyBurned]
   ///    *ONLY FOR IOS* Default value is KILOCALORIE.
   ///  - [totalDistance] The total distance traveled during the workout.
@@ -92,7 +94,7 @@ mixin HealthWorkoutWrites on _HealthSupport {
 
   /// Write workout data to Apple Health or Google Health Connect and return UUID.
   ///
-  /// Returns UUID if the workout data was successfully added, null otherwise.
+  /// Returns UUID if the workout data was successfully added, an empty string otherwise.
   ///
   /// Parameters:
   ///  - [activityType] The type of activity performed.

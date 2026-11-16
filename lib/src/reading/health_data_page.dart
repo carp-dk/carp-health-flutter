@@ -23,8 +23,13 @@ final class HealthDataPage {
   /// other pages hold at least one point.
   final bool isLastPageForType;
 
-  /// Android only. The app has no read permission for [type], so the type was
-  /// skipped: [points] is empty and this is the last page for [type]. Always
-  /// false on iOS, where HealthKit does not tell whether read access was granted.
+  /// Android only. The app has no read permission for [type], so [points] are
+  /// only the records this app wrote itself, which Health Connect lets it read
+  /// with the type's write permission. Every page of such a read has this
+  /// flag, not only the last. Without the write permission either, the type
+  /// has one page, empty and last, with this flag.
+  ///
+  /// Always false on iOS, where HealthKit does not tell whether read access
+  /// was granted: a denied read returns only the samples this app saved.
   final bool readPermissionDenied;
 }

@@ -8,7 +8,7 @@ mixin _HealthPageReads on _HealthReadSupport {
   /// before 14.0.0 (newest end date first) for [Health.getHealthDataFromTypes];
   /// Health Connect ignores it. A [limit] is sent for [_readNewest]: Health
   /// Connect then pages newest first by record start time, and the first page
-  /// holds at most [limit] records. Once [cancellation] is set, no further
+  /// asks for at most [limit] records. Once [cancellation] is set, no further
   /// platform call is made.
   Stream<HealthDataPage> _readPages(
     HealthDataType type,
@@ -98,8 +98,9 @@ mixin _HealthPageReads on _HealthReadSupport {
   /// The newest [limit] points of [type] as its one and last page, for
   /// [Health.getHealthDataFromTypes]: pages of at most [limit] points are read
   /// newest first until [limit] points are in. A page can hold more (the
-  /// samples of a series record on Android, samples that end at the same time
-  /// on iOS), so the points are sorted by end time, newest first, and cut to
+  /// samples of a series record and the records that share a page's last start
+  /// time on Android, samples that end at the same time on iOS), so the points
+  /// are sorted by end time, newest first, and cut to
   /// [limit]. Once [cancellation] is set, no further platform call is made.
   Future<HealthDataPage> _readNewest(
     HealthDataType type,

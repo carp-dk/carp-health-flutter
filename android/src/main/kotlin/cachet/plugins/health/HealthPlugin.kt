@@ -3,7 +3,9 @@ package cachet.plugins.health
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Handler
+import android.util.Log
 import androidx.annotation.NonNull
 import androidx.health.connect.client.HealthConnectClient
 import cachet.plugins.health.reading.HealthDataReader
@@ -148,6 +150,8 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                     runCheck(call, result) { isSkinTemperatureAvailable(call, result) }
             "isMindfulnessSessionAvailable" ->
                     runCheck(call, result) { isMindfulnessSessionAvailable(call, result) }
+            "isActivityIntensityAvailable" ->
+                    runCheck(call, result) { isActivityIntensityAvailable(call, result) }
 
             // Reading data
             "getData" -> dataReader.getData(call, result)
@@ -254,12 +258,18 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
 
     /**
      * Launches Health Connect installation flow via Google Play Store. Directs users to install
-     * Health Connect when it's not available.
+     * Health Connect when it's not available. From Android 14 on, Health Connect is part of Android
+     * and updates with the system, so there is nothing to install and this does nothing.
      *
      * @param call Method call from Flutter (unused)
      * @param result Flutter result callback
      */
     private fun installHealthConnect(call: MethodCall, result: Result) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            Log.i("FLUTTER_HEALTH", "installHealthConnect does nothing: Health Connect is part of Android")
+            result.success(null)
+            return
+        }
         val uriString =
                 "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding"
         context!!.startActivity(

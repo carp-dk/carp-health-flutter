@@ -1,11 +1,15 @@
 part of '../../health.dart';
 
 /// Part of [Health]: the optional Health Connect features (reading health data
-/// history, reading in the background, skin temperature and mindfulness
-/// sessions), and the permissions for the two reads. Android only.
+/// history, reading in the background, skin temperature, mindfulness sessions
+/// and activity intensity), and the permissions for the two reads. Android
+/// only.
 // ignore: library_private_types_in_public_api
 mixin HealthConnectFeatures on _HealthSupport {
-  /// Checks if the Health Data History feature is available.
+  /// Checks if the Health Data History feature is available: on Android 15
+  /// and later, on Android 14 with SDK extension 13, and on Android 13 and
+  /// lower with a recent Health Connect app (see the README section
+  /// "Health Connect features").
   ///
   /// See this for more info: https://developer.android.com/reference/androidx/health/connect/client/permission/HealthPermission#PERMISSION_READ_HEALTH_DATA_HISTORY()
   ///
@@ -64,7 +68,9 @@ mixin HealthConnectFeatures on _HealthSupport {
     }
   }
 
-  /// Checks if the Health Data in Background feature is available.
+  /// Checks if the Health Data in Background feature is available, which
+  /// depends on the Health Connect version as [isHealthDataHistoryAvailable]
+  /// does.
   ///
   /// See this for more info: https://developer.android.com/reference/androidx/health/connect/client/permission/HealthPermission#PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND()
   ///
@@ -123,7 +129,11 @@ mixin HealthConnectFeatures on _HealthSupport {
     }
   }
 
-  /// Checks whether Skin Temperature is available on this Android device.
+  /// Checks whether Skin Temperature is available on this Android device,
+  /// which depends on the Health Connect version as
+  /// [isHealthDataHistoryAvailable] does. Where it is not, reading or writing
+  /// [HealthDataType.SKIN_TEMPERATURE] throws a [HealthException] with
+  /// [HealthErrorCode.notSupported].
   ///
   /// Android only. Returns false on iOS or if an error occurs.
   Future<bool> isSkinTemperatureAvailable() async {
@@ -146,9 +156,18 @@ mixin HealthConnectFeatures on _HealthSupport {
   /// Checks whether the Health Connect on this Android device has mindfulness
   /// sessions ([HealthDataType.MINDFULNESS]). Health Connect added them after
   /// its first release, so this depends on the Health Connect version on the
-  /// device. Where it does not have them, reading or writing
+  /// device: Android 16 and later, Android 14 and 15 with SDK extension 15,
+  /// or on Android 13 and lower a recent Health Connect app. Where it does
+  /// not have them, reading or writing
   /// [HealthDataType.MINDFULNESS] throws a [HealthException] with
   /// [HealthErrorCode.notSupported].
+  ///
+  /// [Health.hasPermissions] is no such check: Android 15 at SDK extension 13
+  /// defines the mindfulness permissions, so they can be granted (for example
+  /// with `adb shell pm grant`) while this returns false. The Health Connect
+  /// permission dialog does not offer them there, and
+  /// [Health.requestAuthorization] for only [HealthDataType.MINDFULNESS]
+  /// returns false at once.
   ///
   /// See this for more info: https://developer.android.com/reference/androidx/health/connect/client/HealthConnectFeatures#FEATURE_MINDFULNESS_SESSION()
   ///
@@ -167,6 +186,39 @@ mixin HealthConnectFeatures on _HealthSupport {
       return available ?? false;
     } catch (e) {
       debugPrint('$runtimeType - Exception in isMindfulnessSessionAvailable(): $e');
+      return false;
+    }
+  }
+
+  /// Checks whether the Health Connect on this Android device has activity
+  /// intensity records ([HealthDataType.ACTIVITY_INTENSITY]). Health Connect
+  /// added them after its first release, so this depends on the Health Connect
+  /// version on the device: Android 16 and later, Android 14 and 15 with SDK
+  /// extension 16, or on Android 13 and lower a recent Health Connect app. A
+  /// base Android 15 device does not have them. Where it does not have them,
+  /// reading, writing or tracking the changes of
+  /// [HealthDataType.ACTIVITY_INTENSITY] throws a [HealthException] with
+  /// [HealthErrorCode.notSupported]. Its permissions are not defined before
+  /// SDK extension 16, so there [Health.hasPermissions] returns false for it
+  /// and the Health Connect permission dialog does not offer it.
+  ///
+  /// See this for more info: https://developer.android.com/reference/androidx/health/connect/client/HealthConnectFeatures#FEATURE_ACTIVITY_INTENSITY()
+  ///
+  /// Android only. Returns false on iOS, which has no activity intensity, and
+  /// if Health Connect is not available or an error occurs.
+  Future<bool> isActivityIntensityAvailable() async {
+    if (platformType == HealthPlatformType.appleHealth) return false;
+
+    try {
+      final status = await getHealthConnectSdkStatus();
+      if (status != HealthConnectSdkStatus.sdkAvailable) {
+        return false;
+      }
+
+      final available = await Health._channel.invokeMethod<bool>('isActivityIntensityAvailable');
+      return available ?? false;
+    } catch (e) {
+      debugPrint('$runtimeType - Exception in isActivityIntensityAvailable(): $e');
       return false;
     }
   }

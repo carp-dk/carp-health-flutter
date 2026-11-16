@@ -1,8 +1,10 @@
 package cachet.plugins.health.reading
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DataPageTokenTest {
@@ -45,6 +47,28 @@ class DataPageTokenTest {
         )
         for (token in malformed) {
             assertThrows("'$token'", IllegalArgumentException::class.java) { DataPageToken.decode(token) }
+        }
+    }
+
+    @Test
+    fun aReadOfTheAppsOwnRecordsHasTokensOfItsOwn() {
+        val token = DataPageToken(5, "a:1", ownOnly = true)
+        assertEquals("o1:5:a:1", token.encode())
+        assertTrue(DataPageToken.isOwnOnly(token.encode()))
+
+        val decoded = DataPageToken.decode(token.encode())!!
+        assertTrue(decoded.ownOnly)
+        assertEquals(5, decoded.records)
+        assertEquals("a:1", decoded.healthConnectToken)
+        // The tokens of other reads are as before.
+        val earlier = DataPageToken.decode("v1:37:1712345678901")!!
+        assertFalse(earlier.ownOnly)
+        assertEquals("v1:37:1712345678901", earlier.encode())
+        assertFalse(DataPageToken.isOwnOnly("v1:37:1712345678901"))
+        assertFalse(DataPageToken.isOwnOnly("v2:500:100:-:-:-:-"))
+        assertFalse(DataPageToken.isOwnOnly(null))
+        for (malformed in listOf("o1", "o1:", "o1:5", "o1:5:", "o1:x:1", "o1:0:1", "o1:5001:1", "O1:5:1", "o2:5:1")) {
+            assertThrows("'$malformed'", IllegalArgumentException::class.java) { DataPageToken.decode(malformed) }
         }
     }
 

@@ -3,6 +3,7 @@ package cachet.plugins.health.reading
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Instant
@@ -19,25 +20,31 @@ internal class SleepLookback(private val healthConnectClient: HealthConnectClien
      * that start in the range.
      *
      * @param pageSessionIds Ids of the sessions read for the range itself, which are left out
+     * @param origins The apps whose sessions are read, as the read itself asks ([ReadAccess.origins])
      * @return The sessions found, oldest first
      */
-    suspend fun readLookbackSessions(startTime: Instant, pageSessionIds: Set<String>): List<Record> {
+    suspend fun readLookbackSessions(
+        startTime: Instant,
+        pageSessionIds: Set<String>,
+        origins: Set<DataOrigin>,
+    ): List<Record> {
         // Nothing to look back at from a read that starts at the epoch, a common "everything" start.
         val lookbackStart = maxOf(startTime.minus(SLEEP_LOOKBACK), Instant.EPOCH)
         if (!lookbackStart.isBefore(startTime)) return emptyList()
         val sessions = mutableListOf<Record>()
         var pageToken: String? = null
         do {
-            val response = healthConnectClient.readRecords(
+            val page = healthConnectClient.readPastTies(
                 ReadRecordsRequest(
                     recordType = SleepSessionRecord::class,
                     timeRangeFilter = TimeRangeFilter.between(lookbackStart, startTime),
+                    dataOriginFilter = origins,
                     pageSize = SLEEP_MAX_RECORDS,
                     pageToken = pageToken,
                 )
             )
-            sessions.addAll(keepLookbackSessions(response.records, startTime, pageSessionIds))
-            pageToken = response.pageToken?.takeIf { it.isNotEmpty() }
+            sessions.addAll(keepLookbackSessions(page.records, startTime, pageSessionIds))
+            pageToken = page.pageToken
         } while (pageToken != null)
         return sessions
     }
