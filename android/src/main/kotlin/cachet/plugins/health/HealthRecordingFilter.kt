@@ -1,6 +1,5 @@
 package cachet.plugins.health
 
-import android.util.Log
 import androidx.health.connect.client.records.Record
 
 /**
@@ -27,17 +26,7 @@ class HealthRecordingFilter {
             return records
         }
 
-        return records.filter { record ->
-            val shouldInclude = !recordingMethodsToFilter.contains(record.metadata.recordingMethod)
-            
-            Log.i(
-                "FLUTTER_HEALTH",
-                "Filtering record with recording method ${record.metadata.recordingMethod}, " +
-                "filtering by $recordingMethodsToFilter. " +
-                "Result: $shouldInclude"
-            )
-            
-            shouldInclude
-        }
+        // No per-record logging: large reads filter hundreds of thousands of records.
+        return records.filter { record -> !recordingMethodsToFilter.contains(record.metadata.recordingMethod) }
     }
 }

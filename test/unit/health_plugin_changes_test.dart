@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 
 import '../support/fixtures.dart';
+import '../support/health_on_ios.dart';
 import '../support/health_test_context.dart';
 
 void main() {
@@ -20,10 +21,7 @@ void main() {
 
   group('Changes API', () {
     test('getChangesToken rejects empty types', () {
-      expect(
-        () => ctx.health.getChangesToken(types: []),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => ctx.health.getChangesToken(types: []), throwsA(isA<ArgumentError>()));
     });
 
     test('getChangesToken normalizes BMI and workout route types', () async {
@@ -39,22 +37,16 @@ void main() {
       final args = Map<String, dynamic>.from(call!.arguments as Map);
       final types = List<String>.from(args['types'] as List);
       expect(types, isNot(contains(HealthDataType.BODY_MASS_INDEX.name)));
-      expect(
-        types.toSet(),
-        {
-          HealthDataType.WEIGHT.name,
-          HealthDataType.HEIGHT.name,
-          HealthDataType.WORKOUT_ROUTE.name,
-          HealthDataType.WORKOUT.name,
-        },
-      );
+      expect(types.toSet(), {
+        HealthDataType.WEIGHT.name,
+        HealthDataType.HEIGHT.name,
+        HealthDataType.WORKOUT_ROUTE.name,
+        HealthDataType.WORKOUT.name,
+      });
     });
 
     test('getChanges rejects empty token', () {
-      expect(
-        () => ctx.health.getChanges(changesToken: ''),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => ctx.health.getChanges(changesToken: ''), throwsA(isA<ArgumentError>()));
     });
 
     test('getChanges parses response', () async {
@@ -66,6 +58,14 @@ void main() {
       expect(response!.changes, hasLength(2));
       expect(response.upsertedDataPoints, hasLength(1));
       expect(response.deletedRecordIds, ['deleted-record-1']);
+    });
+
+    test('getChangesToken and getChanges return null on iOS, without a platform call', () async {
+      final health = HealthOnIOS();
+
+      expect(await health.getChangesToken(types: [HealthDataType.STEPS]), isNull);
+      expect(await health.getChanges(changesToken: 'token-1'), isNull);
+      expect(ctx.channel.calls, isEmpty);
     });
   });
 }

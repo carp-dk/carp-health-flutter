@@ -1,0 +1,97 @@
+package cachet.plugins.health.writing
+
+import android.util.Log
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.response.InsertRecordsResponse
+import cachet.plugins.health.HealthErrors
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel.Result
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+/**
+ * Writes one value of a data type ([valueRecord]), for writeData and writeDataUUID; writeBloodOxygen,
+ * writeMenstruationFlow and writeMindfulnessSession are writeData calls too.
+ */
+internal class ValueWriter(
+    private val healthConnectClient: HealthConnectClient,
+    private val scope: CoroutineScope,
+) {
+    fun writeData(call: MethodCall, result: Result) {
+        write(call, result, failureReply = false) { result.success(true) }
+    }
+
+    fun writeDataUUID(call: MethodCall, result: Result) {
+        write(call, result, failureReply = "") { response ->
+            val insertedUUID = firstInsertedId(response)
+            if (insertedUUID.isNotEmpty()) {
+                val type = call.argument<String>("dataTypeKey")
+                Log.i("FLUTTER_HEALTH::SUCCESS", "[Health Connect] $type $insertedUUID was successfully added!")
+            }
+            result.success(insertedUUID)
+        }
+    }
+
+    /**
+     * Inserts the record of the value in [call] and hands the response to [onInserted]. Replies
+     * [failureReply] instead if writeData does not write the data type, or Health Connect rejects the
+     * value or the insert, and an INVALID_ARGUMENT error for a value of a type with a duration that
+     * does not end after it starts ([requireStartBeforeEnd]).
+     */
+    private fun write(
+        call: MethodCall,
+        result: Result,
+        failureReply: Any,
+        onInserted: (InsertRecordsResponse) -> Unit,
+    ) {
+        val type = call.argument<String>("dataTypeKey")!!
+        val startTime = call.argument<Long>("startTime")!!
+        val endTime = call.argument<Long>("endTime")!!
+        val value = call.argument<Double>("value")!!
+        val clientRecordId: String? = call.argument("clientRecordId")
+        val clientRecordVersion: Double? = call.argument<Double>("clientRecordVersion")
+        val recordingMethod = call.argument<Int>("recordingMethod")!!
+        val deviceType: Int? = call.argument<Int>("deviceType")
+        // The session of writeMindfulnessSession, for MINDFULNESS.
+        val sessionType: String? = call.argument("mindfulnessSessionType")
+        val title: String? = call.argument("title")
+        val notes: String? = call.argument("notes")
+
+        Log.i(
+            "FLUTTER_HEALTH",
+            "Writing data for $type between $startTime and $endTime, value: $value, recording method: $recordingMethod"
+        )
+
+        val metadata = buildMetadata(recordingMethod, clientRecordId, clientRecordVersion?.toLong(), deviceType)
+        try {
+            requireStartBeforeEnd(type, startTime, endTime)
+        } catch (e: IllegalArgumentException) {
+            // An invalid call, not a value Health Connect rejects: an INVALID_ARGUMENT error, where an
+            // exception out of onMethodCall would reach Dart with the generic code 'error'.
+            HealthErrors.report(result, e, "${call.method}($type)")
+            return
+        }
+        val record = try {
+            valueRecord(type, startTime, endTime, value, metadata, sessionType, title, notes)
+        } catch (e: IllegalArgumentException) {
+            // Health Connect checks the value while the record is built, on Android 14+ also what it checked
+            // on insert before: a value it rejects fails the write, not the call, as a rejected insert does.
+            Log.e("FLUTTER_HEALTH::ERROR", "Error writing $type: ${e.message}")
+            result.success(failureReply)
+            return
+        }
+        if (record == null) {
+            result.success(failureReply)
+            return
+        }
+
+        scope.launch {
+            try {
+                onInserted(healthConnectClient.insertRecords(listOf(record)))
+            } catch (e: Exception) {
+                Log.e("FLUTTER_HEALTH::ERROR", "Error writing $type: ${e.message}")
+                result.success(failureReply)
+            }
+        }
+    }
+}

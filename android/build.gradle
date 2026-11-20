@@ -2,14 +2,14 @@ group 'cachet.plugins.health'
 version '1.2'
 
 buildscript {
-    ext.kotlin_version = '1.9.22'
+    ext.kotlin_version = '2.2.10'
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.android.tools.build:gradle:9.1.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -21,41 +21,53 @@ rootProject.allprojects {
     }
 }
 
+// The Kotlin sources are compiled by AGP's built-in Kotlin (AGP 9 and later, which connect-client
+// 1.2.0-alpha06 requires anyway), or by the Kotlin Gradle plugin that Flutter applies to the plugin when
+// an app turns built-in Kotlin off (android.builtInKotlin=false).
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 
 android {
-    compileSdk 36
+    compileSdk 37
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = '11'
-    }
-
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+        test.java.srcDirs += 'src/test/kotlin'
     }
     defaultConfig {
         minSdkVersion 26
         targetSdkVersion 36
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
-    lintOptions {
+    lint {
         disable 'InvalidPackage'
     }
+    testOptions {
+        // android.jar methods return defaults (e.g. Log) instead of throwing in JVM unit tests.
+        unitTests.returnDefaultValues = true
+    }
     namespace "cachet.plugins.health"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+    }
 }
 
 dependencies {
     def composeBom = platform('androidx.compose:compose-bom:2025.09.00')
     implementation(composeBom)
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.10"
 
-    implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
+    implementation("androidx.health.connect:connect-client:1.2.0-alpha06")
     implementation "androidx.fragment:fragment-ktx:1.8.9"
+
+    testImplementation "junit:junit:4.13.2"
+    // ArchTaskExecutor, to pass the lifecycle library's main thread check in JVM tests.
+    testImplementation "androidx.arch.core:core-runtime:2.2.0"
 
 }

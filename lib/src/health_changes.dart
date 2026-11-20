@@ -2,18 +2,9 @@ part of '../health.dart';
 
 enum HealthChangeType { upsert, delete }
 
-HealthDataType? _healthDataTypeFromName(String? name) {
-  if (name == null) {
-    return null;
-  }
+final Map<String, HealthDataType> _healthDataTypesByName = HealthDataType.values.asNameMap();
 
-  for (final type in HealthDataType.values) {
-    if (type.name == name) {
-      return type;
-    }
-  }
-  return null;
-}
+HealthDataType? _healthDataTypeFromName(String? name) => name == null ? null : _healthDataTypesByName[name];
 
 class HealthChange {
   final HealthChangeType type;
@@ -22,15 +13,11 @@ class HealthChange {
   final String? recordId;
   final Map<String, dynamic>? rawDataPoint;
 
-  HealthChange._({
-    required this.type,
-    this.dataType,
-    this.dataPoint,
-    this.recordId,
-    this.rawDataPoint,
-  });
+  HealthChange._({required this.type, this.dataType, this.dataPoint, this.recordId, this.rawDataPoint});
 
-  factory HealthChange.fromMethodChannel(Map<dynamic, dynamic> map) {
+  /// [sourceDeviceId] becomes the [HealthDataPoint.sourceDeviceId] of [dataPoint]
+  /// ('unknown' if omitted).
+  factory HealthChange.fromMethodChannel(Map<dynamic, dynamic> map, {String? sourceDeviceId}) {
     final typeName = map['type'] as String?;
     final type = HealthChangeType.values.firstWhere(
       (value) => value.name == typeName,
@@ -38,10 +25,7 @@ class HealthChange {
     );
 
     if (type == HealthChangeType.delete) {
-      return HealthChange._(
-        type: type,
-        recordId: map['recordId'] as String?,
-      );
+      return HealthChange._(type: type, recordId: map['recordId'] as String?);
     }
 
     final rawPoint = map['dataPoint'] as Map?;
@@ -57,6 +41,7 @@ class HealthChange {
           resolvedDataType,
           rawDataPoint,
           null,
+          sourceDeviceId: sourceDeviceId,
         );
       }
     }
@@ -83,18 +68,26 @@ class HealthChangesResponse {
     required this.changesTokenExpired,
   });
 
-  List<HealthDataPoint> get upsertedDataPoints =>
-      changes.where((change) => change.type == HealthChangeType.upsert).map((change) => change.dataPoint).whereType<HealthDataPoint>().toList();
+  List<HealthDataPoint> get upsertedDataPoints => changes
+      .where((change) => change.type == HealthChangeType.upsert)
+      .map((change) => change.dataPoint)
+      .whereType<HealthDataPoint>()
+      .toList();
 
-  List<String> get deletedRecordIds =>
-      changes.where((change) => change.type == HealthChangeType.delete).map((change) => change.recordId).whereType<String>().toList();
+  List<String> get deletedRecordIds => changes
+      .where((change) => change.type == HealthChangeType.delete)
+      .map((change) => change.recordId)
+      .whereType<String>()
+      .toList();
 
-  factory HealthChangesResponse.fromMethodChannel(Map<dynamic, dynamic> map) {
+  /// [sourceDeviceId] becomes the [HealthDataPoint.sourceDeviceId] of the
+  /// changed points ('unknown' if omitted).
+  factory HealthChangesResponse.fromMethodChannel(Map<dynamic, dynamic> map, {String? sourceDeviceId}) {
     final rawChanges = map['changes'] as List? ?? const [];
     final changes = rawChanges
-      .whereType<Map<dynamic, dynamic>>()
-      .map((change) => HealthChange.fromMethodChannel(change))
-      .toList();
+        .whereType<Map<dynamic, dynamic>>()
+        .map((change) => HealthChange.fromMethodChannel(change, sourceDeviceId: sourceDeviceId))
+        .toList();
 
     return HealthChangesResponse(
       changes: changes,
