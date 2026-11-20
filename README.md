@@ -1,49 +1,59 @@
 # Health
 
-Enables reading and writing health data from/to [Apple Health](https://www.apple.com/health/) and [Google Health Connect](https://health.google/health-connect-android/).
+<p>
+  <a href="https://carp.dk"><img align="right" width="166" height="70" src="images/carp-x-dtu-logo.svg" alt="CARP x DTU"></a>
+  <a href="https://pub.dev/packages/health"><img src="https://img.shields.io/pub/v/health?logo=dart&amp;logoColor=white&amp;label=pub&amp;color=0175C2" alt="pub version"></a>
+  <a href="https://pub.dev/packages/health/score"><img src="https://img.shields.io/pub/likes/health" alt="pub likes"></a>
+  <a href="https://pub.dev/packages/health/score"><img src="https://img.shields.io/pub/dm/health" alt="pub monthly downloads"></a>
+  <br>
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-plugin-02569B?logo=flutter&amp;logoColor=white" alt="Flutter plugin"></a>
+  <a href="#supported-platforms"><img src="https://img.shields.io/badge/Android-API%2026%2B-3DDC84?logo=android&amp;logoColor=white" alt="Android API 26+"></a>
+  <a href="#supported-platforms"><img src="https://img.shields.io/badge/iOS-15.0%2B-000000?logo=apple&amp;logoColor=white" alt="iOS 15.0+"></a>
+  <a href="#supported-platforms"><img src="https://img.shields.io/badge/HealthKit%20%7C%20Health%20Connect-supported-0C4F80" alt="Apple HealthKit and Google Health Connect"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/carp-dk/carp-health-flutter?color=blue" alt="License: MIT"></a>
+  <br clear="right">
+</p>
 
-> **NOTE:** Google has deprecated the Google Fit API. According to the [documentation](https://developers.google.com/fit/android), as of **May 1st 2024** developers cannot sign up for using the API. As such, this package has removed support for Google Fit as of version 11.0.0 and users are urged to upgrade as soon as possible.
+A Flutter plugin for reading and writing health data with [Apple Health](https://www.apple.com/health/) (HealthKit) and [Google Health Connect](https://health.google/health-connect-android/), made by the [Copenhagen Research Platform (CARP)](https://carp.dk) at the [Technical University of Denmark (DTU)](https://dtu.dk).
 
-The plugin supports:
+The plugin wraps HealthKit on iOS and Health Connect on Android behind a single Dart API covering permissions, paged and interval-aggregated reads, typed health values, workouts, workout routes, sleep and mindfulness sessions, and incremental change tracking. Additional guides are available in the [CARP documentation](https://docs.carp.dk/docs/flutter-plugins/health).
 
-- handling permissions to access health data using the `hasPermissions`, `requestAuthorization`, `revokePermissions` methods, and on iOS `getRequestStatusForAuthorization`.
-- reading health data using the `getHealthDataFromTypes` method, or only the newest data points of each type with its `limit`.
-- reading large amounts of health data page by page using the `getHealthDataPages` method.
-- reading health data aggregated over time intervals using the `getHealthIntervalDataFromTypes` method.
-- writing health data using the `writeHealthData` method.
-- writing workouts, also swims with their pool length, laps and stroke styles, using the `writeWorkoutData` method.
-- writing workout routes on iOS and Android using the `startWorkoutRoute` / `insertWorkoutRouteData` / `finishWorkoutRoute` methods.
-- writing a sleep session with its stages, such as a night of sleep, on iOS & Android using the `writeSleepSession` method.
-- writing a mindfulness session, such as a meditation, on iOS & Android using the `writeMindfulnessSession` method.
-- writing meals on iOS (Apple Health) & Android using the `writeMeal` method.
-- writing audiograms on iOS using the `writeAudiogram` method.
-- writing blood pressure data using the `writeBloodPressure` method.
-- accessing total step counts using the `getTotalStepsInInterval` method.
-- cleaning up duplicate data points via the `removeDuplicates` method.
-- removing data of a given type in a selected period of time using the `delete` method.
+> [!NOTE]
+> Google has deprecated the Google Fit API. According to the [documentation](https://developers.google.com/fit/android), as of **May 1st 2024** developers cannot sign up for using the API. As such, this package has removed support for Google Fit as of version 11.0.0 and users are urged to upgrade as soon as possible.
+
+**Contents:** [Features](#features) · [Platforms](#supported-platforms) · [Installation](#installation) · [Quick start](#quick-start) · [Usage](#usage) · [Data types](#data-types) · [Workout types](#workout-types) · [Upgrading](#upgrading-to-1400) · [Example app](#example-app) · [Contributing](#contributing) · [License](#license)
+
+## Features
+
+* **Permissions & SDK status**: check, request, and revoke health permissions with `hasPermissions`, `requestAuthorization`, `revokePermissions`, iOS `getRequestStatusForAuthorization`, and Android Health Connect availability and feature checks
+* **Reading health data**: fetch typed data points with `getHealthDataFromTypes` (optionally limited to the newest points via `limit`), look up a single record with `getHealthDataByUUID`, or stream large ranges page by page off the UI thread with `getHealthDataPages`
+* **Interval aggregation & step totals**: aggregate data over fixed time intervals with `getHealthIntervalDataFromTypes`, and read total step counts with `getTotalStepsInInterval`
+* **Writing health data**: write scalar values with `writeHealthData` / `writeHealthDataUUID`, plus specialized APIs for blood pressure (`writeBloodPressure`), blood oxygen (`writeBloodOxygen`), meals (`writeMeal`), audiograms on iOS (`writeAudiogram`), insulin delivery (`writeInsulinDelivery`), menstruation flow (`writeMenstruationFlow`), sexual activity (`writeSexualActivity`), and Android activity intensity (`writeActivityIntensity`)
+* **Workouts & routes**: write workouts (including swims with pool length, laps, and stroke styles) with `writeWorkoutData` / `writeWorkoutDataUUID`, and record GPS routes on iOS and Android with `startWorkoutRoute`, `insertWorkoutRouteData`, and `finishWorkoutRoute`
+* **Sleep & mindfulness sessions**: write multi-stage sleep sessions (`writeSleepSession`) and mindfulness sessions (`writeMindfulnessSession`) on both iOS and Android
+* **Incremental change tracking (Android)**: sync additions and deletions since a previous read using `getChangesToken` and `getChanges`
+* **Data cleanup & deletion**: clean up duplicate points with `removeDuplicates`, and delete records by time range (`delete`), UUID (`deleteByUUID`), or Android client record ID (`deleteByClientRecordId`)
+
+## Supported platforms
+
+| Platform | Supported | Minimum version | Notes |
+|---|:---:|---|---|
+| Android | ✅ | API 26 (Android 8.0) | Uses Google Health Connect (requires Android 9+ / API 28; built into Android 14+, Play Store app on Android 9–13). Building requires `compileSdk` 37 and AGP 9.1.0+. |
+| iOS | ✅ | iOS 15.0 | Uses Apple HealthKit. Ships as both a Swift package (`ios/health`) and a CocoaPods pod. Some data types require iOS 16, 17, or 18. |
 
 Note that on Android 13 and lower, the phone **needs** the [Health Connect](https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata&hl=en) app from Google Play: check `getHealthConnectSdkStatus` and, if it is `sdkUnavailableProviderUpdateRequired`, offer `installHealthConnect`. From Android 14 on, Health Connect is part of Android and updates with the system, and `installHealthConnect` does nothing. `sdkUnavailable` means that Health Connect cannot be used here: Android older than 9, a work profile (on any Android version), private space (Android 15 and later), or a device without Health Connect. Hide the Health Connect integration then, rather than offering to install it.
 
-See the tables below for supported health and workout data types.
+See [Data types](#data-types) and [Workout types](#workout-types) for supported health and workout types on each platform.
 
-## Setup
+## Installation
 
-### Apple Health (iOS)
-
-First, add the following 2 entries to the `Info.plist`:
-
-```xml
-<key>NSHealthShareUsageDescription</key>
-<string>We will sync your data with the Apple Health app to give you better insights</string>
-<key>NSHealthUpdateUsageDescription</key>
-<string>We will sync your data with the Apple Health app to give you better insights</string>
+```sh
+flutter pub add health
 ```
 
-Then, open your Flutter project in Xcode by right clicking on the "ios" folder and selecting "Open in Xcode". Next, enable "HealthKit" by adding a capability inside the "Signing & Capabilities" tab of the Runner target's settings.
+The plugin requires Dart 3.12 or later and Flutter 3.44 or later.
 
-The iOS side of the plugin requires **iOS 15.0 or later** and ships both as a Swift package (`ios/health`) and as a CocoaPods pod. Apps with [Swift Package Manager](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers) enabled (Flutter 3.44 or later) get the Swift package, everything else keeps using CocoaPods. No extra setup is needed in either case.
-
-### Google Health Connect (Android)
+### Android
 
 The plugin uses Health Connect's client library `androidx.health.connect:connect-client` 1.2.0-alpha06, which requires apps to compile against **Android API 37** with the **Android Gradle Plugin (AGP) 9.1.0 or later**. With Flutter 3.47, AGP 9.1 needs **Gradle 9.3.1 or later**. With a lower API level or AGP version, the build fails when it checks the AAR metadata of `connect-client`. Flutter 3.47's `flutter.compileSdkVersion` is 36, so set the API level in the app, as the example app does:
 
@@ -122,6 +132,24 @@ VO2 max (`HealthDataType.VO2_MAX`) and mindfulness sessions (`HealthDataType.MIN
 
 Workouts (`HealthDataType.WORKOUT`) need `READ_EXERCISE` and `WRITE_EXERCISE`, which also cover the laps of swims. The `totalDistance`, `totalEnergyBurned` and `totalSteps` of a workout are read only with `READ_DISTANCE`, `READ_TOTAL_CALORIES_BURNED` and `READ_STEPS` respectively (for a workout the app wrote itself, `WRITE_DISTANCE`, `WRITE_TOTAL_CALORIES_BURNED` and `WRITE_STEPS` are enough), and are `null` without them, so an app that does not need them can leave them out. A workout written with a `totalDistance` or a `totalEnergyBurned` is saved with a distance or energy record of its own, which needs `WRITE_DISTANCE` or `WRITE_TOTAL_CALORIES_BURNED`: without it, the workout is not written (`writeWorkoutData` returns `false`).
 
+Finally, an `intent-filter` needs to be added to the `.MainActivity` activity.
+
+```xml
+<activity
+  android:name=".MainActivity"
+  android:exported="true"
+
+  ....
+
+  <!-- Intention to show Permissions screen for Health Connect API -->
+  <intent-filter>
+    <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+  </intent-filter>
+</activity>
+```
+
+There's a `debug`, `main` and `profile` version which are chosen depending on how you start your app. In general, it's sufficient to add permission only to the `main` version.
+
 #### Health Connect features
 
 Health Connect added some data types and permissions after its first release. On Android 14 and later they come with Android or with Google Play system updates (SDK extensions), on Android 13 and lower with updates of the Health Connect app. Check them before use: without the feature, reads and writes of the type throw a `HealthException` with `HealthErrorCode.notSupported` before Health Connect is called.
@@ -146,6 +174,8 @@ The above methods require the following permission to be declared:
 <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY"/>
 ```
 
+#### Runtime permissions
+
 Accessing fitness data (e.g. Steps) requires permission to access the "Activity Recognition" API. To set it add the following line to your `AndroidManifest.xml` file.
 
 ```xml
@@ -167,24 +197,6 @@ Follow the plugin setup instructions and add the following line before requestin
 await Permission.activityRecognition.request();
 await Permission.location.request();
 ```
-
-Finally, an `intent-filter` needs to be added to the `.MainActivity` activity.
-
-```xml
-<activity
-  android:name=".MainActivity"
-  android:exported="true"
-
-  ....
-
-  <!-- Intention to show Permissions screen for Health Connect API -->
-  <intent-filter>
-    <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-  </intent-filter>
-</activity>
-```
-
-There's a `debug`, `main` and `profile` version which are chosen depending on how you start your app. In general, it's sufficient to add permission only to the `main` version.
 
 #### MainActivity: FlutterFragmentActivity
 
@@ -214,59 +226,79 @@ android.enableJetifier=true
 android.useAndroidX=true
 ```
 
-## Usage
+### iOS
 
-See the example app for detailed examples of how to use the Health API.
+First, add the following 2 entries to the `Info.plist`:
 
-A instance of the Health plugin is create using the `Health()` constructor and is subsequently configured calling the `configure` method. Once configured, the plugin can be used for handling permissions and getting and adding data to Apple Health or Google Health Connect.
-Below is a simplified flow of how to use the plugin.
+```xml
+<key>NSHealthShareUsageDescription</key>
+<string>We will sync your data with the Apple Health app to give you better insights</string>
+<key>NSHealthUpdateUsageDescription</key>
+<string>We will sync your data with the Apple Health app to give you better insights</string>
+```
+
+Then, open your Flutter project in Xcode by right clicking on the "ios" folder and selecting "Open in Xcode". Next, enable "HealthKit" by adding a capability inside the "Signing & Capabilities" tab of the Runner target's settings.
+
+The iOS side of the plugin requires **iOS 15.0 or later** and ships both as a Swift package (`ios/health`) and as a CocoaPods pod. Apps with [Swift Package Manager](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers) enabled (Flutter 3.44 or later) get the Swift package, everything else keeps using CocoaPods. No extra setup is needed in either case.
+
+## Quick start
+
+Create a `Health` instance and call `configure()` before using the plugin. Once configured, the plugin handles permissions and reads/writes data with Apple Health or Google Health Connect:
 
 ```dart
+import 'package:health/health.dart';
 
+Future<void> healthQuickStart() async {
   // Global Health instance
   final health = Health();
 
-  // configure the health plugin before use.
+  // Configure the health plugin before use.
   await health.configure();
 
-
-  // define the types to get
+  // Define the types to get
   var types = [
     HealthDataType.STEPS,
     HealthDataType.BLOOD_GLUCOSE,
   ];
 
-  // requesting access to the data types before reading them
+  // Request access to the data types before reading them
   bool requested = await health.requestAuthorization(types);
 
   var now = DateTime.now();
 
-  // fetch health data from the last 24 hours
+  // Fetch health data from the last 24 hours
   List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
     types: types,
-    startTime: now.subtract(Duration(days: 1)),
+    startTime: now.subtract(const Duration(days: 1)),
     endTime: now,
   );
 
-  // request permissions to write steps and blood glucose
+  // Request permissions to write steps and blood glucose
   types = [HealthDataType.STEPS, HealthDataType.BLOOD_GLUCOSE];
   var permissions = [
-      HealthDataAccess.READ_WRITE,
-      HealthDataAccess.READ_WRITE
+    HealthDataAccess.READ_WRITE,
+    HealthDataAccess.READ_WRITE,
   ];
   await health.requestAuthorization(types, permissions: permissions);
 
-  // write steps over the last 20 minutes (on Android, steps need an endTime after the startTime)
+  // Write steps over the last 20 minutes (on Android, steps need an endTime after the startTime)
   // and a blood glucose value measured now
-  var earlier = now.subtract(Duration(minutes: 20));
+  var earlier = now.subtract(const Duration(minutes: 20));
   bool success = await health.writeHealthData(
-    value: 10, type: HealthDataType.STEPS, startTime: earlier, endTime: now);
+    value: 10,
+    type: HealthDataType.STEPS,
+    startTime: earlier,
+    endTime: now,
+  );
   success = await health.writeHealthData(
-    value: 3.1, type: HealthDataType.BLOOD_GLUCOSE, startTime: now);
+    value: 3.1,
+    type: HealthDataType.BLOOD_GLUCOSE,
+    startTime: now,
+  );
 
-  // you can also specify the recording method to store in the metadata (default is RecordingMethod.automatic)
-  // on iOS only `RecordingMethod.automatic` and `RecordingMethod.manual` are supported
-  // Android additionally supports `RecordingMethod.active` and `RecordingMethod.unknown`
+  // You can also specify the recording method to store in the metadata (default is RecordingMethod.automatic).
+  // On iOS only RecordingMethod.automatic and RecordingMethod.manual are supported;
+  // Android additionally supports RecordingMethod.active and RecordingMethod.unknown.
   success &= await health.writeHealthData(
     value: 10,
     type: HealthDataType.STEPS,
@@ -275,12 +307,18 @@ Below is a simplified flow of how to use the plugin.
     recordingMethod: RecordingMethod.manual,
   );
 
-  // get the number of steps for today (0 if there are none)
+  // Get the number of steps for today (0 if there are none)
   var midnight = DateTime(now.year, now.month, now.day);
   int steps = await health.getTotalStepsInInterval(midnight, now);
+}
 ```
 
-`true` from `requestAuthorization` does not mean that every requested permission was granted. On Android it means that at least one of the requested permissions is granted when the Health Connect permission dialog closes, also one granted before; it is `false` when none is, when the dialog cannot be shown (see [MainActivity: FlutterFragmentActivity](#mainactivity-flutterfragmentactivity)) or while another permission request waits for the dialog. The user may allow some permissions and not others, and the dialog does not offer those of a type that the device's Health Connect does not have (see [Health Connect features](#health-connect-features)). `hasPermissions` returns `true` only when every type given to it has its permission, so ask it about one type at a time to find the missing ones. On iOS, `true` only means that HealthKit handled the request (see [Authorization on iOS](#authorization-on-ios)).
+> [!NOTE]
+> `true` from `requestAuthorization` does not mean that every requested permission was granted. On Android it means that at least one of the requested permissions is granted when the Health Connect permission dialog closes, also one granted before; it is `false` when none is, when the dialog cannot be shown (see [MainActivity: FlutterFragmentActivity](#mainactivity-flutterfragmentactivity)) or while another permission request waits for the dialog. The user may allow some permissions and not others, and the dialog does not offer those of a type that the device's Health Connect does not have (see [Health Connect features](#health-connect-features)). `hasPermissions` returns `true` only when every type given to it has its permission, so ask it about one type at a time to find the missing ones. On iOS, `true` only means that HealthKit handled the request (see [Authorization on iOS](#authorization-on-ios)).
+
+## Usage
+
+Import `package:health/health.dart`. See the [example app](#example-app) for a working showcase of every API on both platforms.
 
 ### Authorization on iOS
 
@@ -302,172 +340,10 @@ HealthKit lets apps only read `ELECTROCARDIOGRAM`, `HIGH_HEART_RATE_EVENT`, `LOW
 
 In `getHealthDataFromTypes` and `getHealthDataPages`, a missing read permission is not an error: the read returns only the data the app wrote itself.
 
-- **Android:** Health Connect lets an app read the records it wrote with the type's write permission. Such a read returns the app's own records, and every page of it has `HealthDataPage.readPermissionDenied` set. Without the write permission either, the type has one empty page with `readPermissionDenied`. The app's own heart rate is read in time slices of about `pageSize` samples, as with the read permission. Health Connect counts an app's own samples without the read permission only from Android 14 QPR2 on, and in the background only with `READ_HEALTH_DATA_IN_BACKGROUND`; where it refuses (and possibly in the Health Connect app on Android 13 and lower), the read goes record by record instead, which costs many more calls (see [Health Connect limits](#health-connect-limits)). The first page decides this, so a heart rate read that started in the foreground can fail with `HealthErrorCode.permissionDenied` on a later page once the app is in the background: for heart rate reads that may go on in the background, also of the app's own records, request `READ_HEALTH_DATA_IN_BACKGROUND` (see [Android: Reading Health Data in Background](#android-reading-health-data-in-background)). The app's own records are not limited to the 30 days of history that Health Connect otherwise allows without `READ_HEALTH_DATA_HISTORY`. `getHealthDataByUUID` returns the app's own record and `null` for another app's, and throws a `HealthPlatformException` with `HealthErrorCode.permissionDenied` without either permission. The totals of a workout the app wrote are read with the write permission of each total's type. `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` cover the data of every app, so without the read permission they throw `permissionDenied`, also with the write permission.
+- **Android:** Health Connect lets an app read the records it wrote with the type's write permission. Such a read returns the app's own records, and every page of it has `HealthDataPage.readPermissionDenied` set. Without the write permission either, the type has one empty page with `readPermissionDenied`. The app's own heart rate is read in time slices of about `pageSize` samples, as with the read permission. Health Connect counts an app's own samples without the read permission only from Android 14 QPR2 on, and in the background only with `READ_HEALTH_DATA_IN_BACKGROUND`; where it refuses (and possibly in the Health Connect app on Android 13 and lower), the read goes record by record instead, which costs many more calls (see [Health Connect limits](#health-connect-limits)). The first page decides this, so a heart rate read that started in the foreground can fail with `HealthErrorCode.permissionDenied` on a later page once the app is in the background: for heart rate reads that may go on in the background, also of the app's own records, request `READ_HEALTH_DATA_IN_BACKGROUND` (see [Android: Reading health data in background](#android-reading-health-data-in-background)). The app's own records are not limited to the 30 days of history that Health Connect otherwise allows without `READ_HEALTH_DATA_HISTORY`. `getHealthDataByUUID` returns the app's own record and `null` for another app's, and throws a `HealthPlatformException` with `HealthErrorCode.permissionDenied` without either permission. The totals of a workout the app wrote are read with the write permission of each total's type. `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` cover the data of every app, so without the read permission they throw `permissionDenied`, also with the write permission.
 - **iOS:** HealthKit hides a denied read: reads, `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` see only the samples the app saved (0 steps if none), and `getHealthDataByUUID` returns `null` for the samples of other apps. A type the app never requested authorization for throws a `HealthPlatformException` with `HealthErrorCode.permissionDenied` (HealthKit error code 5). On iOS 27 the user can share only a limited window of recent history; older samples then do not appear in any read. HealthKit's `getEarliestAuthorizedSampleDate(for:completion:)` tells the start of that window, which the plugin does not expose.
 
-### Writing workouts (iOS & Android)
-
-`writeWorkoutData` writes a workout, and `writeWorkoutDataUUID` writes one and returns its UUID:
-
-```dart
-bool saved = await health.writeWorkoutData(
-  activityType: HealthWorkoutActivityType.RUNNING,
-  start: start,
-  end: start.add(const Duration(minutes: 30)),
-  totalDistance: 5000, // in meters
-  totalEnergyBurned: 300, // in kilocalories
-  title: 'Morning run', // Android only
-  metadata: const WorkoutMetadata(workoutBrandName: 'My App'), // iOS only
-);
-```
-
-- On iOS, `totalDistance` and `totalEnergyBurned` are stored only on the workout (HealthKit's totals of the `HKWorkout`), without samples, so they do not appear in reads or intervals of `ACTIVE_ENERGY_BURNED` or the `DISTANCE_*` types. On Android they are a `DISTANCE_DELTA` and a `TOTAL_CALORIES_BURNED` record of their own (see below).
-- `metadata` is HealthKit metadata of the workout, which Android ignores: a `WorkoutMetadata` with its brand name, whether it was indoors (`indoorWorkout`), whether it was a group fitness class or coached, and its sync identifier and version (see below). HealthKit lets only Apple's apps mark a workout as an Apple Fitness+ session, so `WorkoutMetadata` has no field for it. A run written with `WorkoutMetadata(indoorWorkout: true)` reads back as `RUNNING_TREADMILL` (see [Workout Types](#workout-types)).
-- On Android, `startZoneOffset` and `endZoneOffset` set the offsets from UTC of the local time at the start and at the end of the workout, at most 18 hours either way (a larger offset throws an `ArgumentError`). Without them, the workout's records get Health Connect's default. iOS ignores them.
-- A workout type that the platform has no workout type for, such as `ARCHERY` on Android or `DANCING` on iOS, throws a `HealthException` with `HealthErrorCode.notSupported`.
-
-**Writing a workout again.** To write a workout again without adding a copy, for example after the user edited it, give it an id and a version: on Android `clientRecordId` and `clientRecordVersion`, as for `writeHealthData`, and on iOS `WorkoutMetadata.syncIdentifier` and `syncVersion` (HealthKit's `HKMetadataKeySyncIdentifier` and `HKMetadataKeySyncVersion`). Each platform ignores the other's. A workout written with the id of a workout this app wrote before replaces that workout if its version is greater, and is not added as a copy. An id without its version, or a version without its id, throws an `ArgumentError`.
-
-```dart
-await health.writeWorkoutData(
-  activityType: HealthWorkoutActivityType.RUNNING,
-  start: start,
-  end: start.add(const Duration(minutes: 30)),
-  totalDistance: 5100,
-  clientRecordId: 'run-42', // Android
-  clientRecordVersion: 2,
-  metadata: const WorkoutMetadata(syncIdentifier: 'run-42', syncVersion: 2), // iOS
-);
-```
-
-On Android, the workout's distance and energy burned are records of their own, with the client record ids `<clientRecordId>:distance` and `<clientRecordId>:calories` and the workout's version, so a rewrite without a distance or energy keeps the one written before. To delete such a workout on Android, call `deleteByClientRecordId(dataTypeKey: HealthDataType.WORKOUT, clientRecordId: 'run-42')`, and the same for `DISTANCE_DELTA` with `'run-42:distance'` and for `TOTAL_CALORIES_BURNED` with `'run-42:calories'`.
-
-**Reading workouts.** Reads return a workout as a `WORKOUT` data point whose value is a `WorkoutHealthValue`, with the workout's `workoutActivityType`, `totalDistance` (in meters), `totalEnergyBurned` (in kilocalories) and, on Android, `totalSteps` (`null` on iOS). On iOS the totals are the workout's own, and `totalEnergyBurned` is its active energy. On Android `totalEnergyBurned` is Health Connect's total calories (active and basal), and these totals count only the records of the app that wrote the workout, so an activity that two apps recorded (for example a watch app and the phone) does not count twice. A total is `null` when that app wrote no such records or the read permission for it is missing (for a workout this app wrote, its write permission is enough); read `DISTANCE_DELTA`, `TOTAL_CALORIES_BURNED` or `STEPS` over the workout's time to count the data of other apps too. On iOS the value also holds what HealthKit records about the workout: `totalFlightsClimbed`, `totalSwimmingStrokeCount`, `duration` (its time without pauses, in seconds), `avgMets`, `elevationAscended`, `elevationDescended`, `indoorWorkout`, `weatherTemperature`, `weatherHumidity`, `averageSpeed`, `maximumSpeed` and `workoutEvents`: its pauses, laps, segments and other `WorkoutEvent`s, each with a `WorkoutEventType`, a `start` and an `end`. These are `null` when the workout has none, and always on Android. `swimming` holds the pool length and laps of a swim on both platforms (see [Swimming workouts](#swimming-workouts)). The data point's `workoutSummary` holds the name of the workout type and the totals on both platforms, with 0 for a missing total.
-
-#### Swimming workouts
-
-`writeWorkoutData` and `writeWorkoutDataUUID` take the pool length and the laps of a swim in `swimming`, and its number of strokes in `totalSwimmingStrokeCount` (iOS only). For example, four 25 m lengths in three stroke styles:
-
-```dart
-final start = DateTime(2026, 11, 10, 7, 0);
-SwimmingLap lap(int minute, SwimmingStrokeStyle strokeStyle) => SwimmingLap(
-  startTime: start.add(Duration(minutes: minute)),
-  endTime: start.add(Duration(minutes: minute + 1)),
-  strokeStyle: strokeStyle,
-);
-
-bool saved = await health.writeWorkoutData(
-  activityType: HealthWorkoutActivityType.SWIMMING_POOL,
-  start: start,
-  end: start.add(const Duration(minutes: 4)),
-  totalDistance: 100,
-  swimming: SwimmingDetails(
-    poolLength: 25, // in meters
-    laps: [
-      lap(0, SwimmingStrokeStyle.freestyle),
-      lap(1, SwimmingStrokeStyle.freestyle),
-      lap(2, SwimmingStrokeStyle.backstroke),
-      lap(3, SwimmingStrokeStyle.breaststroke),
-    ],
-  ),
-  totalSwimmingStrokeCount: 72, // iOS only
-);
-```
-
-A `SwimmingDetails` holds the `poolLength` in meters, for `SWIMMING_POOL` only, and the `laps`, each a `SwimmingLap` with a `startTime`, an `endTime` and a `strokeStyle`: a `SwimmingStrokeStyle` (`unknown` by default, `mixed`, `freestyle`, `backstroke`, `breaststroke`, `butterfly`, `kickboard` or `other`). Swimming details are for `SWIMMING_POOL` and `SWIMMING_OPEN_WATER` workouts and, on iOS, `SWIMMING` ones. Reads return them in `WorkoutHealthValue.swimming`, also for the swims that other apps and watches wrote, and the stroke count in `WorkoutHealthValue.totalSwimmingStrokeCount`. What each platform stores and reads back:
-
-|                                       | iOS (HealthKit)                                                                                                                  | Android (Health Connect)                                                                                                  |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Pool length                           | Saved as the lap length of the workout (`HKMetadataKeyLapLength`) with a pool location; read in meters (25 yards read as 22.86) | Saved as the length of each lap, so it is lost without laps; read as the length that all laps share, `null` if they differ |
-| Pool length of an open water swim     | Rejected                                                                                                                         | Rejected; always reads back `null`                                                                                        |
-| `SWIMMING_POOL` without a pool length | Saved without a location; reads back as `SWIMMING`                                                                               | Stays `SWIMMING_POOL`                                                                                                     |
-| Laps                                  | Lap events of the workout; they also appear in `workoutEvents`, without stroke style                                             | `ExerciseLap`s of the session                                                                                             |
-| Stroke styles                         | Saved with each lap; `kickboard` needs iOS 16 (`unknown` before); `other` is stored as `unknown`                                 | Saved as segments over the laps; `unknown` stores none; `kickboard` and `other` both read back as `other`                 |
-| Stroke count                          | The workout's total, read as `totalSwimmingStrokeCount`                                                                          | Not stored                                                                                                                |
-| `SWIMMING`                            | Supported                                                                                                                        | Not supported (`HealthErrorCode.notSupported`)                                                                            |
-
-Both write methods throw an `ArgumentError` before anything is written if:
-
-- `swimming` or `totalSwimmingStrokeCount` is given for a workout that is not a swim, or `totalSwimmingStrokeCount` is negative;
-- `poolLength` is given for a workout that is not `SWIMMING_POOL`, or is not more than 0 and at most 1000 meters;
-- a lap does not start before it ends or is not inside the workout, or the laps are not sorted by start time or overlap (a lap may start where the lap before it ends).
-
-`WorkoutHealthValue.swimming` is `null` for other workouts, and for a swim with neither a known pool length nor laps (on Android, for a swim without laps). Laps come back sorted by start time, and a lap without a stroke style reads as `unknown`. On iOS, the laps are the workout's lap events: its sets (segments) and pauses are not laps and are only in `workoutEvents`, and the laps that an Apple Watch recorded before watchOS 4 have no duration. On Android, a lap reads with the stroke style of the swimming segment it starts in, as the segments of other apps need not match their laps.
-
-### Writing workout routes (iOS & Android)
-
-1. Request share/read permissions for both `HealthDataType.WORKOUT` and `HealthDataType.WORKOUT_ROUTE`, and ensure location permissions are granted (iOS: Core Location permissions; Android: `ACCESS_FINE_LOCATION` or `ACCESS_COARSE_LOCATION`).
-2. When the workout session starts, open a builder with `final builderId = await health.startWorkoutRoute();`.
-3. Collect GPS samples using `CLLocationManager` (or an equivalent service) and periodically push ordered batches of `WorkoutRouteLocation` values via `insertWorkoutRouteData`.
-4. Save the workout itself with `writeWorkoutDataUUID`, which returns the workout's UUID.
-5. Call `finishWorkoutRoute(builderId: builderId, workoutUuid: workoutUuid, metadata: {...})` to commit the route, or `discardWorkoutRoute(builderId)` if the session is cancelled.
-
-> **Health Connect note:** Like other Health Connect reads, routes are read only while your app is
-> in the foreground, unless it also has `READ_HEALTH_DATA_IN_BACKGROUND` (see
-> [Android: Reading Health Data in Background](#android-reading-health-data-in-background)). To read
-> the routes of other apps, your app also needs the *Exercise routes* permission
-> (`READ_EXERCISE_ROUTES`). Without it, such a route is read as a `WORKOUT_ROUTE` data point without
-> locations whose `metadata` has `route_requires_consent: true` (Health Connect's `ConsentRequired`).
-> `requestAuthorization` does not request this permission, and the plugin does not launch Health
-> Connect's `ExerciseRouteRequestContract`, so the user has to grant "Always allow" for
-> *Exercise routes* in the Health Connect app
-> (`Health Connect → App permissions → Your app → Exercise routes`).
-> Also remember to declare the following permissions in your Android manifest:
-> - `<uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTES"/>`
-> - `<uses-permission android:name="android.permission.health.WRITE_EXERCISE_ROUTE"/>`
-> - `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>` (or `ACCESS_COARSE_LOCATION`)
-
-### Writing a night of sleep (iOS & Android)
-
-`writeSleepSession` writes a sleep session, such as a night, with its stages in one call. Each stage is a `SleepSessionStage` of one of the types `SLEEP_AWAKE`, `SLEEP_AWAKE_IN_BED`, `SLEEP_ASLEEP`, `SLEEP_LIGHT`, `SLEEP_DEEP`, `SLEEP_REM`, `SLEEP_OUT_OF_BED` and `SLEEP_UNKNOWN`. The stages need not cover the whole session, but they must lie inside it, be sorted by start time and not overlap; otherwise `writeSleepSession` throws an `ArgumentError` before anything is written. All sleep types share one permission on each platform, so request write access to one of them, for example `HealthDataType.SLEEP_ASLEEP` (on Android, declare `android.permission.health.WRITE_SLEEP`).
-
-```dart
-final bedtime = DateTime(2026, 11, 9, 23, 0);
-DateTime at(int minutes) => bedtime.add(Duration(minutes: minutes));
-
-bool saved = await health.writeSleepSession(
-  startTime: bedtime,
-  endTime: at(480),
-  stages: [
-    SleepSessionStage(type: HealthDataType.SLEEP_AWAKE_IN_BED, startTime: at(0), endTime: at(20)),
-    SleepSessionStage(type: HealthDataType.SLEEP_LIGHT, startTime: at(20), endTime: at(120)),
-    SleepSessionStage(type: HealthDataType.SLEEP_DEEP, startTime: at(120), endTime: at(200)),
-    SleepSessionStage(type: HealthDataType.SLEEP_REM, startTime: at(200), endTime: at(260)),
-    SleepSessionStage(type: HealthDataType.SLEEP_LIGHT, startTime: at(260), endTime: at(470)),
-    SleepSessionStage(type: HealthDataType.SLEEP_AWAKE, startTime: at(470), endTime: at(480)),
-  ],
-  title: 'Night', // stored on Android only, as are notes
-);
-```
-
-- **Android** stores one Health Connect sleep session with its stages, title and notes. Reads return the session as a `SLEEP_SESSION` data point and each stage as a data point of its type, without the title and notes. A sleep type written with `writeHealthData` is a session of its own, so a night written stage by stage that way shows up as many sessions.
-- **iOS** saves the session in one call as sleep analysis samples, as HealthKit has no sleep sessions: in-bed samples for the session except its `SLEEP_OUT_OF_BED` stages, read as `SLEEP_IN_BED`, and a sample for each stage, read as the stage's type. The exceptions: `SLEEP_AWAKE_IN_BED` stages are read as `SLEEP_AWAKE`; before iOS 16, light, deep and REM sleep are saved and read as `SLEEP_ASLEEP`; and `SLEEP_OUT_OF_BED` and `SLEEP_UNKNOWN` stages get no sample of their own (an unknown stage stays time in bed). The title and notes are not stored, and iOS has no `SLEEP_SESSION` type. HealthKit accepts at most 4 days for a sleep sample, so a longer session throws a `PlatformException` with code `INVALID_ARGUMENT` before anything is saved.
-
-To remove a session, call `delete` over its time range. On Android, any sleep type deletes the app's sleep sessions in that range with all their stages. On iOS, `delete` removes only the app's samples of the type given, so delete `SLEEP_IN_BED` and each type the stages are read as.
-
-Reads return a sleep data point when it starts in the range: a stage when the stage starts in it, whichever session it belongs to, and on Android a `SLEEP_SESSION` when the session starts in it. Reads of consecutive ranges therefore return each point once; to read a whole night, read up to its end. On Android, the stages of sessions that began up to 24 hours before `startTime` are found, and the stages of one session come together, so the stages of overlapping sessions (from one app or several) are not in one time order.
-
-### Writing a mindfulness session (iOS & Android)
-
-`writeMindfulnessSession` writes a mindfulness session, such as a meditation, from `startTime` to `endTime`; a session that does not end after it starts throws an `ArgumentError` before anything is written. Request write access to `HealthDataType.MINDFULNESS` first (on Android, declare `READ_MINDFULNESS` and `WRITE_MINDFULNESS`).
-
-```dart
-if (await health.isMindfulnessSessionAvailable()) {
-  bool saved = await health.writeMindfulnessSession(
-    startTime: now.subtract(const Duration(minutes: 10)),
-    endTime: now,
-    sessionType: MindfulnessSessionType.BREATHING, // Android only, as are title and notes
-    title: 'Morning practice',
-  );
-}
-```
-
-- **Android** stores a Health Connect mindfulness session with its `sessionType` (a `MindfulnessSessionType`: `UNKNOWN` by default, `MEDITATION`, `BREATHING`, `MUSIC`, `MOVEMENT` or `UNGUIDED`), `title` and `notes`. Health Connect added mindfulness sessions after its first release (see [Health Connect features](#health-connect-features)): `isMindfulnessSessionAvailable` tells whether the Health Connect on the device has them, and where it does not, reading or writing `MINDFULNESS` throws a `HealthException` with `HealthErrorCode.notSupported`.
-- **iOS** stores a HealthKit mindful session, which has no type, title or notes, so iOS ignores them. `isMindfulnessSessionAvailable` returns `true` on iOS.
-
-Reads return a session as a `MINDFULNESS` data point whose value is its minutes, without its type, title and notes. `writeHealthData` with `HealthDataType.MINDFULNESS` writes a session of type `UNKNOWN` without a title and notes. `getHealthIntervalDataFromTypes` returns the minutes of mindfulness sessions in each interval on both platforms (see [Reading data over intervals](#reading-data-over-intervals)).
-
-### Health Data
+### Health data
 
 A [`HealthDataPoint`](https://pub.dev/documentation/health/latest/health/HealthDataPoint-class.html) object contains the following data fields:
 
@@ -488,7 +364,7 @@ Map<String, dynamic>? metadata;
 String? deviceModel;
 ```
 
-where a [`HealthValue`](https://pub.dev/documentation/health/latest/health/HealthValue-class.html) is a `NumericHealthValue` (most types), `AudiogramHealthValue` (`AUDIOGRAM`), `ElectrocardiogramHealthValue` (`ELECTROCARDIOGRAM`; its `voltageValues` are `ElectrocardiogramVoltageValue`s), `InsulinDeliveryHealthValue` (`INSULIN_DELIVERY`), `MenstruationFlowHealthValue` (`MENSTRUATION_FLOW`), `NutritionHealthValue` (`NUTRITION`), `ActivityIntensityHealthValue` (`ACTIVITY_INTENSITY`), `SkinTemperatureHealthValue` (`SKIN_TEMPERATURE`), `WorkoutHealthValue` (`WORKOUT`; see [Writing workouts](#writing-workouts-ios--android) for its fields) or `WorkoutRouteHealthValue` (`WORKOUT_ROUTE`). `getHealthIntervalDataFromTypes` returns a `NumericHealthValue` for every type.
+where a [`HealthValue`](https://pub.dev/documentation/health/latest/health/HealthValue-class.html) is a `NumericHealthValue` (most types), `AudiogramHealthValue` (`AUDIOGRAM`), `ElectrocardiogramHealthValue` (`ELECTROCARDIOGRAM`; its `voltageValues` are `ElectrocardiogramVoltageValue`s), `InsulinDeliveryHealthValue` (`INSULIN_DELIVERY`), `MenstruationFlowHealthValue` (`MENSTRUATION_FLOW`), `SexualActivityHealthValue` (`SEXUAL_ACTIVITY`), `NutritionHealthValue` (`NUTRITION`), `ActivityIntensityHealthValue` (`ACTIVITY_INTENSITY`), `SkinTemperatureHealthValue` (`SKIN_TEMPERATURE`), `WorkoutHealthValue` (`WORKOUT`; see [Writing workouts](#writing-workouts-ios--android) for its fields) or `WorkoutRouteHealthValue` (`WORKOUT_ROUTE`). `getHealthIntervalDataFromTypes` returns a `NumericHealthValue` for every type.
 
 `metadata` is set for iOS quantity and category samples, such as steps, heart rate and sleep (their HealthKit metadata, an empty map if there is none), and for workout routes on both platforms (for example `route_point_count`); it is `null` for other data. `deviceModel` is the model of the device that recorded the data: on iOS HealthKit's `HKDevice.model`, such as `iPhone` or `Watch`, and on Android the `model` of Health Connect's `Device`, such as `Pixel Watch 2`. It is `null` when the app that wrote the data reported no device, or no model for it.
 
@@ -517,9 +393,8 @@ A `HealthDataPoint` object can be serialized to and from JSON using the `toJson(
 
 ### Fetch health data
 
-See the example app for a showcasing of how it's done.
-
-**Note** On iOS the device must be unlocked before health data can be requested. Otherwise the read throws a `HealthPlatformException` with `errorCode` `HealthErrorCode.deviceLocked` (native code `DEVICE_LOCKED`), which is retryable once the device is unlocked. See [Error handling](#error-handling).
+> [!NOTE]
+> On iOS the device must be unlocked before health data can be requested. Otherwise the read throws a `HealthPlatformException` with `errorCode` `HealthErrorCode.deviceLocked` (native code `DEVICE_LOCKED`), which is retryable once the device is unlocked. See [Error handling](#error-handling).
 
 **The newest data points.** With a `limit`, `getHealthDataFromTypes` returns at most that many of the newest data points of each type, newest end time first, without reading every page of the range. For example, the latest weight of the last year:
 
@@ -668,7 +543,7 @@ List<HealthDataPoint> hourly = await health.getHealthIntervalDataFromTypes(
 ```
 
 - Each type has one data point per interval that has data. Intervals without data are left out on both platforms.
-- The value of every point is a `NumericHealthValue` in the type's unit (see [Data Types](#data-types)): the sum for cumulative types such as steps, energy, distance and water, and the average for other types. For heart rate, that is the average beats per minute: HealthKit weights each sample by the time it covers, Health Connect takes the mean of the samples. On Android, activity intensity intervals hold the intensity minutes Health Connect computes, and mindfulness intervals the minutes of the mindfulness sessions.
+- The value of every point is a `NumericHealthValue` in the type's unit (see [Data types](#data-types)): the sum for cumulative types such as steps, energy, distance and water, and the average for other types. For heart rate, that is the average beats per minute: HealthKit weights each sample by the time it covers, Health Connect takes the mean of the samples. On Android, activity intensity intervals hold the intensity minutes Health Connect computes, and mindfulness intervals the minutes of the mindfulness sessions.
 - For a sleep type, the value is the number of minutes of the interval that the type's data points cover (the points `getHealthDataFromTypes` returns for the type), with overlapping points counted once. A point that began before `startDate` counts with its part after it; on Android, sleep sessions that began up to 24 hours before `startDate` are read for this. For the time in bed, use `SLEEP_SESSION` (the whole session) on Android and `SLEEP_IN_BED` on iOS. On iOS, `MINDFULNESS` intervals are computed the same way from the mindful sessions.
 - Not every type has intervals. On Android, a type without them returns no data points; on iOS, it throws a `HealthPlatformException` with `HealthErrorCode.invalidArgument`, and a type this iOS version does not have (such as `ROWING_SPEED` before iOS 18) throws one with `HealthErrorCode.notSupported`, as reads of it do. The documentation of `getHealthIntervalDataFromTypes` lists the types of each platform.
 - On both platforms, a point's `sourceName` names the apps whose data it holds, joined by `", "` (Android package names, iOS bundle identifiers), and its `sourceId` is empty. For sums and averages, these are the apps with data in that interval; on iOS they are sorted and can include devices. For the sleep types, and for `MINDFULNESS` on iOS, they are the apps whose samples cover part of the interval, each once, in the order their samples start.
@@ -676,7 +551,234 @@ List<HealthDataPoint> hourly = await health.getHealthIntervalDataFromTypes(
 
 **Health Connect's app priority list.** On Android, the sums of the activity types (`STEPS`, `DISTANCE_DELTA`, `ACTIVE_ENERGY_BURNED`, `TOTAL_CALORIES_BURNED` and the `ACTIVITY_INTENSITY` minutes), on recent Health Connect versions also the `MINDFULNESS` minutes, and `getTotalStepsInInterval` (unless `includeManualEntry` is `false`) are Health Connect aggregates. They count only the apps in the user's priority list for the data's category, and where the data of several apps overlap, only the app with the highest priority. Health Connect ranks only activity, sleep and wellness data this way: other intervals, such as heart rate averages, combine the data of every app, and the plugin computes sleep intervals itself from the sessions of every app. An app joins the priority list when the user grants it a write permission of the category in Health Connect's permission screen (`requestAuthorization`), or adds it to the list in Health Connect's settings. Health Connect may also add apps with data to an empty list on its own.
 
-> **Testing note:** permissions granted with `adb shell pm grant` do not add the app to the priority list, so the app's own data is missing from these sums until a write permission is granted through Health Connect's permission screen or the app is added to the list in Health Connect's settings.
+> [!NOTE]
+> **Testing note:** Permissions granted with `adb shell pm grant` do not add the app to the priority list, so the app's own data is missing from these sums until a write permission is granted through Health Connect's permission screen or the app is added to the list in Health Connect's settings.
+
+### Filtering by recording method
+
+Google Health Connect and Apple HealthKit both provide ways to distinguish samples collected "automatically" and manually entered data by the user.
+
+- Android provides an enum with 4 variations: <https://developer.android.com/reference/kotlin/androidx/health/connect/client/records/metadata/Metadata#summary>
+- iOS has a boolean value: <https://developer.apple.com/documentation/healthkit/hkmetadatakeywasuserentered>
+
+As such, when fetching data you have the option to filter the fetched data by recording method as such:
+
+```dart
+List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
+  types: types,
+  startTime: yesterday,
+  endTime: now,
+  recordingMethodsToFilter: [RecordingMethod.manual, RecordingMethod.unknown],
+);
+```
+
+**Note that for this to work, the information needs to have been provided when writing the data to Health Connect or Apple Health**. For example, steps added manually through the Apple Health App will set `HKWasUserEntered` to true (corresponding to `RecordingMethod.manual`), however it seems that adding steps manually to Google Fit does not write the data with the `RecordingMethod.manual` in the metadata, instead it shows up as `RecordingMethod.unknown`. This is an open issue, and as such filtering manual entries when querying step count on Android with `getTotalStepsInInterval(includeManualEntry: false)` does not necessarily filter out manual steps.
+
+On Android, `getTotalStepsInInterval(includeManualEntry: false)` adds up the step records of every app that start in the interval, as Health Connect's aggregates cannot filter by recording method. Unlike the default, Health Connect's step aggregate, it does not leave out apps outside Health Connect's app priority list (see [Reading data over intervals](#reading-data-over-intervals)), counts the overlapping data of several apps twice, and does not split records that cross the interval's bounds.
+
+> [!NOTE]
+> On iOS, only `RecordingMethod.manual` can be filtered out: HealthKit marks only the samples the user entered (`HKMetadataKeyWasUserEntered`). Most other samples read as `RecordingMethod.automatic`, but `RecordingMethod.automatic` or another method in `recordingMethodsToFilter` does not leave them out. In `getHealthIntervalDataFromTypes` on Android, only the sleep types are filtered: the intervals of the other types are Health Connect aggregates, which include data of every recording method. `getHealthIntervalDataFromTypes` prints a warning to the console for a filter it cannot apply; the other reads ignore it silently.
+
+### Filtering out duplicates
+
+If the same data is requested multiple times and saved in the same array, duplicates will occur.
+
+Two data points can be compared with the `==` operator, i.e.
+
+```dart
+HealthDataPoint p1 = ...;
+HealthDataPoint p2 = ...;
+bool same = p1 == p2;
+```
+
+If you have a list of data points, duplicates can be removed with:
+
+```dart
+List<HealthDataPoint> points = ...;
+points = health.removeDuplicates(points);
+```
+
+`==`, and so `removeDuplicates`, compares every field of the points, including the `sourceDeviceId`, the `deviceModel` and the contents of their `metadata` (before 14.0.0 a point with `metadata`, such as every iOS sample, was never equal to the same data read again). To match points only by the record they come from, compare `type`, `uuid` and `dateFrom`, the key recommended for resuming reads in [Reading large amounts of data](#reading-large-amounts-of-data):
+
+```dart
+final seen = <(HealthDataType, String, DateTime)>{};
+points = points.where((p) => seen.add((p.type, p.uuid, p.dateFrom))).toList();
+```
+
+### Android: Reading health data in background
+
+Health Connect lets an app read health data in the background with the permission `READ_HEALTH_DATA_IN_BACKGROUND`. Declare it in `AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"/>
+```
+
+Where `isHealthDataInBackgroundAvailable()` is `true` (see [Health Connect features](#health-connect-features)), `isHealthDataInBackgroundAuthorized()` tells whether it is granted and `requestHealthDataInBackgroundAuthorization()` asks the user for it. On iOS, which has no such permission, `isHealthDataInBackgroundAvailable()` returns `false` and the other two `true`.
+
+Without it, Health Connect lets an app in the background read only the records it wrote itself, and no aggregates. A read of a type with its read permission (which asks for the data of every app), `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` therefore fail there with a `HealthPlatformException` with `HealthErrorCode.permissionDenied`, also on a later page of a read that started in the foreground. A read with only the write permission returns the app's own records in the background too, but a heart rate read that started in the foreground can fail on a later page, as its pages are planned from Health Connect's counts of its samples (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)).
+
+### Writing workouts (iOS & Android)
+
+`writeWorkoutData` writes a workout, and `writeWorkoutDataUUID` writes one and returns its UUID:
+
+```dart
+bool saved = await health.writeWorkoutData(
+  activityType: HealthWorkoutActivityType.RUNNING,
+  start: start,
+  end: start.add(const Duration(minutes: 30)),
+  totalDistance: 5000, // in meters
+  totalEnergyBurned: 300, // in kilocalories
+  title: 'Morning run', // Android only
+  metadata: const WorkoutMetadata(workoutBrandName: 'My App'), // iOS only
+);
+```
+
+- On iOS, `totalDistance` and `totalEnergyBurned` are stored only on the workout (HealthKit's totals of the `HKWorkout`), without samples, so they do not appear in reads or intervals of `ACTIVE_ENERGY_BURNED` or the `DISTANCE_*` types. On Android they are a `DISTANCE_DELTA` and a `TOTAL_CALORIES_BURNED` record of their own (see below).
+- `metadata` is HealthKit metadata of the workout, which Android ignores: a `WorkoutMetadata` with its brand name, whether it was indoors (`indoorWorkout`), whether it was a group fitness class or coached, and its sync identifier and version (see below). HealthKit lets only Apple's apps mark a workout as an Apple Fitness+ session, so `WorkoutMetadata` has no field for it. A run written with `WorkoutMetadata(indoorWorkout: true)` reads back as `RUNNING_TREADMILL` (see [Workout types](#workout-types)).
+- On Android, `startZoneOffset` and `endZoneOffset` set the offsets from UTC of the local time at the start and at the end of the workout, at most 18 hours either way (a larger offset throws an `ArgumentError`). Without them, the workout's records get Health Connect's default. iOS ignores them.
+- A workout type that the platform has no workout type for, such as `ARCHERY` on Android or `DANCING` on iOS, throws a `HealthException` with `HealthErrorCode.notSupported`.
+
+**Writing a workout again.** To write a workout again without adding a copy, for example after the user edited it, give it an id and a version: on Android `clientRecordId` and `clientRecordVersion`, as for `writeHealthData`, and on iOS `WorkoutMetadata.syncIdentifier` and `syncVersion` (HealthKit's `HKMetadataKeySyncIdentifier` and `HKMetadataKeySyncVersion`). Each platform ignores the other's. A workout written with the id of a workout this app wrote before replaces that workout if its version is greater, and is not added as a copy. An id without its version, or a version without its id, throws an `ArgumentError`.
+
+```dart
+await health.writeWorkoutData(
+  activityType: HealthWorkoutActivityType.RUNNING,
+  start: start,
+  end: start.add(const Duration(minutes: 30)),
+  totalDistance: 5100,
+  clientRecordId: 'run-42', // Android
+  clientRecordVersion: 2,
+  metadata: const WorkoutMetadata(syncIdentifier: 'run-42', syncVersion: 2), // iOS
+);
+```
+
+On Android, the workout's distance and energy burned are records of their own, with the client record ids `<clientRecordId>:distance` and `<clientRecordId>:calories` and the workout's version, so a rewrite without a distance or energy keeps the one written before. To delete such a workout on Android, call `deleteByClientRecordId(dataTypeKey: HealthDataType.WORKOUT, clientRecordId: 'run-42')`, and the same for `DISTANCE_DELTA` with `'run-42:distance'` and for `TOTAL_CALORIES_BURNED` with `'run-42:calories'`.
+
+**Reading workouts.** Reads return a workout as a `WORKOUT` data point whose value is a `WorkoutHealthValue`, with the workout's `workoutActivityType`, `totalDistance` (in meters), `totalEnergyBurned` (in kilocalories) and, on Android, `totalSteps` (`null` on iOS). On iOS the totals are the workout's own, and `totalEnergyBurned` is its active energy. On Android `totalEnergyBurned` is Health Connect's total calories (active and basal), and these totals count only the records of the app that wrote the workout, so an activity that two apps recorded (for example a watch app and the phone) does not count twice. A total is `null` when that app wrote no such records or the read permission for it is missing (for a workout this app wrote, its write permission is enough); read `DISTANCE_DELTA`, `TOTAL_CALORIES_BURNED` or `STEPS` over the workout's time to count the data of other apps too. On iOS the value also holds what HealthKit records about the workout: `totalFlightsClimbed`, `totalSwimmingStrokeCount`, `duration` (its time without pauses, in seconds), `avgMets`, `elevationAscended`, `elevationDescended`, `indoorWorkout`, `weatherTemperature`, `weatherHumidity`, `averageSpeed`, `maximumSpeed` and `workoutEvents`: its pauses, laps, segments and other `WorkoutEvent`s, each with a `WorkoutEventType`, a `start` and an `end`. These are `null` when the workout has none, and always on Android. `swimming` holds the pool length and laps of a swim on both platforms (see [Swimming workouts](#swimming-workouts)). The data point's `workoutSummary` holds the name of the workout type and the totals on both platforms, with 0 for a missing total.
+
+#### Swimming workouts
+
+`writeWorkoutData` and `writeWorkoutDataUUID` take the pool length and the laps of a swim in `swimming`, and its number of strokes in `totalSwimmingStrokeCount` (iOS only). For example, four 25 m lengths in three stroke styles:
+
+```dart
+final start = DateTime(2026, 11, 10, 7, 0);
+SwimmingLap lap(int minute, SwimmingStrokeStyle strokeStyle) => SwimmingLap(
+  startTime: start.add(Duration(minutes: minute)),
+  endTime: start.add(Duration(minutes: minute + 1)),
+  strokeStyle: strokeStyle,
+);
+
+bool saved = await health.writeWorkoutData(
+  activityType: HealthWorkoutActivityType.SWIMMING_POOL,
+  start: start,
+  end: start.add(const Duration(minutes: 4)),
+  totalDistance: 100,
+  swimming: SwimmingDetails(
+    poolLength: 25, // in meters
+    laps: [
+      lap(0, SwimmingStrokeStyle.freestyle),
+      lap(1, SwimmingStrokeStyle.freestyle),
+      lap(2, SwimmingStrokeStyle.backstroke),
+      lap(3, SwimmingStrokeStyle.breaststroke),
+    ],
+  ),
+  totalSwimmingStrokeCount: 72, // iOS only
+);
+```
+
+A `SwimmingDetails` holds the `poolLength` in meters, for `SWIMMING_POOL` only, and the `laps`, each a `SwimmingLap` with a `startTime`, an `endTime` and a `strokeStyle`: a `SwimmingStrokeStyle` (`unknown` by default, `mixed`, `freestyle`, `backstroke`, `breaststroke`, `butterfly`, `kickboard` or `other`). Swimming details are for `SWIMMING_POOL` and `SWIMMING_OPEN_WATER` workouts and, on iOS, `SWIMMING` ones. Reads return them in `WorkoutHealthValue.swimming`, also for the swims that other apps and watches wrote, and the stroke count in `WorkoutHealthValue.totalSwimmingStrokeCount`. What each platform stores and reads back:
+
+|                                       | iOS (HealthKit)                                                                                                                  | Android (Health Connect)                                                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Pool length                           | Saved as the lap length of the workout (`HKMetadataKeyLapLength`) with a pool location; read in meters (25 yards read as 22.86) | Saved as the length of each lap, so it is lost without laps; read as the length that all laps share, `null` if they differ |
+| Pool length of an open water swim     | Rejected                                                                                                                         | Rejected; always reads back `null`                                                                                        |
+| `SWIMMING_POOL` without a pool length | Saved without a location; reads back as `SWIMMING`                                                                               | Stays `SWIMMING_POOL`                                                                                                     |
+| Laps                                  | Lap events of the workout; they also appear in `workoutEvents`, without stroke style                                             | `ExerciseLap`s of the session                                                                                             |
+| Stroke styles                         | Saved with each lap; `kickboard` needs iOS 16 (`unknown` before); `other` is stored as `unknown`                                 | Saved as segments over the laps; `unknown` stores none; `kickboard` and `other` both read back as `other`                 |
+| Stroke count                          | The workout's total, read as `totalSwimmingStrokeCount`                                                                          | Not stored                                                                                                                |
+| `SWIMMING`                            | Supported                                                                                                                        | Not supported (`HealthErrorCode.notSupported`)                                                                            |
+
+Both write methods throw an `ArgumentError` before anything is written if:
+
+- `swimming` or `totalSwimmingStrokeCount` is given for a workout that is not a swim, or `totalSwimmingStrokeCount` is negative;
+- `poolLength` is given for a workout that is not `SWIMMING_POOL`, or is not more than 0 and at most 1000 meters;
+- a lap does not start before it ends or is not inside the workout, or the laps are not sorted by start time or overlap (a lap may start where the lap before it ends).
+
+`WorkoutHealthValue.swimming` is `null` for other workouts, and for a swim with neither a known pool length nor laps (on Android, for a swim without laps). Laps come back sorted by start time, and a lap without a stroke style reads as `unknown`. On iOS, the laps are the workout's lap events: its sets (segments) and pauses are not laps and are only in `workoutEvents`, and the laps that an Apple Watch recorded before watchOS 4 have no duration. On Android, a lap reads with the stroke style of the swimming segment it starts in, as the segments of other apps need not match their laps.
+
+### Writing workout routes (iOS & Android)
+
+1. Request share/read permissions for both `HealthDataType.WORKOUT` and `HealthDataType.WORKOUT_ROUTE`, and ensure location permissions are granted (iOS: Core Location permissions; Android: `ACCESS_FINE_LOCATION` or `ACCESS_COARSE_LOCATION`).
+2. When the workout session starts, open a builder with `final builderId = await health.startWorkoutRoute();`.
+3. Collect GPS samples using `CLLocationManager` (or an equivalent service) and periodically push ordered batches of `WorkoutRouteLocation` values via `insertWorkoutRouteData`.
+4. Save the workout itself with `writeWorkoutDataUUID`, which returns the workout's UUID.
+5. Call `finishWorkoutRoute(builderId: builderId, workoutUuid: workoutUuid, metadata: {...})` to commit the route, or `discardWorkoutRoute(builderId)` if the session is cancelled.
+
+> [!NOTE]
+> **Health Connect:** Like other Health Connect reads, routes are read only while your app is
+> in the foreground, unless it also has `READ_HEALTH_DATA_IN_BACKGROUND` (see
+> [Android: Reading health data in background](#android-reading-health-data-in-background)). To read
+> the routes of other apps, your app also needs the *Exercise routes* permission
+> (`READ_EXERCISE_ROUTES`). Without it, such a route is read as a `WORKOUT_ROUTE` data point without
+> locations whose `metadata` has `route_requires_consent: true` (Health Connect's `ConsentRequired`).
+> `requestAuthorization` does not request this permission, and the plugin does not launch Health
+> Connect's `ExerciseRouteRequestContract`, so the user has to grant "Always allow" for
+> *Exercise routes* in the Health Connect app
+> (`Health Connect → App permissions → Your app → Exercise routes`).
+> Also remember to declare the following permissions in your Android manifest:
+> - `<uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTES"/>`
+> - `<uses-permission android:name="android.permission.health.WRITE_EXERCISE_ROUTE"/>`
+> - `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>` (or `ACCESS_COARSE_LOCATION`)
+
+### Writing a night of sleep (iOS & Android)
+
+`writeSleepSession` writes a sleep session, such as a night, with its stages in one call. Each stage is a `SleepSessionStage` of one of the types `SLEEP_AWAKE`, `SLEEP_AWAKE_IN_BED`, `SLEEP_ASLEEP`, `SLEEP_LIGHT`, `SLEEP_DEEP`, `SLEEP_REM`, `SLEEP_OUT_OF_BED` and `SLEEP_UNKNOWN`. The stages need not cover the whole session, but they must lie inside it, be sorted by start time and not overlap; otherwise `writeSleepSession` throws an `ArgumentError` before anything is written. All sleep types share one permission on each platform, so request write access to one of them, for example `HealthDataType.SLEEP_ASLEEP` (on Android, declare `android.permission.health.WRITE_SLEEP`).
+
+```dart
+final bedtime = DateTime(2026, 11, 9, 23, 0);
+DateTime at(int minutes) => bedtime.add(Duration(minutes: minutes));
+
+bool saved = await health.writeSleepSession(
+  startTime: bedtime,
+  endTime: at(480),
+  stages: [
+    SleepSessionStage(type: HealthDataType.SLEEP_AWAKE_IN_BED, startTime: at(0), endTime: at(20)),
+    SleepSessionStage(type: HealthDataType.SLEEP_LIGHT, startTime: at(20), endTime: at(120)),
+    SleepSessionStage(type: HealthDataType.SLEEP_DEEP, startTime: at(120), endTime: at(200)),
+    SleepSessionStage(type: HealthDataType.SLEEP_REM, startTime: at(200), endTime: at(260)),
+    SleepSessionStage(type: HealthDataType.SLEEP_LIGHT, startTime: at(260), endTime: at(470)),
+    SleepSessionStage(type: HealthDataType.SLEEP_AWAKE, startTime: at(470), endTime: at(480)),
+  ],
+  title: 'Night', // stored on Android only, as are notes
+);
+```
+
+- **Android** stores one Health Connect sleep session with its stages, title and notes. Reads return the session as a `SLEEP_SESSION` data point and each stage as a data point of its type, without the title and notes. A sleep type written with `writeHealthData` is a session of its own, so a night written stage by stage that way shows up as many sessions.
+- **iOS** saves the session in one call as sleep analysis samples, as HealthKit has no sleep sessions: in-bed samples for the session except its `SLEEP_OUT_OF_BED` stages, read as `SLEEP_IN_BED`, and a sample for each stage, read as the stage's type. The exceptions: `SLEEP_AWAKE_IN_BED` stages are read as `SLEEP_AWAKE`; before iOS 16, light, deep and REM sleep are saved and read as `SLEEP_ASLEEP`; and `SLEEP_OUT_OF_BED` and `SLEEP_UNKNOWN` stages get no sample of their own (an unknown stage stays time in bed). The title and notes are not stored, and iOS has no `SLEEP_SESSION` type. HealthKit accepts at most 4 days for a sleep sample, so a longer session throws a `PlatformException` with code `INVALID_ARGUMENT` before anything is saved.
+
+To remove a session, call `delete` over its time range. On Android, any sleep type deletes the app's sleep sessions in that range with all their stages. On iOS, `delete` removes only the app's samples of the type given, so delete `SLEEP_IN_BED` and each type the stages are read as.
+
+Reads return a sleep data point when it starts in the range: a stage when the stage starts in it, whichever session it belongs to, and on Android a `SLEEP_SESSION` when the session starts in it. Reads of consecutive ranges therefore return each point once; to read a whole night, read up to its end. On Android, the stages of sessions that began up to 24 hours before `startTime` are found, and the stages of one session come together, so the stages of overlapping sessions (from one app or several) are not in one time order.
+
+### Writing a mindfulness session (iOS & Android)
+
+`writeMindfulnessSession` writes a mindfulness session, such as a meditation, from `startTime` to `endTime`; a session that does not end after it starts throws an `ArgumentError` before anything is written. Request write access to `HealthDataType.MINDFULNESS` first (on Android, declare `READ_MINDFULNESS` and `WRITE_MINDFULNESS`).
+
+```dart
+if (await health.isMindfulnessSessionAvailable()) {
+  bool saved = await health.writeMindfulnessSession(
+    startTime: now.subtract(const Duration(minutes: 10)),
+    endTime: now,
+    sessionType: MindfulnessSessionType.BREATHING, // Android only, as are title and notes
+    title: 'Morning practice',
+  );
+}
+```
+
+- **Android** stores a Health Connect mindfulness session with its `sessionType` (a `MindfulnessSessionType`: `UNKNOWN` by default, `MEDITATION`, `BREATHING`, `MUSIC`, `MOVEMENT` or `UNGUIDED`), `title` and `notes`. Health Connect added mindfulness sessions after its first release (see [Health Connect features](#health-connect-features)): `isMindfulnessSessionAvailable` tells whether the Health Connect on the device has them, and where it does not, reading or writing `MINDFULNESS` throws a `HealthException` with `HealthErrorCode.notSupported`.
+- **iOS** stores a HealthKit mindful session, which has no type, title or notes, so iOS ignores them. `isMindfulnessSessionAvailable` returns `true` on iOS.
+
+Reads return a session as a `MINDFULNESS` data point whose value is its minutes, without its type, title and notes. `writeHealthData` with `HealthDataType.MINDFULNESS` writes a session of type `UNKNOWN` without a title and notes. `getHealthIntervalDataFromTypes` returns the minutes of mindfulness sessions in each interval on both platforms (see [Reading data over intervals](#reading-data-over-intervals)).
 
 ### Error handling
 
@@ -764,69 +866,7 @@ Checking the granted permissions did not count against the read quota on the And
 
 To stay within the quotas, read large ranges in the foreground (the background quota is much smaller), prefer a few long reads over many short ones, keep the default `pageSize` or raise it for heart rate data, and call `getChanges` instead of re-reading data you already have.
 
-### Filtering by recording method
-
-Google Health Connect and Apple HealthKit both provide ways to distinguish samples collected "automatically" and manually entered data by the user.
-
-- Android provides an enum with 4 variations: <https://developer.android.com/reference/kotlin/androidx/health/connect/client/records/metadata/Metadata#summary>
-- iOS has a boolean value: <https://developer.apple.com/documentation/healthkit/hkmetadatakeywasuserentered>
-
-As such, when fetching data you have the option to filter the fetched data by recording method as such:
-
-```dart
-List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
-  types: types,
-  startTime: yesterday,
-  endTime: now,
-  recordingMethodsToFilter: [RecordingMethod.manual, RecordingMethod.unknown],
-);
-```
-
-**Note that for this to work, the information needs to have been provided when writing the data to Health Connect or Apple Health**. For example, steps added manually through the Apple Health App will set `HKWasUserEntered` to true (corresponding to `RecordingMethod.manual`), however it seems that adding steps manually to Google Fit does not write the data with the `RecordingMethod.manual` in the metadata, instead it shows up as `RecordingMethod.unknown`. This is an open issue, and as such filtering manual entries when querying step count on Android with `getTotalStepsInInterval(includeManualEntry: false)` does not necessarily filter out manual steps.
-
-On Android, `getTotalStepsInInterval(includeManualEntry: false)` adds up the step records of every app that start in the interval, as Health Connect's aggregates cannot filter by recording method. Unlike the default, Health Connect's step aggregate, it does not leave out apps outside Health Connect's app priority list (see [Reading data over intervals](#reading-data-over-intervals)), counts the overlapping data of several apps twice, and does not split records that cross the interval's bounds.
-
-**NOTE**: On iOS, only `RecordingMethod.manual` can be filtered out: HealthKit marks only the samples the user entered (`HKMetadataKeyWasUserEntered`). Most other samples read as `RecordingMethod.automatic`, but `RecordingMethod.automatic` or another method in `recordingMethodsToFilter` does not leave them out. In `getHealthIntervalDataFromTypes` on Android, only the sleep types are filtered: the intervals of the other types are Health Connect aggregates, which include data of every recording method. `getHealthIntervalDataFromTypes` prints a warning to the console for a filter it cannot apply; the other reads ignore it silently.
-
-### Filtering out duplicates
-
-If the same data is requested multiple times and saved in the same array, duplicates will occur.
-
-Two data points can be compared with the `==` operator, i.e.
-
-```dart
-HealthDataPoint p1 = ...;
-HealthDataPoint p2 = ...;
-bool same = p1 == p2;
-```
-
-If you have a list of data points, duplicates can be removed with:
-
-```dart
-List<HealthDataPoint> points = ...;
-points = health.removeDuplicates(points);
-```
-
-`==`, and so `removeDuplicates`, compares every field of the points, including the `sourceDeviceId`, the `deviceModel` and the contents of their `metadata` (before 14.0.0 a point with `metadata`, such as every iOS sample, was never equal to the same data read again). To match points only by the record they come from, compare `type`, `uuid` and `dateFrom`, the key recommended for resuming reads in [Reading large amounts of data](#reading-large-amounts-of-data):
-
-```dart
-final seen = <(HealthDataType, String, DateTime)>{};
-points = points.where((p) => seen.add((p.type, p.uuid, p.dateFrom))).toList();
-```
-
-### Android: Reading Health Data in Background
-
-Health Connect lets an app read health data in the background with the permission `READ_HEALTH_DATA_IN_BACKGROUND`. Declare it in `AndroidManifest.xml`:
-
-```xml
-<uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"/>
-```
-
-Where `isHealthDataInBackgroundAvailable()` is `true` (see [Health Connect features](#health-connect-features)), `isHealthDataInBackgroundAuthorized()` tells whether it is granted and `requestHealthDataInBackgroundAuthorization()` asks the user for it. On iOS, which has no such permission, `isHealthDataInBackgroundAvailable()` returns `false` and the other two `true`.
-
-Without it, Health Connect lets an app in the background read only the records it wrote itself, and no aggregates. A read of a type with its read permission (which asks for the data of every app), `getHealthIntervalDataFromTypes` and `getTotalStepsInInterval` therefore fail there with a `HealthPlatformException` with `HealthErrorCode.permissionDenied`, also on a later page of a read that started in the foreground. A read with only the write permission returns the app's own records in the background too, but a heart rate read that started in the foreground can fail on a later page, as its pages are planned from Health Connect's counts of its samples (see [Reads without the read permission](#reads-without-the-read-permission-ios--android)).
-
-## Data Types
+## Data types
 
 The plugin supports the following [`HealthDataType`](https://pub.dev/documentation/health/latest/health/HealthDataType.html). A type marked iOS 16+, 17+ or 18+ needs that iOS version: on an earlier one, reading it fails with `HealthErrorCode.notSupported`. READ Only types cannot be written.
 
@@ -918,6 +958,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | DIETARY_*                             | GRAM                                    | yes              |                           | One type per nutrient, such as `DIETARY_PROTEIN_CONSUMED`; `DIETARY_ENERGY_CONSUMED` is in KILOCALORIE. On Android, use `NUTRITION` |
 | INSULIN_DELIVERY                      | INTERNATIONAL_UNIT                      | yes              |                           | Write with `writeInsulinDelivery`, not `writeHealthData`                                                                           |
 | MENSTRUATION_FLOW                     | NO_UNIT                                 | yes              | yes                       | on iOS, write with `writeMenstruationFlow`, not `writeHealthData`                                                                  |
+| SEXUAL_ACTIVITY                       | NO_UNIT                                 | yes              | yes                       | Write with `writeSexualActivity`, not `writeHealthData`; on Android declare `READ_SEXUAL_ACTIVITY` and `WRITE_SEXUAL_ACTIVITY`     |
 | WATER_TEMPERATURE                     | DEGREE_CELSIUS                          | yes              |                           | iOS 16+; related to/requires Apple Watch Ultra's Underwater Diving Workout                                                         |
 | SLEEP_WRIST_TEMPERATURE               | DEGREE_CELSIUS                          | yes              |                           | READ Only - iOS 16+ (`appleSleepingWristTemperature`)                                                                              |
 | APPLE_SLEEPING_BREATHING_DISTURBANCES | COUNT                                   | yes              |                           | READ Only - iOS 18+                                                                                                                |
@@ -951,7 +992,7 @@ The plugin supports the following [`HealthDataType`](https://pub.dev/documentati
 | APPLE_STAND_HOUR                      | HOUR                                    | yes              |                           | READ Only                                                                                                                          |
 | APPLE_STAND_TIME                      | SECOND                                  | yes              |                           | READ Only                                                                                                                          |
 
-## Workout Types
+## Workout types
 
 The plugin supports the following [`HealthWorkoutActivityType`](https://pub.dev/documentation/health/latest/health/HealthWorkoutActivityType.html).
 
@@ -1061,7 +1102,77 @@ Writing a workout type that the platform has no workout type for throws a `Healt
 | YOGA                             | yes              | yes                       |                                                                                                 |
 | OTHER                            | yes              | yes                       |                                                                                                 |
 
+## Upgrading to 14.0.0
+
+Version 14.0.0 raises the minimum SDKs to **Dart 3.12+**, **Flutter 3.44+**, and on Android **`compileSdk` 37** with **AGP 9.1.0+** and **Gradle 9.3.1+** (for `androidx.health.connect:connect-client` 1.2.0-alpha06).
+
+The most important breaking changes from 13.x:
+
+| 13.x | 14.0.0 |
+|---|---|
+| Android reads and `getChanges` / `getChangesToken` returned `[]` or `null` on failure | Throw `HealthPlatformException` with a structured `HealthErrorCode` (see [Error handling](#error-handling)) |
+| `getTotalStepsInInterval` returned `Future<int?>` | Returns `Future<int>` (`0` when there are no steps, throws `HealthPlatformException` on errors) |
+| `getHealthIntervalDataFromTypes` returned `0` for empty Android buckets, sample count for Android `HEART_RATE`, and failed on iOS sleep | Omits empty intervals on both platforms, returns `NumericHealthValue` for all types, returns average BPM for Android `HEART_RATE`, and returns deduplicated sleep minutes on both platforms |
+| `getHealthAggregateDataFromTypes` | Deprecated and throws `UnsupportedError` without calling the platform; use `getHealthIntervalDataFromTypes` |
+| `TOTAL_CALORIES_BURNED` listed on iOS | Removed from iOS supported types (throws `HealthErrorCode.notSupported`); use `ACTIVE_ENERGY_BURNED` and `BASAL_ENERGY_BURNED` |
+| `HealthDataPoint.sourceDeviceId` was `"unknown"` and `deviceModel` was always `null` | Populated from the device (`identifierForVendor` / `Build.ID` and `HKDevice.model` / `Device.model`). Both participate in `==`, so exclude them when matching stored 13.x points |
+| `HealthDataPoint` / `fromJson` overwrote `value` with duration for sleep, headache, and mindfulness | Keeps the passed `value` (pass duration in minutes explicitly when constructing points yourself) |
+| Android workout totals summed records from all apps | Count only records written by the same app as the workout (matching iOS); missing totals are `null` |
+| `AudiogramHealthValue.leftEarSensitivities` / `rightEarSensitivities` were `List<num>` | Now `List<num?>` |
+| Writing read-only iOS types or types with dedicated write methods failed silently or crashed | Throws `ArgumentError` up front; unsupported workout types throw `HealthException(HealthErrorCode.notSupported)` |
+| Android `preferredUnits` mislabeled unsupported conversions | Throws `HealthException(HealthErrorCode.invalidArgument)` for unsupported unit conversions |
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the complete list of additions, breaking changes, and fixes in 14.0.0.
+
+## Example app
+
+The [`example/`](example) folder contains a Material 3 Expressive app exercising every non-deprecated API of the plugin on Apple Health (iOS) and Health Connect (Android). To run it, call `flutter run` from `example/` on a physical device or emulator/simulator (see [`example/README.md`](example/README.md) for details).
+
+| Destination | What it demonstrates |
+|---|---|
+| **Overview** | `getHealthConnectSdkStatus`, `deviceId`, `hasPermissions`, `requestAuthorization`, and today's highlights (`getTotalStepsInInterval`, `getHealthDataFromTypes` with `limit: 1`, `getHealthIntervalDataFromTypes`) |
+| **Read** | `getHealthDataFromTypes`, cancellable paged reads (`getHealthDataPages`), `removeDuplicates`, `getHealthDataByUUID`, Android incremental changes (`getChangesToken`, `getChanges`), and `deleteByUUID` |
+| **Insights** | `getHealthIntervalDataFromTypes` as an hourly, daily, or weekly bar chart, and `getTotalStepsInInterval` with and without manual entries |
+| **Write** | Step-by-step sample data creation and dedicated forms for every write and delete method, including workouts with swimming laps, workout routes, sleep sessions, and mindfulness sessions |
+| **Setup** | Health Connect SDK status and feature checks, authorization and iOS `getRequestStatusForAuthorization`, history/background permissions, Android runtime permissions, `pageSize`, and `isolateMode` |
+
+## Contributing
+
+Please file feature requests and bug reports as [issues](https://github.com/carp-dk/carp-health-flutter/issues). Pull requests are welcome.
+
+### Project layout
+
+| Path | Contents |
+|---|---|
+| `lib/health.dart` | The public library exporting `Health`, data types, value models, and exceptions |
+| `lib/src/health_plugin.dart` | The `Health` class composing the topic mixins below |
+| `lib/src/permissions/` | Authorization, Health Connect SDK status, and device feature checks |
+| `lib/src/reading/` | Reads, paged streams (`getHealthDataPages`), interval aggregation, change tracking, and worker-isolate parsing |
+| `lib/src/writing/` | Writes, workouts, workout routes, sleep and mindfulness sessions, and deletion |
+| `lib/src/types/` | `HealthDataType`, units, platform type tables, workout activity types, and recording methods |
+| `lib/src/values/` | Typed `HealthValue` subclasses (`NumericHealthValue`, `WorkoutHealthValue`, `NutritionHealthValue`, ...) |
+| `android/src/main/kotlin/cachet/plugins/health/` | Android Health Connect native implementation (JVM unit tests in `android/src/test/`) |
+| `ios/health/Sources/health/` | iOS HealthKit native implementation (Swift Package Manager and CocoaPods) |
+| `test/` | Dart unit and method-channel tests (see [`test/README.md`](test/README.md)) |
+
+### Code generation
+
+JSON serialization code (`lib/health.g.dart`) is generated with `build_runner`, `json_serializable`, and `carp_serializable`. After editing serialized model classes, regenerate it with:
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Running tests
+
+Run the Dart unit and method-channel tests with:
+
+```sh
+flutter test
+```
+
+See [`test/README.md`](test/README.md) for the test harness and on-device integration tests in `example/integration_test/`.
+
 ## License
 
-This software is copyright (c) the [Technical University of Denmark (DTU)](https://www.dtu.dk) and is part of the [Copenhagen Research Platform](https://carp.cachet.dk/).
-This software is available 'as-is' under a [MIT license](LICENSE).
+This software is copyright (c) the [Copenhagen Research Platform](https://carp.dk/) at the [Technical University of Denmark](https://dtu.dk/) and is available 'as-is' under a [MIT license](LICENSE).
