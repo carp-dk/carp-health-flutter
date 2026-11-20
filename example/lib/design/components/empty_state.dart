@@ -40,42 +40,43 @@ class EmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     const motion = ExpressiveMotion.spatialDefault;
+    final duration = ExpressiveMotion.reduceMotion(context) ? Duration.zero : motion.duration;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: const BoxConstraints(maxWidth: 360),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TweenAnimationBuilder<double>(
                 tween: Tween<double>(begin: 0.6, end: 1),
-                duration: motion.duration,
+                duration: duration,
                 curve: motion,
                 builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
                 child: ShapedIcon(
                   icon: icon,
                   shape: shape,
-                  size: 96,
+                  size: 72,
                   background: scheme.tertiaryContainer,
                   foreground: scheme.onTertiaryContainer,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.titleLargeEmphasized.copyWith(color: scheme.onSurface),
+                style: theme.textTheme.titleMediumEmphasized.copyWith(color: scheme.onSurface),
               ),
               if (message case final message?) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   message,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium!.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
-              if (action case final action?) ...[const SizedBox(height: 20), action],
+              if (action case final action?) ...[const SizedBox(height: 16), action],
             ],
           ),
         ),

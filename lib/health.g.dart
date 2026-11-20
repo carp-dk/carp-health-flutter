@@ -200,6 +200,7 @@ const _$HealthDataTypeEnumMap = {
   HealthDataType.BIRTH_DATE: 'BIRTH_DATE',
   HealthDataType.BLOOD_TYPE: 'BLOOD_TYPE',
   HealthDataType.MENSTRUATION_FLOW: 'MENSTRUATION_FLOW',
+  HealthDataType.SEXUAL_ACTIVITY: 'SEXUAL_ACTIVITY',
   HealthDataType.WATER_TEMPERATURE: 'WATER_TEMPERATURE',
   HealthDataType.UNDERWATER_DEPTH: 'UNDERWATER_DEPTH',
   HealthDataType.SLEEP_WRIST_TEMPERATURE: 'SLEEP_WRIST_TEMPERATURE',
@@ -553,6 +554,30 @@ Map<String, dynamic> _$NutritionHealthValueToJson(
   'sugar': ?instance.sugar,
   'water': ?instance.water,
   'zinc': ?instance.zinc,
+};
+
+SexualActivityHealthValue _$SexualActivityHealthValueFromJson(
+  Map<String, dynamic> json,
+) => SexualActivityHealthValue(
+  protectionUsed:
+      $enumDecodeNullable(
+        _$SexualActivityProtectionEnumMap,
+        json['protectionUsed'],
+      ) ??
+      SexualActivityProtection.unknown,
+)..$type = json['__type'] as String?;
+
+Map<String, dynamic> _$SexualActivityHealthValueToJson(
+  SexualActivityHealthValue instance,
+) => <String, dynamic>{
+  '__type': ?instance.$type,
+  'protectionUsed': _$SexualActivityProtectionEnumMap[instance.protectionUsed]!,
+};
+
+const _$SexualActivityProtectionEnumMap = {
+  SexualActivityProtection.unknown: 'unknown',
+  SexualActivityProtection.protected: 'protected',
+  SexualActivityProtection.unprotected: 'unprotected',
 };
 
 SkinTemperatureHealthValue _$SkinTemperatureHealthValueFromJson(

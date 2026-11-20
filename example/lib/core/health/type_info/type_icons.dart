@@ -110,6 +110,7 @@ IconData typeIcon(HealthDataType type) => switch (type) {
   HealthDataType.HEADACHE_MODERATE => Icons.sentiment_dissatisfied,
   HealthDataType.HEADACHE_SEVERE => Icons.sentiment_very_dissatisfied,
   // Characteristics and other
+  HealthDataType.SEXUAL_ACTIVITY => Icons.favorite_border,
   HealthDataType.GENDER => Icons.wc,
   HealthDataType.BIRTH_DATE => Icons.cake_outlined,
   HealthDataType.BLOOD_TYPE => Icons.bloodtype,

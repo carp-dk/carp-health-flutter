@@ -16,6 +16,7 @@ void main() {
     expect(info.message, 'quota used up');
     expect(info.code, 'rateLimitExceeded');
     expect(info.platformCode, 'RATE_LIMIT_EXCEEDED');
+    expect(info.codes, ['rateLimitExceeded', 'RATE_LIMIT_EXCEEDED']);
     expect(info.isRetryable, isTrue);
     expect(info.isPermission, isFalse);
     expect(info.hint, isNotNull);
@@ -37,6 +38,7 @@ void main() {
     expect(info.title, 'Not supported on this device');
     expect(info.code, 'notSupported');
     expect(info.platformCode, isNull);
+    expect(info.codes, ['notSupported']);
   });
 
   test('a plain PlatformException is classified by its native code', () {
@@ -48,6 +50,7 @@ void main() {
     final unknown = ErrorInfo.from(PlatformException(code: 'WRITE_ERROR'));
     expect(unknown.title, 'Platform error');
     expect(unknown.code, isNull);
+    expect(unknown.codes, ['WRITE_ERROR']);
     expect(unknown.message, 'WRITE_ERROR');
   });
 

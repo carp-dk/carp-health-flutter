@@ -121,7 +121,7 @@ void main() {
     testWidgets('explains a route Health Connect returned without its locations', (tester) async {
       await _pumpValue(tester, routeNeedingConsentPoint());
 
-      expect(find.textContaining('without its locations'), findsOneWidget);
+      expect(find.text('Route locations require permission'), findsOneWidget);
       expect(find.byType(RoutePreview), findsNothing);
     });
 

@@ -100,6 +100,7 @@ abstract final class TypeRules {
     HealthDataType.AUDIOGRAM: 'writeAudiogram',
     HealthDataType.INSULIN_DELIVERY: 'writeInsulinDelivery',
     HealthDataType.MENSTRUATION_FLOW: 'writeMenstruationFlow',
+    HealthDataType.SEXUAL_ACTIVITY: 'writeSexualActivity',
     HealthDataType.ACTIVITY_INTENSITY: 'writeActivityIntensity',
   };
 
@@ -160,6 +161,7 @@ abstract final class TypeRules {
     HealthDataType.HEADACHE_UNSPECIFIED,
     HealthDataType.NUTRITION,
     HealthDataType.MENSTRUATION_FLOW,
+    HealthDataType.SEXUAL_ACTIVITY,
     HealthDataType.GENDER,
     HealthDataType.BIRTH_DATE,
     HealthDataType.BLOOD_TYPE,

@@ -55,7 +55,7 @@ class CategoryValueTests: XCTestCase {
     let unknown = try XCTUnwrap(CategoryValues("SLEEP_UNKNOWN"))
     XCTAssertEqual((-1...9).filter(unknown.contains), [-1, 6, 7, 8, 9])
     // A data type with a category type of its own covers all of its samples.
-    for dataTypeKey in ["APPLE_STAND_HOUR", "MINDFULNESS", "MENSTRUATION_FLOW", "STEPS"] {
+    for dataTypeKey in ["APPLE_STAND_HOUR", "MINDFULNESS", "MENSTRUATION_FLOW", "SEXUAL_ACTIVITY", "STEPS"] {
       XCTAssertNil(CategoryValues(dataTypeKey), dataTypeKey)
     }
   }
@@ -139,7 +139,7 @@ class CategoryValueTests: XCTestCase {
     let samples: [(String, Double)] = [
       ("SLEEP_UNKNOWN", 0), ("APPLE_STAND_HOUR", 5), ("APPLE_STAND_HOUR", -1),
       ("APPLE_STAND_HOUR", .nan), ("APPLE_STAND_HOUR", .infinity), ("HIGH_HEART_RATE_EVENT", 1),
-      ("MENSTRUATION_FLOW", 2), ("INSULIN_DELIVERY", 2),
+      ("MENSTRUATION_FLOW", 2), ("SEXUAL_ACTIVITY", 0), ("INSULIN_DELIVERY", 2),
     ]
     let writes: [(String, Write)] = [
       ("writeData", writer.writeData), ("writeDataUUID", writer.writeDataUUID),
@@ -160,8 +160,11 @@ class CategoryValueTests: XCTestCase {
 
   func testHealthKitTakesEveryValueWritesGive() throws {
     for (dataTypeKey, sampleType) in plugin.dataTypesDict {
-      // writeData leaves menstrual flow to writeMenstruationFlow.
-      guard let type = sampleType as? HKCategoryType, dataTypeKey != "MENSTRUATION_FLOW" else { continue }
+      // writeData leaves menstrual flow and sexual activity to their dedicated writers.
+      guard let type = sampleType as? HKCategoryType,
+            dataTypeKey != "MENSTRUATION_FLOW",
+            dataTypeKey != "SEXUAL_ACTIVITY"
+      else { continue }
       let accepted = try XCTUnwrap(writer.acceptedValues(of: type), dataTypeKey)
       // HealthKit would raise an exception for a value it does not take, ending the test run.
       _ = samples(type, accepted)

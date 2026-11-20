@@ -27,7 +27,7 @@ class EcgValueView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader(title: 'Electrocardiogram', subtitle: 'ElectrocardiogramHealthValue'),
+        const SectionHeader(title: 'Electrocardiogram'),
         // Under the header rather than at its end, where a long classification would squeeze the title.
         Align(
           alignment: AlignmentDirectional.centerStart,

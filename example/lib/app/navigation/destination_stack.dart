@@ -60,7 +60,7 @@ class _DestinationStackState extends State<DestinationStack> with SingleTickerPr
   @override
   void didUpdateWidget(DestinationStack oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.current != widget.current && !ExpressiveMotion.reduceMotion(context)) {
+    if (oldWidget.current != widget.current && !ExpressiveMotion.isReduced(context)) {
       _entrance.forward(from: 0);
     }
   }

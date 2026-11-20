@@ -16,7 +16,8 @@ import 'route_preview.dart';
 ///
 /// Without the Exercise routes permission, Health Connect returns another app's route without its
 /// locations and the plugin marks the data point with `route_requires_consent` in its metadata
-/// (README, "Writing workout routes"); the view explains that instead of showing an empty route.
+/// (README, "Writing workout routes"); the view then says so in a line instead of showing an empty
+/// route, and its info button explains it.
 class RouteValueView extends StatelessWidget {
   /// Creates the view of [value], the value of [point].
   const RouteValueView({super.key, required this.point, required this.value});
@@ -29,6 +30,8 @@ class RouteValueView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
     final locations = value.locations;
     final needsConsent = locations.isEmpty && point.metadata?['route_requires_consent'] == true;
     final altitudes = [for (final location in locations) ?location.altitude];
@@ -39,22 +42,19 @@ class RouteValueView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader(title: 'Route', subtitle: 'WorkoutRouteHealthValue'),
+        const SectionHeader(title: 'Route'),
         if (needsConsent)
-          const ExpressiveCard(
-            variant: ExpressiveCardVariant.tonal,
-            child: Row(
-              spacing: 16,
-              children: [
-                Icon(Icons.lock_outline),
-                Expanded(
-                  child: Text(
-                    'Health Connect returned this route without its locations: the app has not been '
-                    'granted access to the routes of other apps.',
-                  ),
+          Row(
+            spacing: 12,
+            children: [
+              Icon(Icons.lock_outline, color: muted),
+              Expanded(
+                child: Text(
+                  'Route locations require permission',
+                  style: theme.textTheme.bodyMedium!.copyWith(color: muted),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         if (locations.isNotEmpty) ...[
           ExpressiveCard(
@@ -76,7 +76,6 @@ class RouteValueView extends StatelessWidget {
                 unit: distanceUnit,
                 icon: Icons.route,
                 shape: ExpressiveShape.pill,
-                footnote: 'Between the locations',
               ),
               MetricTile(
                 label: 'Duration',

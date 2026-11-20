@@ -22,7 +22,6 @@ class WorkoutEventsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return DetailSection(
       title: 'Events',
-      subtitle: 'WorkoutHealthValue.workoutEvents (iOS)',
       children: [
         for (final event in events.take(maxEvents))
           ListTile(
@@ -31,7 +30,7 @@ class WorkoutEventsView extends StatelessWidget {
             subtitle: Text(_timeOf(event)),
           ),
         if (events.length > maxEvents)
-          DetailField(label: 'More events', value: '${events.length - maxEvents} more events are not listed'),
+          DetailField(label: 'More events', value: '${events.length - maxEvents} not listed'),
       ],
     );
   }

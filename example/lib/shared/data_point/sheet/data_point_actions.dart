@@ -3,30 +3,23 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:health/health.dart';
 import 'package:health_example/core/async/async_value.dart';
 import 'package:health_example/core/format/formatters.dart';
-import 'package:health_example/core/health/health_type_info.dart';
 import 'package:health_example/design/design.dart';
 import 'package:health_example/shared/data_point/data_point_text.dart';
 import 'package:health_example/shared/data_point/sheet/data_point_sheet_controller.dart';
 import 'package:health_example/shared/widgets/error_card.dart';
 
-/// Asks the user to confirm deleting [point], explaining that apps can delete only their own data.
-/// Returns whether to delete.
-Future<bool> confirmDataPointDelete(BuildContext context, HealthDataPoint point) async {
+/// Asks the user to confirm deleting the sheet's record, noting that apps can delete only their own
+/// records (for another app's record `deleteByUUID` returns false). Returns whether to delete.
+Future<bool> confirmDataPointDelete(BuildContext context) async {
   final scheme = Theme.of(context).colorScheme;
-  final platform = point.sourcePlatform == HealthPlatformType.appleHealth ? 'Apple Health' : 'Health Connect';
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       icon: const Icon(Icons.delete_outline),
       title: const Text('Delete this record?'),
-      content: Text(
-        'deleteByUUID removes this ${point.type.label} record from $platform, so that no app reads it any more.'
-        '\n\nApps can delete only the data they wrote themselves: for a record that another app wrote, the '
-        'plugin returns false and the record stays.',
-      ),
+      content: const Text('Apps can delete only records they wrote.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
         FilledButton(
@@ -97,17 +90,16 @@ class DataPointActions extends StatelessWidget {
     );
   }
 
-  /// What the calls returned, each in a card or pill under the buttons.
+  /// What the calls returned, each in a line, pill or error card under the buttons.
   List<Widget> _outcomes() {
     Widget spaced(Widget child) => Padding(padding: const EdgeInsets.only(top: 12), child: child);
     return [
       if (!controller.hasUuid)
         spaced(
-          const _Note(
+          const _Outcome(
             icon: Icons.info_outline,
-            text:
-                'This data point has no UUID: interval data are aggregates, not records, so it cannot be read '
-                'again or deleted by UUID.',
+            text: 'No UUID (interval data)',
+            info: 'Interval data are aggregates, not records: they cannot be read again or deleted by UUID.',
           ),
         ),
       ...switch (controller.lookup) {
@@ -123,18 +115,27 @@ class DataPointActions extends StatelessWidget {
             ),
           ),
         ],
-        AsyncData() => [spaced(_Note(icon: Icons.search_off, text: uuidNotFoundMessage(controller.point.type)))],
+        AsyncData() => [
+          spaced(
+            _Outcome(
+              icon: Icons.search_off,
+              text: 'Not found',
+              code: 'getHealthDataByUUID → null',
+              info: uuidNotFoundMessage(controller.point.type),
+            ),
+          ),
+        ],
         AsyncError(:final error) => [spaced(ErrorCard(error: error, onRetry: controller.rereadByUuid))],
         _ => const <Widget>[],
       },
       ...switch (controller.deletion) {
         AsyncData(value: false) => [
           spaced(
-            const _Note(
+            const _Outcome(
               icon: Icons.block,
-              text:
-                  'deleteByUUID returned false: nothing was deleted. Apps can delete only the records they wrote '
-                  'themselves, and only records that still exist.',
+              text: 'Not deleted',
+              code: 'deleteByUUID → false',
+              info: 'Apps can delete only records they wrote, and only records that still exist.',
             ),
           ),
         ],
@@ -153,27 +154,28 @@ class _Busy extends StatelessWidget {
   Widget build(BuildContext context) => const ExpressiveLoadingIndicator(size: 20, semanticsLabel: 'Working');
 }
 
-/// A tonal card with an icon and an explanation.
-class _Note extends StatelessWidget {
-  const _Note({required this.icon, required this.text});
+/// One short line on what a call returned, with the details behind an [InfoButton].
+class _Outcome extends StatelessWidget {
+  const _Outcome({required this.icon, required this.text, required this.info, this.code});
 
   final IconData icon;
   final String text;
+  final String info;
+  final String? code;
 
   @override
   Widget build(BuildContext context) {
-    return ExpressiveCard(
-      variant: ExpressiveCardVariant.tonal,
-      padding: const EdgeInsets.all(16),
-      radius: ExpressiveShapes.largeIncreased,
-      child: Row(
-        spacing: 12,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon),
-          Expanded(child: Text(text)),
-        ],
-      ),
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+    return Row(
+      spacing: 12,
+      children: [
+        Icon(icon, color: color),
+        Flexible(
+          child: Text(text, style: theme.textTheme.bodyLarge!.copyWith(color: color)),
+        ),
+        InfoButton(title: text, message: info, code: code),
+      ],
     );
   }
 }

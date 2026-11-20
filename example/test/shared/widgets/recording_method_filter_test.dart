@@ -30,7 +30,6 @@ void main() {
       expect(find.byType(FilterChip), findsNWidgets(4));
       expect(chip(tester, 'Manual').selected, isFalse);
       expect(chip(tester, 'Automatic').selected, isTrue);
-      expect(find.textContaining('Health Connect stores how each record was made'), findsOneWidget);
     });
 
     testWidgets('leaves out a method, and includes it again', (tester) async {
@@ -46,20 +45,19 @@ void main() {
     testWidgets('warns when every method is left out', (tester) async {
       await pumpFilter(tester, RecordingMethod.values.toSet(), android);
 
-      expect(find.textContaining('reads return no data'), findsOneWidget);
+      expect(find.text('All excluded — no data will match'), findsOneWidget);
     });
   });
 
   group('HealthKit', () {
     const ios = HealthPlatformType.appleHealth;
 
-    testWidgets('can leave out manual entries only, and says why', (tester) async {
+    testWidgets('can leave out manual entries only', (tester) async {
       await pumpFilter(tester, const {}, ios);
 
       expect(find.byType(FilterChip), findsNWidgets(2));
       expect(chip(tester, 'Automatic').onSelected, isNull, reason: 'HealthKit reads every other sample as automatic');
       expect(chip(tester, 'Automatic').selected, isTrue);
-      expect(find.textContaining('iOS can leave out manual entries only'), findsOneWidget);
 
       await tester.tap(find.text('Manual'));
       expect(reported, {RecordingMethod.manual});
@@ -70,7 +68,7 @@ void main() {
 
       expect(chip(tester, 'Automatic').selected, isTrue);
       expect(chip(tester, 'Manual').selected, isFalse);
-      expect(find.textContaining('reads return no data'), findsNothing);
+      expect(find.text('All excluded — no data will match'), findsNothing);
     });
   });
 }

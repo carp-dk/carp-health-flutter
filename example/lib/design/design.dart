@@ -11,6 +11,7 @@ export 'components/expressive_page.dart';
 export 'components/expressive_refresh_indicator.dart';
 export 'components/expressive_shape_border.dart';
 export 'components/fab_menu.dart';
+export 'components/info_button.dart';
 export 'components/floating_toolbar.dart';
 export 'components/loading_indicator.dart';
 export 'components/metric_tile.dart';

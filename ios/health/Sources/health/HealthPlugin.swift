@@ -182,6 +182,15 @@ public class HealthPlugin: NSObject, FlutterPlugin {
                                     details: nil))
             }
 
+        case "writeSexualActivity":
+            do {
+                try healthDataWriter.writeSexualActivity(call: call, result: result)
+            } catch {
+                result(FlutterError(code: "WRITE_ERROR",
+                                    message: "Error writing sexual activity: \(error.localizedDescription)",
+                                    details: nil))
+            }
+
         case "writeSleepSession":
             do {
                 try healthDataWriter.writeSleepSession(call: call, result: result)

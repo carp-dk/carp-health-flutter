@@ -123,7 +123,9 @@ TypeCategory typeCategory(HealthDataType type) => switch (type) {
 
   HealthDataType.MINDFULNESS => TypeCategory.mindfulness,
 
-  HealthDataType.MENSTRUATION_FLOW || HealthDataType.BASAL_BODY_TEMPERATURE => TypeCategory.cycle,
+  HealthDataType.MENSTRUATION_FLOW ||
+  HealthDataType.SEXUAL_ACTIVITY ||
+  HealthDataType.BASAL_BODY_TEMPERATURE => TypeCategory.cycle,
 
   HealthDataType.WORKOUT ||
   HealthDataType.WORKOUT_ROUTE ||

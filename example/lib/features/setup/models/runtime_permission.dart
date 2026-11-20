@@ -36,7 +36,7 @@ enum RuntimePermission {
   /// An icon for the permission.
   final IconData icon;
 
-  /// Why a health app asks for it.
+  /// Why a health app asks for it, for the info button.
   final String purpose;
 
   /// The `permission_handler` permission.
@@ -91,39 +91,45 @@ enum RuntimePermissionAction {
 @immutable
 class RuntimeStatusView {
   /// Creates the view of a status.
-  const RuntimeStatusView({required this.label, required this.tone, required this.action});
+  const RuntimeStatusView({required this.label, required this.tone, required this.icon, required this.action});
 
   /// Describes [status].
   factory RuntimeStatusView.of(PermissionStatus status) => switch (status) {
     PermissionStatus.granted => const RuntimeStatusView(
       label: 'Granted',
       tone: StatusTone.success,
+      icon: Icons.check_circle,
       action: RuntimePermissionAction.none,
     ),
     PermissionStatus.denied => const RuntimeStatusView(
       label: 'Not granted',
       tone: StatusTone.warning,
+      icon: Icons.pending,
       action: RuntimePermissionAction.request,
     ),
     // From Android 11 on, a permission denied twice is permanently denied: no dialog shows any more.
     PermissionStatus.permanentlyDenied => const RuntimeStatusView(
       label: 'Denied',
       tone: StatusTone.error,
+      icon: Icons.block,
       action: RuntimePermissionAction.openSettings,
     ),
     PermissionStatus.restricted => const RuntimeStatusView(
       label: 'Restricted',
       tone: StatusTone.error,
+      icon: Icons.lock,
       action: RuntimePermissionAction.none,
     ),
     PermissionStatus.limited => const RuntimeStatusView(
       label: 'Limited',
       tone: StatusTone.info,
+      icon: Icons.tonality,
       action: RuntimePermissionAction.request,
     ),
     PermissionStatus.provisional => const RuntimeStatusView(
       label: 'Provisional',
       tone: StatusTone.info,
+      icon: Icons.schedule,
       action: RuntimePermissionAction.none,
     ),
   };
@@ -133,6 +139,9 @@ class RuntimeStatusView {
 
   /// How the status reads.
   final StatusTone tone;
+
+  /// An icon for the status.
+  final IconData icon;
 
   /// What the page offers.
   final RuntimePermissionAction action;

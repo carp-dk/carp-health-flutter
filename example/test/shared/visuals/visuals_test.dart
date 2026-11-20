@@ -16,13 +16,15 @@ void main() {
       expect(TypeCategory.values.map((category) => category.shape).toSet(), hasLength(TypeCategory.values.length));
     });
 
-    test('neighbours take different container colours', () {
+    test('all take the same calm container colours, so shapes tell them apart', () {
       final scheme = ExpressiveTheme.light().colorScheme;
-      for (var i = 1; i < TypeCategory.values.length; i++) {
-        final (previous, _) = TypeCategory.values[i - 1].colorsIn(scheme);
-        final (current, _) = TypeCategory.values[i].colorsIn(scheme);
-        expect(current, isNot(previous), reason: TypeCategory.values[i].name);
+      for (final category in TypeCategory.values) {
+        expect(category.colorsIn(scheme), (
+          scheme.secondaryContainer,
+          scheme.onSecondaryContainer,
+        ), reason: category.name);
       }
+      expect(TypeCategory.values.map((category) => category.shape).toSet(), hasLength(TypeCategory.values.length));
     });
   });
 

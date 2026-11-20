@@ -24,7 +24,7 @@ enum ExpressiveCardVariant {
 
   /// The container colour of this style in [scheme].
   Color backgroundIn(ColorScheme scheme) => switch (this) {
-    filled => scheme.surfaceContainerHighest,
+    filled => scheme.surfaceContainerHigh,
     tonal => scheme.secondaryContainer,
     outlined => scheme.surface,
     vibrant => scheme.primaryContainer,
@@ -115,9 +115,10 @@ class _ExpressiveCardState extends State<ExpressiveCard> {
     }
 
     const motion = ExpressiveMotion.spatialFast;
+    final duration = ExpressiveMotion.reduceMotion(context) ? Duration.zero : motion.duration;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(end: _pressed ? 1 : 0),
-      duration: motion.duration,
+      duration: duration,
       curve: motion,
       child: content,
       builder: (context, press, child) => Transform.scale(

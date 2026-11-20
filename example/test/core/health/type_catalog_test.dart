@@ -48,6 +48,7 @@ void main() {
         HealthDataType.NUTRITION,
         HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
         HealthDataType.MENSTRUATION_FLOW,
+        HealthDataType.SEXUAL_ACTIVITY,
         HealthDataType.ACTIVITY_INTENSITY,
         HealthDataType.WORKOUT_ROUTE,
         HealthDataType.POWER,

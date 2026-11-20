@@ -27,7 +27,6 @@ class NumericValueView extends StatelessWidget {
     final meaning = describeCodedValue(point.type, number);
     return DetailSection(
       title: 'Measurement',
-      subtitle: 'NumericHealthValue.numericValue in HealthDataPoint.unit',
       children: [
         DetailField(label: 'Value', value: '$number', monospace: true),
         DetailField(label: 'Unit', value: symbol.isEmpty ? point.unit.name : '$symbol (${point.unit.name})'),
@@ -38,10 +37,7 @@ class NumericValueView extends StatelessWidget {
           DetailField(label: 'Duration', value: formatDuration(minutesToDuration(number))),
         // HealthKit measures percentages as fractions, Health Connect from 0 to 100.
         if (point.unit == HealthDataUnit.PERCENT && point.sourcePlatform == HealthPlatformType.appleHealth)
-          DetailField(
-            label: 'Percentage',
-            value: '${formatNumber(number * 100, maxDecimals: 1)}% (HealthKit fraction)',
-          ),
+          DetailField(label: 'Percentage', value: '${formatNumber(number * 100, maxDecimals: 1)}%'),
       ],
     );
   }

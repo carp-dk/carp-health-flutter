@@ -56,6 +56,8 @@
     <uses-permission android:name="android.permission.health.WRITE_HEART_RATE_VARIABILITY"/>
     <uses-permission android:name="android.permission.health.READ_MENSTRUATION"/>
     <uses-permission android:name="android.permission.health.WRITE_MENSTRUATION"/>
+    <uses-permission android:name="android.permission.health.READ_SEXUAL_ACTIVITY"/>
+    <uses-permission android:name="android.permission.health.WRITE_SEXUAL_ACTIVITY"/>
     <uses-permission android:name="android.permission.health.READ_LEAN_BODY_MASS"/>
     <uses-permission android:name="android.permission.health.WRITE_LEAN_BODY_MASS"/>
     <uses-permission android:name="android.permission.health.READ_SKIN_TEMPERATURE"/>

@@ -22,26 +22,23 @@ class PlatformBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final (icon, label) = switch (_platform) {
-      _Platform.android => (Icons.android, 'Android only'),
-      _Platform.ios => (Icons.apple, 'iOS only'),
+    final (icon, label, semantics) = switch (_platform) {
+      _Platform.android => (Icons.android, 'Android', 'Android only'),
+      _Platform.ios => (Icons.apple, 'iOS', 'iOS only'),
     };
     return Semantics(
-      label: label,
+      label: semantics,
       excludeSemantics: true,
       child: DecoratedBox(
-        decoration: ShapeDecoration(
-          color: scheme.tertiaryContainer,
-          shape: StadiumBorder(side: BorderSide(color: scheme.tertiary.withValues(alpha: 0.4))),
-        ),
+        decoration: ShapeDecoration(color: scheme.surfaceContainerHighest, shape: const StadiumBorder()),
         child: Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(8, 3, 10, 3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             spacing: 4,
             children: [
-              Icon(icon, size: 14, color: scheme.onTertiaryContainer),
-              Text(label, style: theme.textTheme.labelMediumEmphasized.copyWith(color: scheme.onTertiaryContainer)),
+              Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+              Text(label, style: theme.textTheme.labelMediumEmphasized.copyWith(color: scheme.onSurfaceVariant)),
             ],
           ),
         ),

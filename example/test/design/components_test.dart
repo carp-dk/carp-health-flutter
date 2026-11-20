@@ -109,7 +109,7 @@ void main() {
   });
 
   group('ExpressivePage', () {
-    testWidgets('shows the title, subtitle, content and floating action button', (tester) async {
+    testWidgets('shows the title, content and floating action button, and the subtitle on demand', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: ExpressiveTheme.light(),
@@ -123,9 +123,13 @@ void main() {
       );
 
       expect(find.text('Overview'), findsWidgets);
-      expect(find.text('Your data at a glance'), findsOneWidget);
       expect(find.text('Content'), findsOneWidget);
       expect(find.byType(FloatingActionButton), findsOneWidget);
+      // The subtitle stays off the page until its info button is tapped.
+      expect(find.text('Your data at a glance'), findsNothing);
+      await tester.tap(find.byTooltip('About Overview'));
+      await tester.pumpAndSettle();
+      expect(find.text('Your data at a glance'), findsOneWidget);
     });
 
     testWidgets('refreshes on pull with the expressive indicator', (tester) async {

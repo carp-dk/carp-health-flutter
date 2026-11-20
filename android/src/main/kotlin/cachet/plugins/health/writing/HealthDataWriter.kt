@@ -25,6 +25,7 @@ class HealthDataWriter(
     private val bloodPressure = BloodPressureWriter(healthConnectClient, scope)
     private val meals = MealWriter(healthConnectClient, scope)
     private val activityIntensity = ActivityIntensityWriter(healthConnectClient, scope)
+    private val sexualActivity = SexualActivityWriter(healthConnectClient, scope)
     private val sleepSessions = SleepSessionWriter(healthConnectClient, scope)
 
     /**
@@ -111,6 +112,17 @@ class HealthDataWriter(
      */
     fun writeMenstruationFlow(call: MethodCall, result: Result) {
         writeData(call, result)
+    }
+
+    /**
+     * Writes a sexual activity record as a SexualActivityRecord.
+     *
+     * @param call Method call containing optional 'protectionUsed' (Boolean), 'startTime',
+     * 'recordingMethod' and optionally 'clientRecordId', 'clientRecordVersion', 'deviceType'
+     * @param result Flutter result callback returning boolean success status
+     */
+    fun writeSexualActivity(call: MethodCall, result: Result) {
+        sexualActivity.writeSexualActivity(call, result)
     }
 
     /**

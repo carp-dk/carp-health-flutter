@@ -159,6 +159,7 @@ const Map<HealthDataType, HealthDataUnit> dataTypeToUnit = {
 
   HealthDataType.NUTRITION: HealthDataUnit.NO_UNIT,
   HealthDataType.MENSTRUATION_FLOW: HealthDataUnit.NO_UNIT,
+  HealthDataType.SEXUAL_ACTIVITY: HealthDataUnit.NO_UNIT,
   HealthDataType.WATER_TEMPERATURE: HealthDataUnit.DEGREE_CELSIUS,
   HealthDataType.UNDERWATER_DEPTH: HealthDataUnit.METER,
   HealthDataType.UV_INDEX: HealthDataUnit.COUNT,

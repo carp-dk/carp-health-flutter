@@ -139,6 +139,33 @@ void main() {
       expect(
         formatPointValue(
           _point(
+            HealthDataType.SEXUAL_ACTIVITY,
+            SexualActivityHealthValue(protectionUsed: SexualActivityProtection.protected),
+          ),
+        ),
+        'Protected',
+      );
+      expect(
+        formatPointValue(
+          _point(
+            HealthDataType.SEXUAL_ACTIVITY,
+            SexualActivityHealthValue(protectionUsed: SexualActivityProtection.unprotected),
+          ),
+        ),
+        'Unprotected',
+      );
+      expect(
+        formatPointValue(
+          _point(
+            HealthDataType.SEXUAL_ACTIVITY,
+            SexualActivityHealthValue(protectionUsed: SexualActivityProtection.unknown),
+          ),
+        ),
+        'Unspecified protection',
+      );
+      expect(
+        formatPointValue(
+          _point(
             HealthDataType.ACTIVITY_INTENSITY,
             ActivityIntensityHealthValue(intensityLevel: ActivityIntensityLevel.vigorous, minutes: 30),
           ),

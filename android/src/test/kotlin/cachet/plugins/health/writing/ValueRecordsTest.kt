@@ -19,13 +19,14 @@ class ValueRecordsTest {
     private val end = start + 600_000
     private val metadata = Metadata.manualEntry()
 
-    // Written with writeBloodPressure, writeWorkoutData, writeMeal and writeActivityIntensity.
+    // Written with writeBloodPressure, writeWorkoutData, writeMeal, writeActivityIntensity and writeSexualActivity.
     private val ownWriteMethod = setOf(
         HealthConstants.BLOOD_PRESSURE_SYSTOLIC,
         HealthConstants.BLOOD_PRESSURE_DIASTOLIC,
         HealthConstants.WORKOUT,
         HealthConstants.NUTRITION,
         HealthConstants.ACTIVITY_INTENSITY,
+        HealthConstants.SEXUAL_ACTIVITY,
     )
 
     // Read only: the plugin reads these from Health Connect but does not write them.

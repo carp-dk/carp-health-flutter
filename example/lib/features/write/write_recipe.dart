@@ -38,6 +38,9 @@ enum WriteRecipeId {
   /// `writeMenstruationFlow`.
   menstruationFlow,
 
+  /// `writeSexualActivity`.
+  sexualActivity,
+
   /// `writeInsulinDelivery` (iOS).
   insulinDelivery,
 
@@ -84,7 +87,6 @@ class WriteRecipe {
   const WriteRecipe({
     required this.id,
     required this.title,
-    required this.summary,
     required this.description,
     required this.methods,
     required this.icon,
@@ -108,13 +110,11 @@ class WriteRecipe {
   /// The recipe's name, such as "Blood pressure".
   final String title;
 
-  /// One line for the catalogue card, such as "Systolic and diastolic in one reading".
-  final String summary;
-
-  /// What the methods write and how each platform stores it, for the form page.
+  /// What the methods write and how each platform stores it, for the info button of the form page.
   final String description;
 
-  /// The plugin methods the form calls, such as `writeBloodPressure`.
+  /// The plugin methods the form calls, such as `writeBloodPressure`; the first is the main one, shown
+  /// in the catalogue and on the form page.
   final List<String> methods;
 
   /// The icon on the recipe's card and page.
@@ -143,29 +143,28 @@ class WriteRecipe {
   /// The one platform that has the recipe, or null when both have it: the platform of its badge.
   HealthPlatformType? get onlyOn => platforms.length == 1 ? platforms.single : null;
 
-  /// Why the recipe cannot be used on the device [capabilities] describes, or null when it can.
+  /// Why the recipe cannot be used on the device [capabilities] describes, in a few words, or null when
+  /// it can.
   ///
   /// It checks, in order, the platform, the Health Connect [feature] and every type of [types] (which
   /// also covers types that need a newer iOS).
   String? unavailableReason(PlatformCapabilities capabilities) {
     final platform = capabilities.platform;
-    if (platform == null) return 'The health plugin supports Android and iOS only.';
+    if (platform == null) return 'Android and iOS only';
     if (!platforms.contains(platform)) {
       return switch (onlyOn) {
-        HealthPlatformType.appleHealth => 'Only Apple Health has ${methods.first}: try it on an iPhone.',
-        HealthPlatformType.googleHealthConnect => 'Only Health Connect has ${methods.first}: try it on Android.',
-        null => 'Not available in ${capabilities.platformName}.',
+        HealthPlatformType.appleHealth => 'Apple Health only',
+        HealthPlatformType.googleHealthConnect => 'Health Connect only',
+        null => 'Not available in ${capabilities.platformName}',
       };
     }
     final feature = this.feature;
     // On iOS the feature checks answer without a platform call, so only Android can lack a feature.
     if (feature != null && capabilities.isAndroid && !feature.availableIn(capabilities)) {
-      return capabilities.isLoaded
-          ? "This device's Health Connect has no ${feature.label} (${feature.check} returned false)."
-          : 'Checking the Health Connect features…';
+      return capabilities.isLoaded ? 'No ${feature.label} in this Health Connect' : 'Checking Health Connect…';
     }
     for (final type in types) {
-      if (capabilities.unsupportedReason(type) case final reason?) return '${type.name}: $reason.';
+      if (capabilities.unsupportedReason(type) case final reason?) return '${type.name}: $reason';
     }
     return null;
   }

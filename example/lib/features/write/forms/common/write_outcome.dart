@@ -1,4 +1,5 @@
-/// What one write returned, as the write forms and the sample data show it.
+/// What one write returned, as the Write page's own forms (measurement, blood pressure, blood oxygen,
+/// meal) and its sample data show it.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -40,8 +41,10 @@ class WriteOutcome {
     clientRecordId: saved ? clientRecordId : null,
   );
 
-  /// The outcome of a write method that returns the new record's UUID, such as `writeHealthDataUUID`:
-  /// null or an empty string means that nothing was saved.
+  /// The outcome of a write method that returns the new record's UUID, such as `writeHealthDataUUID`.
+  ///
+  /// These methods turn the platform's reply into a string: an empty one when nothing was saved, and
+  /// "null" when the platform sent no reply at all. Neither names a record.
   factory WriteOutcome.fromUuid(
     String method,
     HealthDataType type,
@@ -49,7 +52,7 @@ class WriteOutcome {
     String? uuid, {
     String? clientRecordId,
   }) {
-    final saved = uuid != null && uuid.isNotEmpty;
+    final saved = uuid != null && uuid.isNotEmpty && uuid != 'null';
     return WriteOutcome(
       method: method,
       type: type,

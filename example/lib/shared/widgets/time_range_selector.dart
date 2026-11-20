@@ -90,7 +90,7 @@ class TimeRangeSelector extends StatelessWidget {
       firstDate: first,
       lastDate: today,
       initialDateRange: DateTimeRange(start: start, end: end.isBefore(start) ? start : end),
-      helpText: 'Choose the days to cover',
+      helpText: 'Choose days',
       saveText: 'Use',
     );
     if (picked != null) onChanged(customRange(picked.start, picked.end));

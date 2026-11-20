@@ -28,8 +28,10 @@ class QueryController extends ChangeNotifier {
   final PluginSettings settings;
 
   QueryOptions _options;
+  QueryOptions? _reading;
   AsyncValue<QueryResult> _result = const AsyncIdle();
   _PagedRead? _paged;
+  final Stopwatch _clock = Stopwatch();
   bool _disposed = false;
 
   /// What to read and how.
@@ -38,17 +40,23 @@ class QueryController extends ChangeNotifier {
   /// The state of the last read: its [QueryResult], or the error that failed it.
   AsyncValue<QueryResult> get result => _result;
 
+  /// The options of the running read, which the form may have changed since it started; null otherwise.
+  QueryOptions? get readingWith => _reading;
+
   /// How far a running page by page read has come; null otherwise.
   QueryProgress? get progress => _paged?.accumulator.progress;
 
-  /// How long a running page by page read has taken so far; null otherwise.
-  Duration? get readingFor => _paged?.stopwatch.elapsed;
+  /// How long the running read has taken so far; null when no read runs.
+  Duration? get readingFor => isReading ? _clock.elapsed : null;
 
   /// Whether a read is running.
   bool get isReading => _result.isLoading;
 
   /// Whether a running page by page read is being cancelled (waiting for the call in flight).
   bool get isCancelling => _paged?.cancelling ?? false;
+
+  /// Whether the running read can be cancelled: only page by page reads can.
+  bool get canCancel => _paged != null && !isCancelling;
 
   /// Whether a read can start: none is running and some types are chosen.
   bool get canRead => !isReading && _options.types.isNotEmpty;
@@ -64,9 +72,12 @@ class QueryController extends ChangeNotifier {
   Future<void> read() async {
     if (!canRead) return;
     // A preset such as "Last hour" means the hour before this read, not before the preset was picked.
-    final options = _options = _options.copyWith(range: _options.range.refreshed());
+    final options = _reading = _options = _options.copyWith(range: _options.range.refreshed());
     final previous = options.appendResults ? _result.valueOrNull : null;
     _result = AsyncLoading(previous: previous);
+    _clock
+      ..reset()
+      ..start();
     _notify();
     switch (options.mode) {
       case QueryMode.allAtOnce:
@@ -84,7 +95,7 @@ class QueryController extends ChangeNotifier {
     if (paged == null || paged.cancelling) return;
     paged.cancelling = true;
     _notify();
-    await paged.subscription.cancel();
+    await _cancelQuietly(paged.subscription);
     _finishPages(paged, cancelled: true);
   }
 
@@ -119,10 +130,20 @@ class QueryController extends ChangeNotifier {
     // Nothing listens for the end of a running read any more: stop it, and let read() return.
     if (_paged case final paged?) {
       _paged = null;
-      unawaited(paged.subscription.cancel());
+      unawaited(_cancelQuietly(paged.subscription));
       if (!paged.done.isCompleted) paged.done.complete();
     }
     super.dispose();
+  }
+
+  /// Cancels [subscription] and waits until the plugin has stopped. The plugin drops an error of the call
+  /// in flight after a cancel; one from another stream is of no interest either and must not escape.
+  static Future<void> _cancelQuietly(StreamSubscription<HealthDataPage>? subscription) async {
+    try {
+      await subscription?.cancel();
+    } catch (_) {
+      // Nothing to report: the read is over either way.
+    }
   }
 
   /// `getHealthDataFromTypes`: one call that returns every point of the range, or with a `limit` the
@@ -130,7 +151,6 @@ class QueryController extends ChangeNotifier {
   Future<void> _readAllAtOnce(QueryOptions options, QueryResult? previous) async {
     final types = options.orderedTypes;
     final result = await AsyncValue.guard(() async {
-      final stopwatch = Stopwatch()..start();
       final points = await health.getHealthDataFromTypes(
         types: types,
         startTime: options.range.start,
@@ -139,9 +159,10 @@ class QueryController extends ChangeNotifier {
         recordingMethodsToFilter: options.recordingMethodsToFilter.toList(),
         limit: options.effectiveLimit,
       );
-      final read = QueryResult.fromList(types, points, elapsed: stopwatch.elapsed, limit: options.effectiveLimit);
+      final read = QueryResult.fromList(types, points, elapsed: _clock.elapsed, limit: options.effectiveLimit);
       return previous == null ? read : previous.followedBy(read);
     });
+    _end();
     if (_disposed) return;
     _result = result;
     _notify();
@@ -151,29 +172,33 @@ class QueryController extends ChangeNotifier {
   /// future completes when the stream ends or is cancelled.
   Future<void> _readPages(QueryOptions options, QueryResult? previous) {
     final types = options.orderedTypes;
-    final paged = _PagedRead(PageAccumulator(types), previous);
-    _paged = paged;
-    final pages = health.getHealthDataPages(
-      types: types,
-      startTime: options.range.start,
-      endTime: options.range.end,
-      preferredUnits: options.preferredUnits,
-      recordingMethodsToFilter: options.recordingMethodsToFilter.toList(),
-      // Without it the plugin reads Health.pageSize, which PluginSettings sets too: passing it shows the
-      // per-read override.
-      pageSize: settings.pageSize,
-    );
-    // listen rather than `await for`, to keep the subscription that Cancel cancels. The plugin's stream
-    // reports argument errors (such as an invalid pageSize) as stream errors too.
-    paged.subscription = pages.listen(
-      (page) {
-        paged.accumulator.add(page);
-        _notify();
-      },
-      onError: (Object error, StackTrace stackTrace) => _finishPages(paged, error: error, stackTrace: stackTrace),
-      onDone: () => _finishPages(paged),
-      cancelOnError: true,
-    );
+    final paged = _paged = _PagedRead(PageAccumulator(types), previous);
+    try {
+      final pages = health.getHealthDataPages(
+        types: types,
+        startTime: options.range.start,
+        endTime: options.range.end,
+        preferredUnits: options.preferredUnits,
+        recordingMethodsToFilter: options.recordingMethodsToFilter.toList(),
+        // Without it the plugin reads Health.pageSize, which PluginSettings sets too: passing it shows the
+        // per-read override.
+        pageSize: settings.pageSize,
+      );
+      // listen rather than `await for`, to keep the subscription that Cancel cancels. The plugin reports
+      // argument errors (such as an invalid pageSize) as stream errors too.
+      paged.subscription = pages.listen(
+        (page) {
+          paged.accumulator.add(page);
+          _notify();
+        },
+        onError: (Object error, StackTrace stackTrace) => _finishPages(paged, error: error, stackTrace: stackTrace),
+        onDone: () => _finishPages(paged),
+        cancelOnError: true,
+      );
+    } catch (error, stackTrace) {
+      // The plugin's method never throws here, but a read must not crash the app if one did.
+      _finishPages(paged, error: error, stackTrace: stackTrace);
+    }
     return paged.done.future;
   }
 
@@ -182,7 +207,7 @@ class QueryController extends ChangeNotifier {
   void _finishPages(_PagedRead paged, {bool cancelled = false, Object? error, StackTrace? stackTrace}) {
     if (!identical(_paged, paged)) return;
     _paged = null;
-    paged.stopwatch.stop();
+    _end();
     if (!paged.done.isCompleted) paged.done.complete();
     if (_disposed) return;
     final accumulator = paged.accumulator;
@@ -190,7 +215,7 @@ class QueryController extends ChangeNotifier {
       _result = AsyncError(error, stackTrace ?? StackTrace.current);
     } else {
       final read = accumulator.build(
-        elapsed: paged.stopwatch.elapsed,
+        elapsed: _clock.elapsed,
         cancelled: cancelled,
         error: error,
         stackTrace: stackTrace,
@@ -198,6 +223,12 @@ class QueryController extends ChangeNotifier {
       _result = AsyncData(paged.previous == null ? read : paged.previous!.followedBy(read));
     }
     _notify();
+  }
+
+  /// Stops the clock of the read that ended.
+  void _end() {
+    _clock.stop();
+    _reading = null;
   }
 
   void _setResult(QueryResult result) {
@@ -219,12 +250,11 @@ class _PagedRead {
   /// The result the read adds to, when reads add to the result.
   final QueryResult? previous;
 
-  final Stopwatch stopwatch = Stopwatch()..start();
-
   /// Completes when the read has ended, however it ended.
   final Completer<void> done = Completer<void>();
 
-  late final StreamSubscription<HealthDataPage> subscription;
+  /// The subscription to the plugin's stream of pages; null until listening started.
+  StreamSubscription<HealthDataPage>? subscription;
 
   bool cancelling = false;
 }

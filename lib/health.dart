@@ -50,6 +50,7 @@ part 'src/values/menstruation_flow_health_value.dart';
 part 'src/values/numeric_health_value.dart';
 part 'src/values/nutrition_health_value.dart';
 part 'src/values/nutrition_health_value_fields.dart';
+part 'src/values/sexual_activity_health_value.dart';
 part 'src/values/skin_temperature_health_value.dart';
 part 'src/values/swimming_details.dart';
 part 'src/values/workout_event.dart';

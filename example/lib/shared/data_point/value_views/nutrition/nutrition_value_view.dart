@@ -43,7 +43,6 @@ class NutritionValueView extends StatelessWidget {
       children: [
         DetailSection(
           title: 'Meal',
-          subtitle: 'NutritionHealthValue',
           children: [
             DetailField(label: 'Food', value: value.name ?? 'No name'),
             DetailField(label: 'Meal type', value: mealType == null ? 'Not set' : humanize(mealType)),

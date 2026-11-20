@@ -152,6 +152,10 @@ class HealthDataConverter {
             is MenstruationFlowRecord -> listOf(
                 createInstantRecord(metadata, record.time, record.flow)
             )
+
+            is SexualActivityRecord -> listOf(
+                createInstantRecord(metadata, record.time, record.protectionUsed)
+            )
             
             is NutritionRecord -> listOf(createNutritionRecord(record, metadata))
             

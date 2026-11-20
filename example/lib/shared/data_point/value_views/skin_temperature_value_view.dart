@@ -21,7 +21,6 @@ class SkinTemperatureValueView extends StatelessWidget {
     final delta = value.temperatureDelta;
     return DetailSection(
       title: 'Skin temperature',
-      subtitle: 'SkinTemperatureHealthValue (Android)',
       children: [
         DetailField(label: 'Change from baseline', value: '${delta >= 0 ? '+' : ''}${formatNumber(delta)} °C'),
         DetailField(

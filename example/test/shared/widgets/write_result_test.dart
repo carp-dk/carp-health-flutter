@@ -1,10 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
 import 'package:health_example/app/app_scope.dart';
 import 'package:health_example/app/navigation/app_destination.dart';
 import 'package:health_example/shared/data_point/data_point_sheet.dart';
-import 'package:health_example/shared/widgets/error_card.dart';
 import 'package:health_example/shared/widgets/write_result.dart';
 
 import '../support/sample_points.dart';
@@ -80,7 +79,7 @@ void main() {
   testWidgets('a false from the plugin is reported and not logged', (tester) async {
     await report(tester, success: false);
 
-    expect(find.textContaining('was not written: the plugin returned false'), findsOneWidget);
+    expect(find.text('Heart rate not written: check write access'), findsOneWidget);
     expect(services.recentWrites.items, isEmpty);
     expect(find.text('Setup'), findsNothing, reason: 'no AppNavigation to go to Setup with');
   });
@@ -97,11 +96,11 @@ void main() {
   testWidgets('an error is named, with its details a tap away', (tester) async {
     await report(tester, success: false, error: ArgumentError('The value must be positive'));
 
-    expect(find.text('Could not write Heart rate: Invalid argument'), findsOneWidget);
+    expect(find.text('Heart rate not written: Invalid argument'), findsOneWidget);
     expect(services.recentWrites.items, isEmpty);
     await tester.tap(find.text('Details'));
     await tester.pumpAndSettle();
-    expect(find.byType(ErrorCard), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.text('The value must be positive'), findsOneWidget);
   });
 

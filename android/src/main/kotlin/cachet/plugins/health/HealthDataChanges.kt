@@ -221,6 +221,7 @@ class HealthDataChanges(
         is RespiratoryRateRecord -> listOf(HealthConstants.RESPIRATORY_RATE)
         is TotalCaloriesBurnedRecord -> listOf(HealthConstants.TOTAL_CALORIES_BURNED)
         is MenstruationFlowRecord -> listOf(HealthConstants.MENSTRUATION_FLOW)
+        is SexualActivityRecord -> listOf(HealthConstants.SEXUAL_ACTIVITY)
         is SpeedRecord -> listOf(HealthConstants.SPEED)
         is PowerRecord -> listOf(HealthConstants.POWER)
         is CyclingPedalingCadenceRecord -> listOf(HealthConstants.CYCLING_CADENCE)

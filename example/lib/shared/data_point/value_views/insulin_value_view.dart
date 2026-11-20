@@ -19,7 +19,6 @@ class InsulinValueView extends StatelessWidget {
   Widget build(BuildContext context) {
     return DetailSection(
       title: 'Insulin delivery',
-      subtitle: 'InsulinDeliveryHealthValue (iOS)',
       children: [
         DetailField(label: 'Amount', value: '${formatNumber(value.units)} IU'),
         DetailField(label: 'Reason', value: reasonOf(value.reason)),
@@ -27,10 +26,10 @@ class InsulinValueView extends StatelessWidget {
     );
   }
 
-  /// What [reason] means.
+  /// The name of [reason]; the section's info explains them.
   static String reasonOf(InsulinDeliveryReason reason) => switch (reason) {
-    InsulinDeliveryReason.BASAL => 'Basal: the steady background dose',
-    InsulinDeliveryReason.BOLUS => 'Bolus: a dose for a meal or a correction',
+    InsulinDeliveryReason.BASAL => 'Basal',
+    InsulinDeliveryReason.BOLUS => 'Bolus',
     InsulinDeliveryReason.NOT_SET => 'Not set',
   };
 }

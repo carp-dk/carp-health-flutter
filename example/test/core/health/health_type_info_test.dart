@@ -27,10 +27,9 @@ void main() {
     expect(used, containsAll(TypeCategory.values));
   });
 
-  test('categories have labels, icons and descriptions', () {
+  test('categories have labels and icons', () {
     for (final category in TypeCategory.values) {
       expect(category.label, isNotEmpty);
-      expect(category.description, isNotEmpty);
       expect(category.icon.codePoint, isPositive);
     }
   });

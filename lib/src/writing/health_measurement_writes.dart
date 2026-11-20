@@ -1,7 +1,7 @@
 part of '../../health.dart';
 
-/// Part of [Health]: writing blood pressure, blood oxygen and menstruation
-/// flow.
+/// Part of [Health]: writing blood pressure, blood oxygen, menstruation flow
+/// and sexual activity.
 // ignore: library_private_types_in_public_api
 mixin HealthMeasurementWrites on _HealthSupport {
   /// Saves a blood pressure record.
@@ -138,5 +138,53 @@ mixin HealthMeasurementWrites on _HealthSupport {
       'recordingMethod': recordingMethod.toInt(),
     };
     return await Health._channel.invokeMethod('writeMenstruationFlow', args) == true;
+  }
+
+  /// Saves a sexual activity record into Apple Health and Google Health Connect.
+  ///
+  /// Returns true if successful, false otherwise.
+  ///
+  /// Parameters:
+  ///  * [protectionUsed] - whether protection was used ([SexualActivityProtection.unknown]
+  ///    by default). On iOS, [SexualActivityProtection.unknown] omits
+  ///    `HKMetadataKeySexualActivityProtectionUsed`; [SexualActivityProtection.protected]
+  ///    sets it to `true` and [SexualActivityProtection.unprotected] sets it to `false`.
+  ///  * [startTime] - the start time of the activity. Must be equal to or earlier than
+  ///    [endTime]. On Android, `SexualActivityRecord` is instantaneous and recorded at
+  ///    [startTime].
+  ///  * [endTime] - the end time of the activity. Must be equal to or later than
+  ///    [startTime]. If omitted, [endTime] is set to [startTime].
+  ///  * [recordingMethod] - the recording method of the data point, automatic by default
+  ///    (on iOS this must be manual or automatic).
+  ///  * [clientRecordId] - **Android ONLY** client-assigned record ID for idempotent writes.
+  ///  * [clientRecordVersion] - **Android ONLY** version associated with [clientRecordId].
+  Future<bool> writeSexualActivity({
+    SexualActivityProtection protectionUsed = SexualActivityProtection.unknown,
+    required DateTime startTime,
+    DateTime? endTime,
+    RecordingMethod recordingMethod = RecordingMethod.automatic,
+    String? clientRecordId,
+    double? clientRecordVersion,
+  }) async {
+    await _checkIfHealthConnectAvailableOnAndroid();
+    if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
+      throw ArgumentError("recordingMethod must be manual or automatic on iOS");
+    }
+
+    endTime ??= startTime;
+    if (startTime.isAfter(endTime)) {
+      throw ArgumentError("startTime must be equal or earlier than endTime");
+    }
+
+    Map<String, dynamic> args = {
+      'protectionUsed': protectionUsed.toHealthKit(),
+      'startTime': startTime.millisecondsSinceEpoch,
+      'endTime': endTime.millisecondsSinceEpoch,
+      'dataTypeKey': HealthDataType.SEXUAL_ACTIVITY.name,
+      'recordingMethod': recordingMethod.toInt(),
+      'clientRecordId': clientRecordId,
+      'clientRecordVersion': clientRecordVersion,
+    };
+    return await Health._channel.invokeMethod('writeSexualActivity', args) == true;
   }
 }

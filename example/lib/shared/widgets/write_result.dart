@@ -17,10 +17,10 @@ import 'error_dialog.dart';
 /// Reports the result of a write of [type], described by [description] (such as "72 bpm").
 ///
 /// * With an [error] (what the write threw), a snack bar names the problem, with "Details" for the
-///   full `ErrorCard`.
+///   error dialog (`showErrorDialog`).
 /// * Without [success] (the write methods return `false`, or an empty UUID, when Health Connect or
-///   HealthKit did not save anything), a snack bar says so, with a way to the Setup page, where the
-///   write permission is requested.
+///   HealthKit did not save anything), a snack bar says so and points to the write permission, with a
+///   way to the Setup page, where it is requested.
 /// * With [success], the write is added to `RecentWrites` (with its [uuid] and [clientRecordId], so
 ///   Read and Write can look it up or delete it) and a snack bar confirms it, with "View" when the
 ///   write returned a [uuid]: "View" reads the record back with `getHealthDataByUUID` and shows it.
@@ -37,7 +37,7 @@ Future<void> reportWriteResult(
   Object? error,
 }) async {
   if (error != null) {
-    showErrorSnackBar(context, error, message: 'Could not write ${type.label}: ${ErrorInfo.from(error).title}');
+    showErrorSnackBar(context, error, message: '${type.label} not written: ${ErrorInfo.from(error).title}');
     return;
   }
   final messenger = ScaffoldMessenger.maybeOf(context);
@@ -47,7 +47,7 @@ Future<void> reportWriteResult(
     final canOpenSetup = navigator != null && context.getInheritedWidgetOfExactType<AppNavigation>() != null;
     messenger?.showSnackBar(
       SnackBar(
-        content: Text('${type.label} was not written: the plugin returned false. Check the write permission in Setup.'),
+        content: Text('${type.label} not written: check write access'),
         action: canOpenSetup
             ? SnackBarAction(
                 label: 'Setup',

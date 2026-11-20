@@ -150,6 +150,7 @@ String typeLabel(HealthDataType type) => switch (type) {
   HealthDataType.BIRTH_DATE => 'Date of birth',
   HealthDataType.BLOOD_TYPE => 'Blood type',
   HealthDataType.MENSTRUATION_FLOW => 'Menstruation flow',
+  HealthDataType.SEXUAL_ACTIVITY => 'Sexual activity',
   HealthDataType.WATER_TEMPERATURE => 'Water temperature',
   HealthDataType.UNDERWATER_DEPTH => 'Underwater depth',
   HealthDataType.SLEEP_WRIST_TEMPERATURE => 'Sleeping wrist temperature',

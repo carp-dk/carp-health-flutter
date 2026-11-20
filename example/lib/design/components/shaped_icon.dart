@@ -43,8 +43,9 @@ class ShapedIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     const motion = ExpressiveMotion.spatialDefault;
+    final duration = ExpressiveMotion.reduceMotion(context) ? Duration.zero : motion.duration;
     return AnimatedContainer(
-      duration: motion.duration,
+      duration: duration,
       curve: motion,
       width: size,
       height: size,

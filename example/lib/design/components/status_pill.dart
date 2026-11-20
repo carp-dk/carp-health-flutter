@@ -57,19 +57,19 @@ class StatusPill extends StatelessWidget {
     return AnimatedContainer(
       duration: motion.duration,
       curve: motion,
-      padding: EdgeInsetsDirectional.fromSTEB(icon == null ? 12 : 8, 6, 12, 6),
+      padding: EdgeInsetsDirectional.fromSTEB(icon == null ? 10 : 8, 4, 10, 4),
       decoration: ShapeDecoration(color: background, shape: ExpressiveShapes.stadium),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        spacing: 6,
+        spacing: 5,
         children: [
-          if (icon case final icon?) Icon(icon, size: 16, color: foreground),
+          if (icon case final icon?) Icon(icon, size: 15, color: foreground),
           Flexible(
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelLargeEmphasized.copyWith(color: foreground),
+              style: Theme.of(context).textTheme.labelMediumEmphasized.copyWith(color: foreground),
             ),
           ),
         ],

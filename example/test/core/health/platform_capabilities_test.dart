@@ -43,20 +43,20 @@ void main() {
       expect(capabilities.supports(HealthDataType.SKIN_TEMPERATURE), isTrue);
       expect(capabilities.supports(HealthDataType.MINDFULNESS), isFalse);
       expect(capabilities.supports(HealthDataType.ACTIVITY_INTENSITY), isFalse);
-      expect(capabilities.unsupportedReason(HealthDataType.MINDFULNESS), contains('Health Connect'));
+      expect(capabilities.unsupportedReason(HealthDataType.MINDFULNESS), 'Not in this Health Connect');
       expect(capabilities.supports(HealthDataType.STEPS), isTrue);
     });
 
     test('feature types wait for the first refresh', () {
       final capabilities = _android(FakeHealth(features: allFeatures()));
       expect(capabilities.supports(HealthDataType.SKIN_TEMPERATURE), isFalse);
-      expect(capabilities.unsupportedReason(HealthDataType.SKIN_TEMPERATURE), startsWith('Checking'));
+      expect(capabilities.unsupportedReason(HealthDataType.SKIN_TEMPERATURE), 'Checking Health Connect');
     });
 
     test('iOS-only types are not supported', () async {
       final capabilities = _android(FakeHealth());
       expect(capabilities.supports(HealthDataType.AUDIOGRAM), isFalse);
-      expect(capabilities.unsupportedReason(HealthDataType.AUDIOGRAM), 'Not available in Health Connect');
+      expect(capabilities.unsupportedReason(HealthDataType.AUDIOGRAM), 'Not in Health Connect');
     });
 
     test('without Health Connect no feature is checked', () async {
@@ -148,7 +148,7 @@ void main() {
       final ios15 = _ios(15);
       expect(ios15.supports(HealthDataType.STEPS), isTrue);
       expect(ios15.supports(HealthDataType.UV_INDEX), isFalse);
-      expect(ios15.unsupportedReason(HealthDataType.UV_INDEX), 'Needs iOS 16 or later');
+      expect(ios15.unsupportedReason(HealthDataType.UV_INDEX), 'Needs iOS 16');
 
       final ios17 = _ios(17);
       expect(ios17.supports(HealthDataType.POWER), isTrue);

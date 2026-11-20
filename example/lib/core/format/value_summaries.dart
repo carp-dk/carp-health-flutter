@@ -26,6 +26,7 @@ String summarizeValue(HealthValue value, HealthDataPoint point) => switch (value
   InsulinDeliveryHealthValue(:final units, :final reason) => '${formatNumber(units)} IU · ${formatEnumName(reason)}',
   MenstruationFlowHealthValue(:final flow, :final isStartOfCycle) =>
     _flow(flow) + (isStartOfCycle == true ? ' · cycle start' : ''),
+  SexualActivityHealthValue(:final protectionUsed) => _protection(protectionUsed),
   ActivityIntensityHealthValue(:final intensityLevel, :final minutes) =>
     '${formatEnumName(intensityLevel)} · ${formatDuration(minutesToDuration(minutes))}',
   SkinTemperatureHealthValue(:final temperature, :final temperatureDelta) =>
@@ -101,6 +102,13 @@ String _flow(MenstrualFlow? flow) => switch (flow) {
   MenstrualFlow.spotting => 'Spotting',
   MenstrualFlow.unspecified => 'Unspecified flow',
   _ => '${formatEnumName(flow)} flow',
+};
+
+/// A sexual activity protection status in words.
+String _protection(SexualActivityProtection protection) => switch (protection) {
+  SexualActivityProtection.protected => 'Protected',
+  SexualActivityProtection.unprotected => 'Unprotected',
+  SexualActivityProtection.unknown => 'Unspecified protection',
 };
 
 /// [meters] in m, or in km from 1 km on.

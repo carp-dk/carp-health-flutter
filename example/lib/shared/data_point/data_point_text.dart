@@ -29,12 +29,11 @@ String dataPointTime(HealthDataPoint point) => point.dateTo.difference(point.dat
     ? formatDateTime(point.dateFrom)
     : formatTimeRange(point.dateFrom, point.dateTo);
 
-/// What it means that `Health.getHealthDataByUUID` returned null for a [type] record (README, "Fetch
-/// single health data by UUID" and "Reads without the read permission"): the record is gone, it has
-/// no data of the type asked for (Android), or it is another app's and the read permission is missing.
-String uuidNotFoundMessage(HealthDataType type) =>
-    'getHealthDataByUUID returned null: no ${type.label} record has this UUID (any more), the record has no '
-    '${type.label} data (Android), or another app wrote it and read access is missing.';
+/// What it means, in one short sentence, that `Health.getHealthDataByUUID` returned null for a [type]
+/// record (README, "Fetch single health data by UUID" and "Reads without the read permission"): the
+/// record is gone, it has no data of the type asked for (Android), or it is another app's and the read
+/// permission is missing.
+String uuidNotFoundMessage(HealthDataType type) => 'No ${type.label} record with this UUID, or no read access.';
 
 /// "1 location" or "3 locations" (or the given [plural]).
 String _count(int count, String singular, [String? plural]) =>

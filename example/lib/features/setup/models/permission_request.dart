@@ -92,6 +92,22 @@ class PermissionRequest {
     return index < 0 ? null : accesses[index];
   }
 
+  /// The part of this request whose types pass [test], each with the access it has here.
+  PermissionRequest where(bool Function(HealthDataType type) test) {
+    final kept = [
+      for (var i = 0; i < types.length; i++)
+        if (test(types[i])) i,
+    ];
+    return PermissionRequest._(
+      List.unmodifiable([for (final i in kept) types[i]]),
+      List.unmodifiable([for (final i in kept) accesses[i]]),
+      preferred,
+    );
+  }
+
+  /// The request for [type] alone, with the access it has here (none if it is not part of it).
+  PermissionRequest only(HealthDataType type) => where((candidate) => candidate == type);
+
   /// The same types with `HealthDataAccess.WRITE` access, leaving out those that cannot be written.
   ///
   /// HealthKit keeps read access secret, so on iOS `hasPermissions` answers null for `READ` and

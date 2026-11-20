@@ -4,9 +4,10 @@ library;
 import 'package:flutter/material.dart';
 
 import '../theme/expressive_typography.dart';
+import 'info_button.dart';
 
-/// A section header: an emphasized [title], an optional [subtitle] under it and an optional [trailing]
-/// widget (a button or a status) at the end. Marked as a header for screen readers.
+/// A section header: an emphasized [title], an `InfoButton` with the [subtitle] when there is one, and an
+/// optional [trailing] widget (a button or a status) at the end. Marked as a header for screen readers.
 class SectionHeader extends StatelessWidget {
   /// Creates a section header.
   const SectionHeader({
@@ -20,7 +21,7 @@ class SectionHeader extends StatelessWidget {
   /// The section's name.
   final String title;
 
-  /// One or two lines on what the section shows.
+  /// What the section shows, opened from the info button.
   final String? subtitle;
 
   /// A widget at the end of the header.
@@ -37,22 +38,16 @@ class SectionHeader extends StatelessWidget {
     return Padding(
       padding: padding,
       child: Row(
-        spacing: 12,
+        spacing: 4,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 2,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(title, style: theme.textTheme.titleLargeEmphasized.copyWith(color: scheme.onSurface)),
-                ),
-                if (subtitle case final subtitle?)
-                  Text(subtitle, style: theme.textTheme.bodyMedium!.copyWith(color: scheme.onSurfaceVariant)),
-              ],
+          Flexible(
+            child: Semantics(
+              header: true,
+              child: Text(title, style: theme.textTheme.titleLargeEmphasized.copyWith(color: scheme.onSurface)),
             ),
           ),
+          if (subtitle case final subtitle?) InfoButton(title: title, message: subtitle),
+          const Spacer(),
           ?trailing,
         ],
       ),

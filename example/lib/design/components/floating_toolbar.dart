@@ -8,7 +8,7 @@ import '../theme/expressive_shapes.dart';
 
 /// A floating toolbar for the actions on what a screen shows (for example sorting or clearing results).
 ///
-/// It is a vibrant pill (primary container colour) by default, or a quieter surface-coloured one, with
+/// It is a quiet surface-coloured pill by default, or a vibrant one (primary container colour), with
 /// the [children] in a row: plain `IconButton`s, which take the toolbar's content colour (as icon buttons
 /// in an app bar do), and optionally an `IconButton.filledTonal` for the main action. It springs up into
 /// place when it first appears. Place it over the content, for example as a
@@ -29,9 +29,10 @@ class FloatingToolbar extends StatelessWidget {
     final background = vibrant ? scheme.primaryContainer : scheme.surfaceContainerHigh;
     final foreground = vibrant ? scheme.onPrimaryContainer : scheme.onSurfaceVariant;
     const motion = ExpressiveMotion.spatialDefault;
+    final duration = ExpressiveMotion.reduceMotion(context) ? Duration.zero : motion.duration;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: motion.duration,
+      duration: duration,
       curve: motion,
       builder: (context, entrance, child) => Transform.translate(
         offset: Offset(0, 24 * (1 - entrance)),

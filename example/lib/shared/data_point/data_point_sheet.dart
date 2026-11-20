@@ -72,12 +72,12 @@ class _DataPointSheetState extends State<DataPointSheet> {
   /// from the plugin or an error stays in the sheet, under the buttons.
   Future<void> _delete() async {
     final point = _controller.point;
-    if (!await confirmDataPointDelete(context, point) || !mounted) return;
+    if (!await confirmDataPointDelete(context) || !mounted) return;
     if (!await _controller.deleteByUuid() || !mounted) return;
     final messenger = ScaffoldMessenger.maybeOf(context);
     Navigator.of(context).pop();
     widget.onDeleted?.call(point);
-    messenger?.showSnackBar(SnackBar(content: Text('${point.type.label} record deleted with deleteByUUID')));
+    messenger?.showSnackBar(SnackBar(content: Text('${point.type.label} record deleted')));
   }
 
   @override

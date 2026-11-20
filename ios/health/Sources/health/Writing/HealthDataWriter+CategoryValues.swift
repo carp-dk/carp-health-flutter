@@ -75,19 +75,21 @@ extension HealthDataWriter {
 
     /// Replies an INVALID_ARGUMENT error for a type that writeData and writeDataUUID do not write:
     /// HealthKit raises an exception (crashing the app) for a menstrual flow or insulin delivery
-    /// sample without the metadata that only their own writers set.
+    /// sample without the metadata that only their own writers set, and sexual activity carries
+    /// its protection status via writeSexualActivity.
     /// - Returns: false after replying the error: the write must then stop without replying again
     func validateWritable(_ type: String, result: FlutterResult) -> Bool {
-        let writer: String
+        let message: String
         switch type {
         case HealthConstants.MENSTRUATION_FLOW:
-            writer = "writeMenstruationFlow"
+            message = "Use writeMenstruationFlow to write \(type) on iOS: HealthKit requires metadata that only it sets"
         case HealthConstants.INSULIN_DELIVERY:
-            writer = "writeInsulinDelivery"
+            message = "Use writeInsulinDelivery to write \(type) on iOS: HealthKit requires metadata that only it sets"
+        case HealthConstants.SEXUAL_ACTIVITY:
+            message = "Use writeSexualActivity to write \(type) on iOS: it sets the protection metadata"
         default:
             return true
         }
-        let message = "Use \(writer) to write \(type) on iOS: HealthKit requires metadata that only it sets"
         result(FlutterError(code: "INVALID_ARGUMENT", message: message, details: nil))
         return false
     }

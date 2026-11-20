@@ -26,6 +26,7 @@ import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.SexualActivityRecord
 import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.SpeedRecord
@@ -241,6 +242,7 @@ internal fun pagingTimeMillis(record: Record): Long? = when (record) {
     is OxygenSaturationRecord -> record.time
     is RespiratoryRateRecord -> record.time
     is RestingHeartRateRecord -> record.time
+    is SexualActivityRecord -> record.time
     is Vo2MaxRecord -> record.time
     is WeightRecord -> record.time
     else -> null

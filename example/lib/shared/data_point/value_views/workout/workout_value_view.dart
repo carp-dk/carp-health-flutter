@@ -36,13 +36,12 @@ class WorkoutValueView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader(title: 'Totals', subtitle: 'WorkoutHealthValue'),
+        const SectionHeader(title: 'Totals'),
         MetricGrid(tiles: _totals()),
         DetailSection(title: 'Workout', children: _fields()),
         if (summary != null)
           DetailSection(
             title: 'Workout summary',
-            subtitle: 'HealthDataPoint.workoutSummary',
             children: [
               DetailField(label: 'Workout type', value: summary.workoutType),
               DetailField(label: 'Distance', value: '${formatNumber(summary.totalDistance)} m'),

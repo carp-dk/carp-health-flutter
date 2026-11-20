@@ -97,17 +97,22 @@ class _AppShellState extends State<AppShell> {
           Expanded(
             child: MediaQuery.removePadding(context: context, removeBottom: true, child: pages),
           ),
-          NavigationBar(
-            selectedIndex: current.index,
-            onDestinationSelected: onSelected,
-            destinations: [
-              for (final destination in AppDestination.values)
-                NavigationDestination(
-                  icon: Icon(destination.icon),
-                  selectedIcon: Icon(destination.selectedIcon),
-                  label: destination.label,
-                ),
-            ],
+          // The shell has no outer Scaffold, so remove the top status bar inset from the bottom bar.
+          MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: NavigationBar(
+              selectedIndex: current.index,
+              onDestinationSelected: onSelected,
+              destinations: [
+                for (final destination in AppDestination.values)
+                  NavigationDestination(
+                    icon: Icon(destination.icon),
+                    selectedIcon: Icon(destination.selectedIcon),
+                    label: destination.label,
+                  ),
+              ],
+            ),
           ),
         ],
       );
@@ -117,23 +122,28 @@ class _AppShellState extends State<AppShell> {
       final rtl = Directionality.of(context) == TextDirection.rtl;
       shell = Row(
         children: [
-          NavigationRail(
-            selectedIndex: current.index,
-            onDestinationSelected: onSelected,
-            extended: extended,
-            labelType: extended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-            leading: const Padding(
-              padding: EdgeInsets.only(bottom: 24),
-              child: ShapedIcon(icon: Icons.favorite, shape: ExpressiveShape.cookie9),
+          MediaQuery.removePadding(
+            context: context,
+            removeLeft: rtl,
+            removeRight: !rtl,
+            child: NavigationRail(
+              selectedIndex: current.index,
+              onDestinationSelected: onSelected,
+              extended: extended,
+              labelType: extended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+              leading: const Padding(
+                padding: EdgeInsets.only(bottom: 24),
+                child: ShapedIcon(icon: Icons.favorite, shape: ExpressiveShape.cookie9),
+              ),
+              destinations: [
+                for (final destination in AppDestination.values)
+                  NavigationRailDestination(
+                    icon: Icon(destination.icon),
+                    selectedIcon: Icon(destination.selectedIcon),
+                    label: Text(destination.label),
+                  ),
+              ],
             ),
-            destinations: [
-              for (final destination in AppDestination.values)
-                NavigationRailDestination(
-                  icon: Icon(destination.icon),
-                  selectedIcon: Icon(destination.selectedIcon),
-                  label: Text(destination.label),
-                ),
-            ],
           ),
           // The rail covers the inset on its side (it pads itself), so the pages must not.
           Expanded(

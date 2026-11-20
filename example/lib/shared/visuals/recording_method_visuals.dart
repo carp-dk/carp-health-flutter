@@ -1,5 +1,5 @@
-/// How the example shows a data point's `RecordingMethod`: a name, an icon, a status tone and an
-/// explanation, used by the recording method filter, the data point tiles and the data point sheet.
+/// How the example shows a data point's `RecordingMethod`: a name, an icon, a status tone and a short
+/// description, used by the recording method filter, the data point tiles and the data point sheet.
 library;
 
 import 'package:flutter/material.dart';
@@ -20,6 +20,9 @@ extension RecordingMethodVisuals on RecordingMethod {
     RecordingMethod.manual => 'Manual',
   };
 
+  /// The method's name in at most six letters, for button groups on narrow screens: "Auto" for automatic.
+  String get shortLabel => this == RecordingMethod.automatic ? 'Auto' : label;
+
   /// An icon for the method.
   IconData get icon => switch (this) {
     RecordingMethod.unknown => Icons.help_outline,
@@ -36,11 +39,11 @@ extension RecordingMethodVisuals on RecordingMethod {
     RecordingMethod.manual => StatusTone.info,
   };
 
-  /// What the method means, in a sentence.
+  /// What the method means, in a short sentence for tooltips and info sheets.
   String get description => switch (this) {
-    RecordingMethod.unknown => 'The app that wrote the data did not say how it was recorded.',
-    RecordingMethod.active => 'Recorded during a session the user started, such as a workout (Health Connect).',
-    RecordingMethod.automatic => 'Recorded by a device or app in the background, such as a watch counting steps.',
-    RecordingMethod.manual => 'Entered by the user by hand.',
+    RecordingMethod.unknown => 'Not reported by the writing app.',
+    RecordingMethod.active => 'Recorded in a session the user started.',
+    RecordingMethod.automatic => 'Recorded in the background, such as by a watch.',
+    RecordingMethod.manual => 'Entered by hand.',
   };
 }

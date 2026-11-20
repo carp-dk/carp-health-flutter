@@ -32,7 +32,8 @@ mixin HealthDataWrites on _HealthSupport {
   ///
   /// Throws an [ArgumentError] for a type with a write method of its own:
   /// [HealthDataType.WORKOUT] ([Health.writeWorkoutData]),
-  /// [HealthDataType.ACTIVITY_INTENSITY] ([Health.writeActivityIntensity])
+  /// [HealthDataType.ACTIVITY_INTENSITY] ([Health.writeActivityIntensity]),
+  /// [HealthDataType.SEXUAL_ACTIVITY] ([Health.writeSexualActivity])
   /// and, on iOS, [HealthDataType.INSULIN_DELIVERY]
   /// ([Health.writeInsulinDelivery], which takes the delivery reason HealthKit
   /// needs) and [HealthDataType.MENSTRUATION_FLOW]
@@ -224,6 +225,9 @@ mixin HealthDataWrites on _HealthSupport {
     }
     if (type == HealthDataType.ACTIVITY_INTENSITY) {
       throw ArgumentError("Adding activity intensity data should be done using the writeActivityIntensity method.");
+    }
+    if (type == HealthDataType.SEXUAL_ACTIVITY) {
+      throw ArgumentError("Adding sexual activity data should be done using the writeSexualActivity method.");
     }
     // HealthKit raises an exception (crashing the app) for an insulin delivery without a delivery
     // reason, and for a menstrual flow without the start-of-cycle flag. Health Connect has no insulin

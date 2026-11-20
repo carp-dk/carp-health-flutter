@@ -106,7 +106,10 @@ void main() {
       await tester.tap(find.text('Re-read by UUID'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('getHealthDataByUUID returned null'), findsOneWidget);
+      expect(find.text('Not found'), findsOneWidget);
+      await tester.tap(find.byTooltip('About Not found'));
+      await tester.pumpAndSettle();
+      expect(find.text('getHealthDataByUUID → null'), findsOneWidget);
     });
 
     testWidgets('shows a failure in an error card with a retry', (tester) async {
@@ -146,13 +149,13 @@ void main() {
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       expect(find.text('Delete this record?'), findsOneWidget);
-      expect(find.textContaining('Apps can delete only the data they wrote themselves'), findsOneWidget);
+      expect(find.text('Apps can delete only records they wrote.'), findsOneWidget);
       await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Delete')));
       await tester.pumpAndSettle();
 
       expect(health.deletions, [('uuid-hr', HealthDataType.HEART_RATE)]);
       expect(find.byType(DataPointSheet), findsNothing);
-      expect(find.text('Heart rate record deleted with deleteByUUID'), findsOneWidget);
+      expect(find.text('Heart rate record deleted'), findsOneWidget);
       expect(deleted, same(point));
       expect(services.recentWrites.items, isEmpty, reason: 'the deleted record leaves the recent writes');
     });
@@ -178,7 +181,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(DataPointSheet), findsOneWidget);
-      expect(find.textContaining('deleteByUUID returned false'), findsOneWidget);
+      expect(find.text('Not deleted'), findsOneWidget);
+      await tester.tap(find.byTooltip('About Not deleted'));
+      await tester.pumpAndSettle();
+      expect(find.text('deleteByUUID → false'), findsOneWidget);
     });
   });
 
@@ -187,6 +193,6 @@ void main() {
 
     expect(button(tester, 'Re-read by UUID').enabled, isFalse);
     expect(button(tester, 'Delete').enabled, isFalse);
-    expect(find.textContaining('This data point has no UUID'), findsOneWidget);
+    expect(find.text('No UUID (interval data)'), findsOneWidget);
   });
 }

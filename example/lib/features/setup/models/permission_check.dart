@@ -39,7 +39,11 @@ class PermissionCheck {
   /// disclose; null where it was not checked.
   final PermissionAnswer? write;
 
+  /// The answer that tells the most: [write] where iOS checked it, else [answer].
+  PermissionAnswer get effective => write ?? answer;
+
   /// How the page shows this outcome, for a group of types when [isGroup] (a category) or for one type.
+  /// The summary of the check explains once, behind its info button, what they mean on each platform.
   PermissionCheckView describe({required bool isGroup}) {
     // On iOS the write answer is the informative one: HealthKit keeps read access to itself.
     if (write case final write?) {
@@ -48,13 +52,11 @@ class PermissionCheck {
           label: 'Write granted',
           tone: StatusTone.success,
           icon: Icons.edit,
-          note: 'Read access is not disclosed by HealthKit',
         ),
         PermissionAnswer.denied => PermissionCheckView(
           label: isGroup ? 'Write not all granted' : 'Write not granted',
           tone: StatusTone.warning,
           icon: Icons.edit_off,
-          note: 'Read access is not disclosed by HealthKit',
         ),
         PermissionAnswer.unknown => _unknown,
       };
@@ -69,17 +71,16 @@ class PermissionCheck {
         label: isGroup ? 'Not all granted' : 'Not granted',
         tone: StatusTone.error,
         icon: Icons.block,
-        note: isGroup ? 'Open the category to see which types are missing' : null,
       ),
       PermissionAnswer.unknown => _unknown,
     };
   }
 
+  /// HealthKit's answer for read access, which it does not disclose.
   static const PermissionCheckView _unknown = PermissionCheckView(
     label: 'Unknown',
     tone: StatusTone.neutral,
     icon: Icons.help_outline,
-    note: 'HealthKit does not tell apps whether read access was granted',
   );
 
   @override
@@ -96,7 +97,7 @@ class PermissionCheck {
 @immutable
 class PermissionCheckView {
   /// Creates the view of a check.
-  const PermissionCheckView({required this.label, required this.tone, required this.icon, this.note});
+  const PermissionCheckView({required this.label, required this.tone, required this.icon});
 
   /// The status in a few words, for a `StatusPill`.
   final String label;
@@ -106,7 +107,4 @@ class PermissionCheckView {
 
   /// An icon for the status.
   final IconData icon;
-
-  /// A sentence that explains the status, if it needs one.
-  final String? note;
 }

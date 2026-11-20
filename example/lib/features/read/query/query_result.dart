@@ -11,18 +11,13 @@ import 'query_options.dart';
 enum SortOrder {
   /// The order the plugin returned them in: oldest first in pages and on Android, newest first from
   /// `getHealthDataFromTypes` on iOS, and newest first with a `limit`.
-  asReturned('As returned'),
+  asReturned,
 
   /// The latest start time first.
-  newestFirst('Newest first'),
+  newestFirst,
 
   /// The earliest start time first.
-  oldestFirst('Oldest first');
-
-  const SortOrder(this.label);
-
-  /// The order's name.
-  final String label;
+  oldestFirst,
 }
 
 /// The points of one type in a [QueryResult].
@@ -171,7 +166,8 @@ class QueryResult {
   }
 
   /// This result with the points of the later read [next] added, as when reads add to the result. The
-  /// summary then describes [next], with the counts and pages of both.
+  /// summary then describes [next], with the counts and pages of both; the points keep this result's
+  /// [order].
   QueryResult followedBy(QueryResult next) {
     final pagesRead = (pages ?? 0) + (next.pages ?? 0);
     return QueryResult(
@@ -189,6 +185,7 @@ class QueryResult {
       cancelled: next.cancelled,
       error: next.error,
       stackTrace: next.stackTrace,
+      order: order,
       reads: reads + next.reads,
     );
   }

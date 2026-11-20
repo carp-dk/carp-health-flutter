@@ -8,7 +8,6 @@ import 'package:health_example/app/app_scope.dart';
 import 'package:health_example/core/async/async_value.dart';
 import 'package:health_example/core/health/health_type_info.dart';
 import 'package:health_example/design/design.dart';
-import 'package:health_example/shared/visuals/monospace.dart';
 import 'package:health_example/shared/widgets/error_dialog.dart';
 
 import 'data_point_sheet.dart';
@@ -17,8 +16,8 @@ import 'data_point_text.dart';
 /// Reads the [type] record with [uuid] (`getHealthDataByUUID`) and shows it with [showDataPointSheet].
 ///
 /// A small dialog shows progress while the plugin reads. When the plugin returns null, a snack bar
-/// explains why that happens; when it throws, a snack bar names the error, with its details one tap
-/// away. Nothing escapes as an exception.
+/// says what that means ([uuidNotFoundMessage]); when it throws, a snack bar names the error, with its
+/// details one tap away. Nothing escapes as an exception.
 Future<void> openDataPointByUuid(BuildContext context, {required String uuid, required HealthDataType type}) async {
   final health = AppScope.of(context).health;
   final lookup = AsyncValue.guard(() => health.getHealthDataByUUID(uuid: uuid, type: type));
@@ -64,7 +63,6 @@ class _LookupProgressDialogState extends State<_LookupProgressDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return PopScope(
       canPop: false,
       child: Dialog(
@@ -76,17 +74,7 @@ class _LookupProgressDialogState extends State<_LookupProgressDialog> {
             children: [
               const ExpressiveLoadingIndicator(contained: true, semanticsLabel: 'Reading by UUID'),
               Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Reading ${widget.type.label}', style: theme.textTheme.titleMediumEmphasized),
-                    Text(
-                      'getHealthDataByUUID',
-                      style: theme.textTheme.bodySmall!.copyWith(color: theme.colorScheme.onSurfaceVariant).monospace,
-                    ),
-                  ],
-                ),
+                child: Text('Reading ${widget.type.label}', style: Theme.of(context).textTheme.titleMediumEmphasized),
               ),
             ],
           ),

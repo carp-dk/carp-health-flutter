@@ -118,21 +118,22 @@ class PlatformCapabilities extends ChangeNotifier {
   /// `HealthErrorCode.notSupported` for it.
   bool supports(HealthDataType type) => unsupportedReason(type) == null;
 
-  /// Why [type] is not supported here, or null if it is ([supports]).
+  /// Why [type] is not supported here, in a short phrase such as "Needs iOS 17" or "Not in this Health
+  /// Connect" (the device's Health Connect lacks the type's feature), or null if it is ([supports]).
   String? unsupportedReason(HealthDataType type) {
     final platform = this.platform;
-    if (platform == null) return 'The health plugin supports Android and iOS only';
-    if (!TypeRules.platformTypes(platform).contains(type)) return 'Not available in $platformName';
+    if (platform == null) return 'Android and iOS only';
+    if (!TypeRules.platformTypes(platform).contains(type)) return 'Not in $platformName';
     switch (platform) {
       case HealthPlatformType.googleHealthConnect:
         if (TypeRules.androidFeatureTypes.contains(type) && !_hasFeatureOf(type)) {
-          return _isLoaded ? "This device's Health Connect does not have it" : 'Checking Health Connect features';
+          return _isLoaded ? 'Not in this Health Connect' : 'Checking Health Connect';
         }
       case HealthPlatformType.appleHealth:
         final minimum = TypeRules.iosMinimumVersion[type];
         final version = iosMajorVersion;
         // An unknown version is not held against the type: the plugin then reports it if needed.
-        if (minimum != null && version != null && version < minimum) return 'Needs iOS $minimum or later';
+        if (minimum != null && version != null && version < minimum) return 'Needs iOS $minimum';
     }
     return null;
   }
@@ -175,7 +176,7 @@ class PlatformCapabilities extends ChangeNotifier {
 
     try {
       if (platform == null) {
-        failure = UnsupportedError('The health plugin supports Android and iOS only.');
+        failure = UnsupportedError('The health plugin needs Android or iOS.');
       } else if (isAndroid) {
         // getHealthConnectSdkStatus catches its own failures and returns null, so null is an error.
         _sdkStatus = await attempt(health.getHealthConnectSdkStatus, null);

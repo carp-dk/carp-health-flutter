@@ -109,7 +109,7 @@ class _TypePickerSheetState extends State<TypePickerSheet> {
     );
   }
 
-  /// The header, pinned over the matching types that scroll under it, or an explanation when no type
+  /// The header, pinned over the matching types that scroll under it, or an empty state when no type
   /// matches the search. Only the button bar stays outside the scrolling area, so large text cannot
   /// squeeze the list out of the sheet.
   Widget _content(BuildContext context) {
@@ -125,8 +125,8 @@ class _TypePickerSheetState extends State<TypePickerSheet> {
           SliverToBoxAdapter(
             child: EmptyState(
               icon: Icons.search_off,
-              title: 'No data type matches "${_model.query}"',
-              message: 'Search by name, such as "heart rate", or by code, such as HEART_RATE.',
+              title: 'No match for "${_model.query}"',
+              message: 'Search by name or code, like HEART_RATE',
             ),
           )
         else

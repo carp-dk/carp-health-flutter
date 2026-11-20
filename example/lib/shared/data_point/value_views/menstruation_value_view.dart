@@ -19,7 +19,6 @@ class MenstruationValueView extends StatelessWidget {
   Widget build(BuildContext context) {
     return DetailSection(
       title: 'Menstrual flow',
-      subtitle: 'MenstruationFlowHealthValue',
       children: [
         DetailField(label: 'Flow', value: value.flow == null ? 'Not recorded' : formatEnumName(value.flow!)),
         DetailField(label: 'Start of cycle', value: _yesNo(value.isStartOfCycle)),
@@ -33,6 +32,6 @@ class MenstruationValueView extends StatelessWidget {
   static String _yesNo(bool? flag) => switch (flag) {
     true => 'Yes',
     false => 'No',
-    null => 'Not recorded (HealthKit only)',
+    null => 'Not recorded',
   };
 }

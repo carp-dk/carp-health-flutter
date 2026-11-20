@@ -28,13 +28,10 @@ extension TypeCategoryVisuals on TypeCategory {
     TypeCategory.other => ExpressiveShape.clover8,
   };
 
-  /// The container colour of this category in [scheme] and the colour of icons on it. Categories take
-  /// turns on the primary, tertiary and secondary containers, so neighbouring groups look different.
-  (Color background, Color foreground) colorsIn(ColorScheme scheme) => switch (index % 3) {
-    0 => (scheme.primaryContainer, scheme.onPrimaryContainer),
-    1 => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-    _ => (scheme.secondaryContainer, scheme.onSecondaryContainer),
-  };
+  /// The container colour of this category in [scheme] and the colour of icons on it: the same calm
+  /// secondary container for every category, so the shapes, not colours, tell categories apart.
+  (Color background, Color foreground) colorsIn(ColorScheme scheme) =>
+      (scheme.secondaryContainer, scheme.onSecondaryContainer);
 }
 
 /// A [ShapedIcon] for a data type ([TypeIcon.new]) or for a whole category ([TypeIcon.category]), in

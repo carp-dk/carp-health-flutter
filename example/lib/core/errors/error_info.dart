@@ -33,31 +33,30 @@ class ErrorInfo {
     MissingPluginException() => ErrorInfo(
       title: 'Plugin not available',
       message: error.message ?? 'The health plugin has no implementation on this platform.',
-      hint: 'Run the example on an Android or iOS device.',
+      hint: 'Run on an Android or iOS device.',
     ),
     PlatformException() => ErrorInfo._fromPlatformException(error),
     RangeError() => ErrorInfo(
       title: 'Value out of range',
       message: _messageOf(error.message, error),
-      hint: 'Pick a value inside the allowed range.',
+      hint: 'Use a value in the allowed range.',
     ),
     ArgumentError() => ErrorInfo(
       title: 'Invalid argument',
       message: _messageOf(error.message, error),
-      hint: 'The plugin checks arguments before it calls the platform: adjust the input and retry.',
+      hint: 'The plugin rejected the input: adjust it and retry.',
     ),
     UnsupportedError() => ErrorInfo(
       title: 'Not available here',
       message: error.message ?? 'This operation is not supported.',
       // Thrown when Health Connect is missing, and by platform-only methods such as writeAudiogram.
-      hint: 'This call is not available on this platform. On Android, check the Health Connect status in Setup.',
+      hint: 'Not on this platform. On Android, check Health Connect in Setup.',
     ),
     StateError() => ErrorInfo(title: 'Invalid state', message: error.message),
     TimeoutException() => ErrorInfo(
       title: 'Timed out',
       message: error.message ?? 'The call did not finish in time.',
       isRetryable: true,
-      hint: 'Try again.',
     ),
     FormatException() => ErrorInfo(title: 'Unexpected data', message: error.message),
     _ => ErrorInfo(title: 'Something went wrong', message: error.toString()),
@@ -112,8 +111,11 @@ class ErrorInfo {
   /// Whether a missing permission caused the error, so the UI can link to the permission setup.
   final bool isPermission;
 
-  /// What the user can do about it, when there is advice to give.
+  /// What the user can do about it, in a short sentence, when there is advice to give.
   final String? hint;
+
+  /// [code] and, when it differs, [platformCode]: what the UI shows as the error's codes.
+  List<String> get codes => [?code, if (platformCode != code) ?platformCode];
 
   /// A headline for each [HealthErrorCode].
   static const Map<HealthErrorCode, String> _titles = {
@@ -129,15 +131,13 @@ class ErrorInfo {
 
   /// Advice for the codes that have some (README, "Error handling" and "Health Connect limits").
   static const Map<HealthErrorCode, String> _hints = {
-    HealthErrorCode.rateLimitExceeded:
-        'Health Connect limits how often each app may call it. The quota refills over about '
-        '15 minutes: try again later.',
-    HealthErrorCode.permissionDenied: 'Grant access to this data type in Setup, then try again.',
-    HealthErrorCode.invalidArgument: 'Check the values, units and time range of the request.',
-    HealthErrorCode.notSupported: 'This platform, OS version or Health Connect version does not have this type.',
-    HealthErrorCode.unavailable: 'Health Connect is busy or unreachable, for example while it syncs: retry shortly.',
-    HealthErrorCode.deviceLocked: 'HealthKit protects health data while the device is locked: unlock it and retry.',
-    HealthErrorCode.dataTooLarge: 'Read a shorter time range or lower the page size in Setup.',
+    HealthErrorCode.rateLimitExceeded: "Health Connect's quota refills in about 15 min: try again later.",
+    HealthErrorCode.permissionDenied: 'Grant access in Setup, then try again.',
+    HealthErrorCode.invalidArgument: 'Check the values, units and time range.',
+    HealthErrorCode.notSupported: 'Not on this platform, OS or Health Connect version.',
+    HealthErrorCode.unavailable: 'Health Connect is busy or syncing: retry shortly.',
+    HealthErrorCode.deviceLocked: 'HealthKit locks health data with the device: unlock it and retry.',
+    HealthErrorCode.dataTooLarge: 'Read a shorter range or use a smaller page size (Setup).',
   };
 
   /// The message of an [ArgumentError] or [RangeError], which may be any object or null.

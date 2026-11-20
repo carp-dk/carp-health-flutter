@@ -1,5 +1,5 @@
 /// The top of the data point sheet: the type in its shape, the value in big type, when it was recorded
-/// and status pills.
+/// and how.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,7 +14,7 @@ import 'package:health_example/shared/visuals/type_icon.dart';
 
 /// The header of the data point sheet: a [TypeIcon], the type's name, the [dataPointHeadline] in big
 /// emphasized type, when the point was recorded ([dataPointTime]) and for how long, and pills for its
-/// recording method, its platform and whether this app wrote it.
+/// recording method and, when this app wrote it, for that (only such records can be deleted).
 class DataPointHeader extends StatelessWidget {
   /// Creates the header of [point].
   const DataPointHeader({super.key, required this.point});
@@ -51,7 +51,7 @@ class DataPointHeader extends StatelessWidget {
                     child: Text(
                       dataPointHeadline(point),
                       maxLines: 1,
-                      style: theme.textTheme.displaySmallEmphasized.copyWith(color: scheme.onSurface),
+                      style: theme.textTheme.displaySmallEmphasized.copyWith(color: scheme.onSurface).tabular,
                     ),
                   ),
                 ],
@@ -67,10 +67,6 @@ class DataPointHeader extends StatelessWidget {
           runSpacing: 8,
           children: [
             StatusPill(label: method.label, tone: method.tone, icon: method.icon),
-            StatusPill(
-              label: point.sourcePlatform == HealthPlatformType.appleHealth ? 'Apple Health' : 'Health Connect',
-              icon: point.sourcePlatform == HealthPlatformType.appleHealth ? Icons.apple : Icons.android,
-            ),
             if (ownWrite) const StatusPill(label: 'Written by this app', tone: StatusTone.info, icon: Icons.edit),
           ],
         ),

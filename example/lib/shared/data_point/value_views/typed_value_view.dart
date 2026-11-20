@@ -12,6 +12,7 @@ import 'menstruation_value_view.dart';
 import 'numeric_value_view.dart';
 import 'nutrition/nutrition_value_view.dart';
 import 'route/route_value_view.dart';
+import 'sexual_activity_value_view.dart';
 import 'skin_temperature_value_view.dart';
 import 'workout/workout_value_view.dart';
 
@@ -36,6 +37,7 @@ class TypedValueView extends StatelessWidget {
     final ElectrocardiogramHealthValue value => EcgValueView(value: value),
     final WorkoutRouteHealthValue value => RouteValueView(point: point, value: value),
     final MenstruationFlowHealthValue value => MenstruationValueView(value: value),
+    final SexualActivityHealthValue value => SexualActivityValueView(value: value),
     final InsulinDeliveryHealthValue value => InsulinValueView(value: value),
     final SkinTemperatureHealthValue value => SkinTemperatureValueView(value: value),
     final ActivityIntensityHealthValue value => ActivityIntensityValueView(value: value),

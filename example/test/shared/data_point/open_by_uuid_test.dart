@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health/health.dart';
@@ -7,7 +8,6 @@ import 'package:health_example/app/app_scope.dart';
 import 'package:health_example/design/design.dart';
 import 'package:health_example/shared/data_point/data_point_sheet.dart';
 import 'package:health_example/shared/data_point/open_by_uuid.dart';
-import 'package:health_example/shared/widgets/error_card.dart';
 
 import '../support/sample_points.dart';
 import '../support/shared_test_app.dart';
@@ -64,7 +64,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DataPointSheet), findsNothing);
-    expect(find.textContaining('getHealthDataByUUID returned null'), findsOneWidget);
+    expect(find.text('No Heart rate record with this UUID, or no read access.'), findsOneWidget);
   });
 
   testWidgets('names an error in a snack bar, with its details a tap away', (tester) async {
@@ -80,11 +80,11 @@ void main() {
 
     await tester.tap(find.text('Details'));
     await tester.pumpAndSettle();
-    expect(find.byType(ErrorCard), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.text('Missing READ_HEART_RATE'), findsOneWidget);
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
-    expect(find.byType(ErrorCard), findsNothing);
+    expect(find.byType(AlertDialog), findsNothing);
   });
 }

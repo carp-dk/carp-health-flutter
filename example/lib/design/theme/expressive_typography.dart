@@ -80,3 +80,9 @@ extension EmphasizedTextTheme on TextTheme {
   /// Body medium, emphasized.
   TextStyle get bodyMediumEmphasized => ExpressiveTypography.emphasized(bodyMedium!);
 }
+
+/// Numeric formatting helpers for expressive metric styles.
+extension ExpressiveTextStyle on TextStyle {
+  /// Monospaced digits (`tnum`) so animated counts and metrics never shift horizontally.
+  TextStyle get tabular => copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+}

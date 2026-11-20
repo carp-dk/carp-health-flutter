@@ -38,7 +38,7 @@ void main() {
     testWidgets('show HealthKit fractions as percentages', (tester) async {
       await _pumpValue(tester, iosBloodOxygenPoint());
 
-      _expectField('Percentage', '97% (HealthKit fraction)');
+      _expectField('Percentage', '97%');
     });
 
     testWidgets('give the meaning of coded values', (tester) async {
@@ -66,14 +66,24 @@ void main() {
       await _pumpValue(tester, point);
 
       _expectField('Flow', 'Heavy');
-      expect(find.text('Not recorded (HealthKit only)'), findsNWidgets(2));
+      expect(find.text('Not recorded'), findsNWidgets(2));
+    });
+
+    testWidgets('sexual activity: protection status', (tester) async {
+      await _pumpValue(tester, sexualActivityPoint());
+
+      expect(find.text('Sexual activity'), findsOneWidget);
+      _expectField('Protection', 'Protected');
+
+      await _pumpValue(tester, sexualActivityPoint(protectionUsed: SexualActivityProtection.unknown));
+      _expectField('Protection', 'Unspecified');
     });
 
     testWidgets('insulin: units and reason', (tester) async {
       await _pumpValue(tester, insulinPoint());
 
       _expectField('Amount', '4.5 IU');
-      _expectField('Reason', 'Bolus: a dose for a meal or a correction');
+      _expectField('Reason', 'Bolus');
     });
 
     testWidgets('skin temperature: change, baseline, temperature and location', (tester) async {

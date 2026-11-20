@@ -71,7 +71,6 @@ class _RawJsonViewState extends State<RawJsonView> {
       children: [
         SectionHeader(
           title: 'Raw JSON',
-          subtitle: 'toJsonString(point), from HealthDataPoint.toJson',
           trailing: IconButton.filledTonal(tooltip: 'Copy JSON', onPressed: _copy, icon: const Icon(Icons.copy)),
         ),
         Material(
@@ -102,7 +101,7 @@ class _JsonText extends StatelessWidget {
     final cut = json.length > RawJsonView.maxShown;
     final shown = cut
         ? '${json.substring(0, RawJsonView.maxShown)}\n… ${formatNumber(json.length - RawJsonView.maxShown)} more '
-              'characters: copy to get them all'
+              'characters (copy for all)'
         : json;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

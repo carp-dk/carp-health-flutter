@@ -33,12 +33,11 @@ class AudiogramValueView extends StatelessWidget {
     );
     return DetailSection(
       title: 'Audiogram',
-      subtitle: 'Hearing thresholds in dB HL, lower is better',
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: value.frequencies.isEmpty
-              ? Text('No frequencies were tested.', style: cell)
+              ? Text('No frequencies', style: cell)
               : Table(
                   columnWidths: const {0: FlexColumnWidth(1.2), 1: FlexColumnWidth(), 2: FlexColumnWidth()},
                   children: [

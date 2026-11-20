@@ -20,7 +20,6 @@ class ActivityIntensityValueView extends StatelessWidget {
   Widget build(BuildContext context) {
     return DetailSection(
       title: 'Activity intensity',
-      subtitle: 'ActivityIntensityHealthValue (Android)',
       children: [
         DetailField(label: 'Intensity', value: formatEnumName(value.intensityLevel)),
         DetailField(label: 'Duration', value: formatDuration(minutesToDuration(value.minutes))),

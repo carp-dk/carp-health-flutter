@@ -136,7 +136,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(EmptyState), findsOneWidget);
-      expect(find.text('No data type matches "xyz"'), findsOneWidget);
+      expect(find.text('No match for "xyz"'), findsOneWidget);
     });
 
     testWidgets('returns null when cancelled', (tester) async {

@@ -13,7 +13,7 @@ abstract final class ExpressiveNavigationThemes {
   /// The bottom `NavigationBar` of compact windows: a pill indicator in the secondary container colour
   /// behind the selected icon, and an emphasized label under it.
   static NavigationBarThemeData navigationBar(ColorScheme scheme, TextTheme text) => NavigationBarThemeData(
-    height: 76,
+    height: 68,
     elevation: 0,
     backgroundColor: scheme.surfaceContainer,
     indicatorColor: scheme.secondaryContainer,

@@ -7,10 +7,11 @@ import 'package:flutter/material.dart';
 
 import '../theme/expressive_typography.dart';
 import 'expressive_refresh_indicator.dart';
+import 'info_button.dart';
 
-/// A page: a `Scaffold` with a `SliverAppBar.large` whose emphasized [title] collapses into the toolbar
-/// as the content scrolls, an optional [subtitle] under it, toolbar [actions], the content [slivers], an
-/// optional [floatingActionButton], and pull to refresh when [onRefresh] is given.
+/// A page: a `Scaffold` with a collapsing `SliverAppBar.medium` showing the emphasized [title], toolbar
+/// [actions] (plus an `InfoButton` when [subtitle] is given), the content [slivers], an optional
+/// [floatingActionButton], and pull to refresh when [onRefresh] is given.
 ///
 /// The slivers are laid out in a column with [gutter] side margins; on wide windows the column stays at
 /// most [maxContentWidth] wide and centred, and the title moves in with it so they stay aligned. Space
@@ -32,7 +33,7 @@ class ExpressivePage extends StatelessWidget {
   /// The page's name, large at the top and in the toolbar once collapsed.
   final String title;
 
-  /// A sentence under the title on what the page does.
+  /// What the page does, opened from the info button in the app bar.
   final String? subtitle;
 
   /// Icon buttons at the end of the toolbar.
@@ -72,34 +73,31 @@ class ExpressivePage extends StatelessWidget {
             // Pull to refresh needs a scrollable page even when the content is short.
             physics: onRefresh == null ? null : const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverAppBar.large(
+              SliverAppBar.medium(
                 title: Padding(
                   padding: EdgeInsetsDirectional.only(start: barInset),
-                  // Merges into both the large and the collapsed title style, emphasizing either.
+                  // Merges into both the expanded and collapsed styles, emphasizing either.
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontWeight: ExpressiveTypography.heavier(theme.textTheme.headlineMedium!.fontWeight!),
+                      fontWeight: ExpressiveTypography.heavier(theme.textTheme.headlineSmall!.fontWeight!),
+                      letterSpacing: -0.25,
                     ),
                   ),
                 ),
-                actions: actions,
+                actions: [
+                  ...?actions,
+                  if (subtitle case final subtitle?) InfoButton(title: title, message: subtitle),
+                ],
                 actionsPadding: EdgeInsetsDirectional.only(end: barInset + 4),
               ),
-              if (subtitle case final subtitle?)
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              for (final sliver in slivers)
                 SliverPadding(
-                  padding: EdgeInsets.fromLTRB(side, 0, side, 8),
-                  sliver: SliverToBoxAdapter(
-                    child: Text(
-                      subtitle,
-                      style: theme.textTheme.bodyLarge!.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: side),
+                  sliver: sliver,
                 ),
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(side, 8, side, floatingActionButton == null ? 32 : 112),
-                sliver: SliverMainAxisGroup(slivers: slivers),
-              ),
+              SliverToBoxAdapter(child: SizedBox(height: floatingActionButton == null ? 32 : 112)),
             ],
           );
           final refresh = onRefresh;

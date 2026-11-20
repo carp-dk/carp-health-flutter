@@ -30,6 +30,7 @@ object HealthConstants {
     const val HEART_RATE_VARIABILITY_RMSSD = "HEART_RATE_VARIABILITY_RMSSD"
     const val HEIGHT = "HEIGHT"
     const val MENSTRUATION_FLOW = "MENSTRUATION_FLOW"
+    const val SEXUAL_ACTIVITY = "SEXUAL_ACTIVITY"
     const val MINDFULNESS = "MINDFULNESS"
     const val RESPIRATORY_RATE = "RESPIRATORY_RATE"
     const val RESTING_HEART_RATE = "RESTING_HEART_RATE"
@@ -109,6 +110,7 @@ object HealthConstants {
         RESPIRATORY_RATE to RespiratoryRateRecord::class,
         TOTAL_CALORIES_BURNED to TotalCaloriesBurnedRecord::class,
         MENSTRUATION_FLOW to MenstruationFlowRecord::class,
+        SEXUAL_ACTIVITY to SexualActivityRecord::class,
         MINDFULNESS to MindfulnessSessionRecord::class,
         SPEED to SpeedRecord::class,
         POWER to PowerRecord::class,

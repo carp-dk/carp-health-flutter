@@ -26,7 +26,9 @@ class SdkStatusInfo {
       tone: StatusTone.success,
       icon: Icons.check_circle,
       shape: ExpressiveShape.cookie9,
-      explanation: 'Health Connect is ready: every plugin call can be used.',
+      explanation:
+          'Every plugin call can be used. From Android 14 on, Health Connect is part of Android, so '
+          'installHealthConnect does nothing there.',
     ),
     HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired => const SdkStatusInfo(
       label: 'Install or update needed',
@@ -34,10 +36,8 @@ class SdkStatusInfo {
       icon: Icons.system_update,
       shape: ExpressiveShape.softBurst,
       explanation:
-          'Android 13 and lower need the Health Connect app from Google Play, and this one is missing or too '
-          'old. installHealthConnect opens the store. From Android 14 on, Health Connect is part of Android '
-          'and updates with the system, so this status does not occur there and installHealthConnect does '
-          'nothing.',
+          'Android 13 and lower need the Health Connect app, which is missing or too old: '
+          'installHealthConnect opens the store. Android 14 and later have it built in.',
       offersInstall: true,
     ),
     HealthConnectSdkStatus.sdkUnavailable => const SdkStatusInfo(
@@ -46,20 +46,37 @@ class SdkStatusInfo {
       icon: Icons.block,
       shape: ExpressiveShape.pentagon,
       explanation:
-          'Health Connect cannot be used here: Android older than 9, a work profile, private space '
-          '(Android 15 and later) or a device without Health Connect. Apps should hide their Health Connect '
-          'features then, rather than offer to install it. Plugin calls throw an UnsupportedError.',
+          'Android older than 9, a work profile, private space or no Health Connect. Plugin calls throw an '
+          'UnsupportedError: apps should hide their Health Connect features.',
     ),
     null => const SdkStatusInfo(
       label: 'Unknown',
       tone: StatusTone.neutral,
       icon: Icons.help_outline,
       shape: ExpressiveShape.circle,
-      explanation:
-          'The status could not be read: getHealthConnectSdkStatus returns null when the platform call '
-          'fails. Refresh to try again.',
+      explanation: 'getHealthConnectSdkStatus returned null: the platform call failed. Refresh to try again.',
     ),
   };
+
+  /// Apple Health on iOS [version] (null when unknown): HealthKit has no SDK status to read.
+  factory SdkStatusInfo.healthKit(int? version) => SdkStatusInfo(
+    label: 'Built into iOS${version == null ? '' : ' $version'}',
+    tone: StatusTone.success,
+    icon: Icons.check_circle,
+    shape: ExpressiveShape.cookie12,
+    explanation:
+        'HealthKit is part of iOS: nothing to install. getHealthConnectSdkStatus returns null and '
+        'installHealthConnect does nothing here.',
+  );
+
+  /// The status while the first check runs.
+  static const SdkStatusInfo checking = SdkStatusInfo(
+    label: 'Checking…',
+    tone: StatusTone.neutral,
+    icon: Icons.hourglass_top,
+    shape: ExpressiveShape.circle,
+    explanation: 'Asking getHealthConnectSdkStatus whether Health Connect can be used.',
+  );
 
   /// The status in a few words, for a `StatusPill`.
   final String label;
@@ -73,7 +90,7 @@ class SdkStatusInfo {
   /// The expressive shape the platform icon takes in this status, so a change of status morphs it.
   final ExpressiveShape shape;
 
-  /// What the status means and what to do about it.
+  /// What the status means and what to do about it, for the info button.
   final String explanation;
 
   /// Whether `installHealthConnect` helps: only when Health Connect must be installed or updated

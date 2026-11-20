@@ -28,11 +28,10 @@ class SwimmingView extends StatelessWidget {
     final laps = details.laps;
     return DetailSection(
       title: 'Swimming',
-      subtitle: 'WorkoutHealthValue.swimming',
       children: [
         DetailField(
           label: 'Pool length',
-          value: poolLength == null ? 'Not known (open water, or not recorded)' : '${formatNumber(poolLength)} m',
+          value: poolLength == null ? 'Unknown' : '${formatNumber(poolLength)} m',
           icon: Icons.straighten,
         ),
         DetailField(
@@ -43,8 +42,7 @@ class SwimmingView extends StatelessWidget {
           icon: Icons.repeat,
         ),
         for (final (index, lap) in laps.take(maxLaps).indexed) _LapTile(number: index + 1, lap: lap),
-        if (laps.length > maxLaps)
-          DetailField(label: 'More laps', value: '${laps.length - maxLaps} more laps are not listed'),
+        if (laps.length > maxLaps) DetailField(label: 'More laps', value: '${laps.length - maxLaps} not listed'),
       ],
     );
   }

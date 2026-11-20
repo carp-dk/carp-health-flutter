@@ -47,8 +47,16 @@ class ExpressiveStatusColors extends ThemeExtension<ExpressiveStatusColors> {
 
   /// Derives the status colours that go with [scheme].
   factory ExpressiveStatusColors.from(ColorScheme scheme) {
-    final success = ColorScheme.fromSeed(seedColor: _successSeed, brightness: scheme.brightness);
-    final warning = ColorScheme.fromSeed(seedColor: _warningSeed, brightness: scheme.brightness);
+    final success = ColorScheme.fromSeed(
+      seedColor: _successSeed,
+      brightness: scheme.brightness,
+      dynamicSchemeVariant: DynamicSchemeVariant.expressive,
+    );
+    final warning = ColorScheme.fromSeed(
+      seedColor: _warningSeed,
+      brightness: scheme.brightness,
+      dynamicSchemeVariant: DynamicSchemeVariant.expressive,
+    );
     return ExpressiveStatusColors(
       success: success.primaryContainer,
       onSuccess: success.onPrimaryContainer,

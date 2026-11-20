@@ -1,16 +1,19 @@
-/// The card that shows a failed plugin call: what went wrong, what to do about it, and a way to retry.
+/// The card that shows a failed plugin call: what went wrong, its codes, and a way to retry.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:health/health.dart';
 import 'package:health_example/app/navigation/app_destination.dart';
 import 'package:health_example/app/navigation/app_navigation.dart';
 import 'package:health_example/core/errors/error_info.dart';
 import 'package:health_example/design/design.dart';
+import 'package:health_example/shared/visuals/error_visuals.dart';
 import 'package:health_example/shared/visuals/monospace.dart';
 
-/// Shows [error] as the app shows every failure: a card in the error container colours with a title,
-/// the plugin's message, advice ([ErrorInfo.hint]) and the error codes.
+import 'error_dialog.dart';
+
+/// Shows [error] as the app shows every failure: a compact card in the error container colours with a
+/// title, the first line of the plugin's message and the error codes. Its info button opens
+/// [showErrorDialog] with the whole message and advice ([ErrorInfo.hint]).
 ///
 /// [ErrorInfo.from] describes any error a plugin call can throw: a `HealthPlatformException` with a
 /// `HealthErrorCode` (such as `rateLimitExceeded`), a `HealthException`, an `UnsupportedError` when
@@ -32,52 +35,62 @@ class ErrorCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final text = theme.textTheme;
+    final color = scheme.onErrorContainer;
     // AppNavigation exists in the app but not around a widget under test.
     final canOpenSetup = info.isPermission && context.getInheritedWidgetOfExactType<AppNavigation>() != null;
-    final codes = [?info.code, if (info.platformCode != info.code) ?info.platformCode];
     return Semantics(
       liveRegion: true,
       child: Material(
         color: scheme.errorContainer,
         shape: ExpressiveShapes.rounded(ExpressiveShapes.extraLarge),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                spacing: 16,
+                spacing: 12,
                 children: [
                   ShapedIcon(
-                    icon: _iconFor(info),
+                    icon: info.icon,
                     shape: ExpressiveShape.sunny,
-                    size: 48,
+                    size: 40,
                     background: scheme.error,
                     foreground: scheme.onError,
                   ),
                   Expanded(
-                    child: Text(info.title, style: text.titleMediumEmphasized.copyWith(color: scheme.onErrorContainer)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(info.title, style: text.titleMediumEmphasized.copyWith(color: color)),
+                        Text(
+                          info.message,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.bodyMedium!.copyWith(color: color),
+                        ),
+                        if (info.codes.isNotEmpty)
+                          Text(info.codes.join(' · '), style: text.labelSmall!.copyWith(color: color).monospace),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Details',
+                    color: color,
+                    onPressed: () => showErrorDialog(context, error),
+                    icon: const Icon(Icons.info_outline),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(info.message, style: text.bodyMedium!.copyWith(color: scheme.onErrorContainer)),
-              if (info.hint case final hint?) ...[
-                const SizedBox(height: 8),
-                Text(hint, style: text.bodySmall!.copyWith(color: scheme.onErrorContainer)),
-              ],
-              if (codes.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(codes.join(' · '), style: text.labelSmall!.copyWith(color: scheme.onErrorContainer).monospace),
-              ],
-              if (onRetry != null || canOpenSetup) ...[
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [?_retryButton(info, scheme), ?_setupButton(context, scheme, canOpenSetup)],
+              if (onRetry != null || canOpenSetup)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [?_retryButton(info, scheme), ?_setupButton(context, scheme, canOpenSetup)],
+                  ),
                 ),
-              ],
             ],
           ),
         ),
@@ -117,17 +130,4 @@ class ErrorCard extends StatelessWidget {
           icon: const Icon(Icons.lock_open),
           label: const Text('Open Setup'),
         );
-
-  /// An icon that says what kind of failure [info] is; [ErrorInfo.code] is a [HealthErrorCode] name.
-  static IconData _iconFor(ErrorInfo info) {
-    if (info.isPermission) return Icons.lock_outline;
-    return switch (HealthErrorCode.values.asNameMap()[info.code]) {
-      HealthErrorCode.rateLimitExceeded => Icons.hourglass_bottom,
-      HealthErrorCode.notSupported => Icons.block,
-      HealthErrorCode.unavailable => Icons.cloud_off,
-      HealthErrorCode.deviceLocked => Icons.phonelink_lock,
-      HealthErrorCode.dataTooLarge => Icons.data_usage,
-      _ => Icons.error_outline,
-    };
-  }
 }

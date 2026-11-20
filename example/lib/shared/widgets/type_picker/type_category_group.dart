@@ -7,14 +7,13 @@ import 'package:health/health.dart';
 import 'package:health_example/core/health/health_type_info.dart';
 import 'package:health_example/core/health/type_category.dart';
 import 'package:health_example/design/design.dart';
-import 'package:health_example/shared/visuals/monospace.dart';
 import 'package:health_example/shared/visuals/type_icon.dart';
 
 import 'type_picker_model.dart';
 
-/// The [category]'s types as [model] shows them: a header with the category's icon, name and how many
-/// of its types are selected and, when several types can be picked, a tristate checkbox that selects or
-/// deselects them all; then a row per type. Tapping a row calls [onPick].
+/// The [category]'s types as [model] shows them: a header with the category's icon and name and, when
+/// several types can be picked, how many of its types are selected and a tristate checkbox that selects
+/// or deselects them all; then a row per type. Tapping a row calls [onPick].
 class TypeCategoryGroup extends StatelessWidget {
   /// Creates the group of [types] of [category].
   const TypeCategoryGroup({
@@ -56,10 +55,11 @@ class TypeCategoryGroup extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Semantics(header: true, child: Text(category.label, style: theme.textTheme.titleMediumEmphasized)),
-                    Text(
-                      model.multiple ? '$count of ${types.length} selected' : category.description,
-                      style: theme.textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant),
-                    ),
+                    if (model.multiple)
+                      Text(
+                        '$count of ${types.length} selected',
+                        style: theme.textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant),
+                      ),
                   ],
                 ),
               ),
@@ -82,7 +82,8 @@ class TypeCategoryGroup extends StatelessWidget {
   }
 }
 
-/// A type: its icon, name and code name, and whether it is selected.
+/// A type: its icon and name, and whether it is selected. The code name (such as `HEART_RATE`) is left
+/// out to keep the list calm; the search finds types by it.
 class _TypeRow extends StatelessWidget {
   const _TypeRow({required this.type, required this.model, required this.onPick});
 
@@ -92,15 +93,10 @@ class _TypeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final selected = model.isSelected(type);
     return ListTile(
       leading: TypeIcon(type: type, size: 36),
       title: Text(type.label),
-      subtitle: Text(
-        type.name,
-        style: theme.textTheme.bodySmall!.copyWith(color: theme.colorScheme.onSurfaceVariant).monospace,
-      ),
       selected: selected,
       trailing: model.multiple
           ? Checkbox(value: selected, onChanged: (_) => onPick(type))

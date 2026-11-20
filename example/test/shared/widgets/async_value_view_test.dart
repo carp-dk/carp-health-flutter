@@ -73,12 +73,16 @@ void main() {
 
       expect(find.text('Rate limit reached'), findsOneWidget);
       expect(find.text('Quota used up'), findsOneWidget);
-      expect(find.textContaining('try again later'), findsOneWidget);
       expect(find.text('rateLimitExceeded · RATE_LIMIT_EXCEEDED'), findsOneWidget);
       // The error is retryable, so retrying is the emphasized action.
       expect(find.widgetWithText(FilledButton, 'Try again'), findsOneWidget);
       await tester.tap(find.text('Try again'));
       expect(retries, 1);
+
+      // Advice lives in the error details dialog.
+      await tester.tap(find.byTooltip('Details'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('try again later'), findsOneWidget);
     });
 
     testWidgets('offers a quieter retry for errors that will not go away by themselves', (tester) async {

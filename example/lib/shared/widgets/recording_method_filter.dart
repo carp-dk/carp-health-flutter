@@ -10,11 +10,14 @@ import 'package:health_example/shared/visuals/recording_method_visuals.dart';
 /// Filter chips, one per recording method, selected when data recorded that way is included. Tapping a
 /// chip reports the new set of methods to leave out ([filtered]) through [onChanged].
 ///
-/// The chips follow the platform's rules (README, "Filtering by recording method"):
+/// The chips follow the platform's rules (README, "Filtering by recording method"), which the info
+/// button next to the label explains:
 /// * Health Connect stores one of four methods with every record, so each of them can be left out.
 /// * HealthKit only marks the samples a user entered by hand, so on iOS only manual entries can be
 ///   left out: the other samples read as automatic whatever the filter says, and the Automatic chip
 ///   stays selected and disabled.
+///
+/// When every method is left out, a warning line says that reads return nothing.
 class RecordingMethodFilter extends StatelessWidget {
   /// Creates a filter showing [filtered] as left out.
   const RecordingMethodFilter({super.key, required this.filtered, required this.onChanged, this.platform});
@@ -49,24 +52,12 @@ class RecordingMethodFilter extends StatelessWidget {
     final shown = isIOS ? const [RecordingMethod.automatic, RecordingMethod.manual] : filterable;
     // On iOS automatic samples always remain, so only Android can leave everything out.
     final nothingLeft = !isIOS && filterable.every(filtered.contains);
-    final (icon, color, note) = switch ((nothingLeft, isIOS)) {
-      (true, _) => (Icons.warning_amber, scheme.error, 'Every recording method is left out, so reads return no data.'),
-      (false, true) => (
-        Icons.info_outline,
-        scheme.onSurfaceVariant,
-        'HealthKit marks only the samples a user entered by hand, so iOS can leave out manual entries only.',
-      ),
-      (false, false) => (
-        Icons.info_outline,
-        scheme.onSurfaceVariant,
-        'Health Connect stores how each record was made. Some apps write manual entries as unknown.',
-      ),
-    };
+    const label = 'Recording methods';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 8,
       children: [
-        Text('Include data recorded as', style: theme.textTheme.labelLarge!.copyWith(color: scheme.onSurfaceVariant)),
-        const SizedBox(height: 8),
+        Text(label, style: theme.textTheme.labelLarge!.copyWith(color: scheme.onSurfaceVariant)),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -81,8 +72,19 @@ class RecordingMethodFilter extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 8),
-        _Note(icon: icon, color: color, text: note),
+        if (nothingLeft)
+          Row(
+            spacing: 8,
+            children: [
+              Icon(Icons.warning_amber, size: 18, color: scheme.error),
+              Expanded(
+                child: Text(
+                  'All excluded — no data will match',
+                  style: theme.textTheme.bodySmall!.copyWith(color: scheme.error),
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -90,27 +92,4 @@ class RecordingMethodFilter extends StatelessWidget {
   /// [filtered] with [method] included again, or left out.
   Set<RecordingMethod> _toggled(RecordingMethod method, bool include) =>
       include ? ({...filtered}..remove(method)) : {...filtered, method};
-}
-
-/// A small icon and a line of explanation.
-class _Note extends StatelessWidget {
-  const _Note({required this.icon, required this.color, required this.text});
-
-  final IconData icon;
-  final Color color;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 8,
-      children: [
-        Icon(icon, size: 18, color: color),
-        Expanded(
-          child: Text(text, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: color)),
-        ),
-      ],
-    );
-  }
 }

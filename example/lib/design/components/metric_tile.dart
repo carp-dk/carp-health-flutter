@@ -25,6 +25,9 @@ class MetricTile extends StatelessWidget {
     this.unit,
     required this.icon,
     this.shape = ExpressiveShape.cookie9,
+    this.variant = ExpressiveCardVariant.filled,
+    this.iconBackground,
+    this.iconForeground,
     this.footnote,
     this.loading = false,
     this.error,
@@ -46,7 +49,16 @@ class MetricTile extends StatelessWidget {
   /// The shape behind the icon.
   final ExpressiveShape shape;
 
-  /// A line under the number, such as when it was measured.
+  /// The card colour style.
+  final ExpressiveCardVariant variant;
+
+  /// Optional container colour behind [icon]; defaults to `ShapedIcon`'s primary container.
+  final Color? iconBackground;
+
+  /// Optional icon colour; defaults to `ShapedIcon`'s on-primary-container.
+  final Color? iconForeground;
+
+  /// A short line under the number, such as when it was measured.
   final String? footnote;
 
   /// Whether the value is being read.
@@ -64,6 +76,7 @@ class MetricTile extends StatelessWidget {
     final scheme = theme.colorScheme;
     const motion = ExpressiveMotion.spatialDefault;
     return ExpressiveCard(
+      variant: variant,
       onTap: onTap,
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -75,8 +88,8 @@ class MetricTile extends StatelessWidget {
             icon: icon,
             shape: loading ? ExpressiveShape.circle : shape,
             size: 40,
-            background: error == null ? null : scheme.errorContainer,
-            foreground: error == null ? null : scheme.onErrorContainer,
+            background: error == null ? iconBackground : scheme.errorContainer,
+            foreground: error == null ? iconForeground : scheme.onErrorContainer,
           ),
           const SizedBox(height: 12),
           Text(
@@ -103,7 +116,7 @@ class MetricTile extends StatelessWidget {
           if (footnote case final footnote?)
             Text(
               footnote,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall!.copyWith(color: scheme.onSurfaceVariant),
             ),
@@ -143,7 +156,7 @@ class MetricTile extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           text: value ?? '—',
-          style: theme.textTheme.headlineLargeEmphasized.copyWith(color: scheme.onSurface),
+          style: theme.textTheme.headlineLargeEmphasized.tabular.copyWith(color: scheme.onSurface),
           children: [
             if (unit != null && value != null)
               TextSpan(

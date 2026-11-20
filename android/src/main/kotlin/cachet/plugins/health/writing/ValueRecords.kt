@@ -61,6 +61,7 @@ private val dedicatedWriteMethods = mapOf(
     HealthConstants.WORKOUT to "writeWorkoutData",
     HealthConstants.NUTRITION to "writeMeal",
     HealthConstants.ACTIVITY_INTENSITY to "writeActivityIntensity",
+    HealthConstants.SEXUAL_ACTIVITY to "writeSexualActivity",
 )
 
 // The data types written as records that must end after they start ([requireStartBeforeEnd]). Heart

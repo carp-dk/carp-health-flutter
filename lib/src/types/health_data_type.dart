@@ -278,6 +278,15 @@ enum HealthDataType {
   BIRTH_DATE,
   BLOOD_TYPE,
   MENSTRUATION_FLOW,
+
+  /// Sexual activity and whether protection was used ([SexualActivityHealthValue]).
+  /// Write with [Health.writeSexualActivity], not [Health.writeHealthData].
+  ///
+  ///  * iOS: HealthKit's `HKCategoryTypeIdentifier.sexualActivity`, with
+  ///    `HKMetadataKeySexualActivityProtectionUsed` when protection status is known.
+  ///  * Android: Health Connect's `SexualActivityRecord`; declare the
+  ///    `READ_SEXUAL_ACTIVITY` and `WRITE_SEXUAL_ACTIVITY` permissions.
+  SEXUAL_ACTIVITY,
   WATER_TEMPERATURE,
   UNDERWATER_DEPTH,
   SLEEP_WRIST_TEMPERATURE,

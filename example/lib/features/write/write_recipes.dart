@@ -17,6 +17,7 @@ import 'forms/meal_form.dart';
 import 'forms/measurement_form.dart';
 import 'forms/menstruation_flow_form.dart';
 import 'forms/mindfulness_form.dart';
+import 'forms/sexual_activity_form.dart';
 import 'forms/sleep_session_form.dart';
 import 'forms/workout_form.dart';
 import 'forms/workout_route_form.dart';
@@ -30,13 +31,10 @@ abstract final class WriteRecipes {
     WriteRecipe(
       id: WriteRecipeId.measurement,
       title: 'Measurement',
-      summary: 'One value of any writable type',
       description:
-          'Writes one value of a data type, such as a heart rate or a weight. writeHealthData returns '
-          'whether it was saved; writeHealthDataUUID returns the new record\'s UUID (an empty string when '
-          'nothing was saved), to read it back with getHealthDataByUUID or delete it with deleteByUUID. '
-          'The unit is iOS only, as Health Connect stores each type in a unit of its own, and types that '
-          'Health Connect stores with a duration, such as steps, need an end after the start.',
+          'Writes one value of a data type, such as a heart rate. The UUID variant returns the new record\'s id '
+          '(empty when nothing was saved). The unit is iOS only; types Health Connect stores as intervals, such as '
+          'steps, need an end after the start.',
       methods: const ['writeHealthData', 'writeHealthDataUUID'],
       icon: Icons.add_chart,
       shape: TypeCategory.body.shape,
@@ -48,11 +46,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.bloodPressure,
       HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
       title: 'Blood pressure',
-      summary: 'Systolic and diastolic in one reading',
       description:
-          'Writes a blood pressure reading in mmHg. HealthKit saves it as a blood pressure correlation of a '
-          'systolic and a diastolic sample, Health Connect as one blood pressure record; reads return both '
-          'as BLOOD_PRESSURE_SYSTOLIC and BLOOD_PRESSURE_DIASTOLIC data points.',
+          'Writes one reading in mmHg. HealthKit saves a correlation of a systolic and a diastolic sample, Health '
+          'Connect one record; reads return both as data points.',
       methods: const ['writeBloodPressure'],
       types: const [HealthDataType.BLOOD_PRESSURE_SYSTOLIC, HealthDataType.BLOOD_PRESSURE_DIASTOLIC],
       builder: (context) => const BloodPressureForm(),
@@ -61,11 +57,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.bloodOxygen,
       HealthDataType.BLOOD_OXYGEN,
       title: 'Blood oxygen',
-      summary: 'Oxygen saturation in percent',
       description:
-          'Writes an oxygen saturation. Health Connect measures it from 0 to 100 %, while HealthKit\'s '
-          'percent unit is a fraction (0.98 is 98 %): the form takes a percentage and sends the fraction '
-          'on iOS, so both platforms store the same saturation.',
+          'Writes an oxygen saturation in percent. HealthKit stores it as a fraction (0.98 is 98 %), so the form '
+          'sends the fraction on iOS.',
       methods: const ['writeBloodOxygen'],
       builder: (context) => const BloodOxygenForm(),
     ),
@@ -73,11 +67,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.meal,
       HealthDataType.NUTRITION,
       title: 'Meal',
-      summary: 'A meal with its nutrients',
       description:
-          'Writes a meal: its type, name, calories and macronutrients, and optionally its micronutrients, '
-          'in grams. HealthKit saves a food correlation with a sample per nutrient, Health Connect one '
-          'nutrition record; reads return a NUTRITION data point that lists the nutrients.',
+          'Writes a meal with its calories and nutrients in grams. HealthKit saves a food correlation, Health Connect '
+          'one nutrition record; reads return one NUTRITION point.',
       methods: const ['writeMeal'],
       icon: Icons.restaurant,
       builder: (context) => const MealForm(),
@@ -86,12 +78,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.workout,
       HealthDataType.WORKOUT,
       title: 'Workout',
-      summary: 'Activity, totals and swimming laps',
       description:
-          'Writes a workout: the activity, its times, distance and energy, a title (Health Connect), '
-          'HealthKit metadata (iOS) and the pool length and laps of a swim. writeWorkoutDataUUID also '
-          'returns the workout\'s UUID, which a workout route needs. On Android the distance and energy are '
-          'records of their own.',
+          'Writes a workout with its distance, energy and, for a swim, pool length and laps. The UUID variant returns '
+          'the id a workout route needs. On Android the distance and energy are records of their own.',
       methods: const ['writeWorkoutData', 'writeWorkoutDataUUID'],
       icon: Icons.fitness_center,
       builder: (context) => const WorkoutForm(),
@@ -100,11 +89,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.workoutRoute,
       HealthDataType.WORKOUT_ROUTE,
       title: 'Workout route',
-      summary: 'A GPS route attached to a workout',
       description:
-          'Records a route and attaches it to a workout: startWorkoutRoute opens a route builder, '
-          'insertWorkoutRouteData adds batches of locations, finishWorkoutRoute saves the route with the '
-          'UUID of a workout, and discardWorkoutRoute drops it, for example when a session is cancelled.',
+          'Records a GPS route and attaches it to a workout: start a builder, add batches of locations, then finish '
+          'with the workout\'s UUID. Discarding drops the route instead.',
       methods: const ['startWorkoutRoute', 'insertWorkoutRouteData', 'finishWorkoutRoute', 'discardWorkoutRoute'],
       types: const [HealthDataType.WORKOUT, HealthDataType.WORKOUT_ROUTE],
       builder: (context) => const WorkoutRouteForm(),
@@ -113,11 +100,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.sleepSession,
       HealthDataType.SLEEP_ASLEEP,
       title: 'Sleep session',
-      summary: 'A night with its sleep stages',
       description:
-          'Writes a night of sleep with its stages in one call. Health Connect stores one sleep session '
-          'with its stages, title and notes; HealthKit, which has no sessions, saves in-bed samples and a '
-          'sample per stage. All sleep types share one permission on each platform.',
+          'Writes a night of sleep with its stages in one call. Health Connect stores one session; HealthKit, which '
+          'has no sessions, saves in-bed and stage samples. All sleep types share one permission.',
       methods: const ['writeSleepSession'],
       icon: Icons.bedtime,
       builder: (context) => const SleepSessionForm(),
@@ -126,11 +111,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.mindfulness,
       HealthDataType.MINDFULNESS,
       title: 'Mindfulness',
-      summary: 'A meditation or breathing session',
       description:
-          'Writes a mindfulness session, such as a meditation. Health Connect keeps its type, title and '
-          'notes; HealthKit stores a mindful session without them. Health Connect added mindfulness '
-          'sessions after its first release, so Android checks isMindfulnessSessionAvailable first.',
+          'Writes a mindfulness session, such as a meditation. Health Connect keeps its type, title and notes; '
+          'HealthKit does not. Android checks that Health Connect has the feature first.',
       methods: const ['writeMindfulnessSession'],
       feature: RecipeFeature.mindfulness,
       builder: (context) => const MindfulnessForm(),
@@ -139,23 +122,29 @@ abstract final class WriteRecipes {
       WriteRecipeId.menstruationFlow,
       HealthDataType.MENSTRUATION_FLOW,
       title: 'Menstruation flow',
-      summary: 'Flow and the start of a cycle',
       description:
-          'Writes the menstrual flow of a period of time and whether it starts a cycle, a flag HealthKit '
-          'requires (which is why writeHealthData refuses this type on iOS). Health Connect has no "none" '
-          'or "spotting" flow.',
+          'Writes the flow of a period of time and whether it starts a cycle, which HealthKit requires (so '
+          'writeHealthData refuses this type on iOS). Health Connect has no "none" or "spotting" flow.',
       methods: const ['writeMenstruationFlow'],
       builder: (context) => const MenstruationFlowForm(),
+    ),
+    _recipe(
+      WriteRecipeId.sexualActivity,
+      HealthDataType.SEXUAL_ACTIVITY,
+      title: 'Sexual activity',
+      description:
+          'Writes a sexual activity entry with whether protection was used. Health Connect stores it as a '
+          'SexualActivityRecord; HealthKit stores a sexualActivity category sample with optional protection metadata.',
+      methods: const ['writeSexualActivity'],
+      builder: (context) => const SexualActivityForm(),
     ),
     _recipe(
       WriteRecipeId.insulinDelivery,
       HealthDataType.INSULIN_DELIVERY,
       title: 'Insulin delivery',
-      summary: 'Basal or bolus insulin units',
       description:
-          'Writes the insulin units delivered and why (basal or bolus). HealthKit requires the delivery '
-          'reason, which is why writeHealthData refuses this type on iOS. Health Connect has no insulin '
-          'type.',
+          'Writes the insulin units delivered, basal or bolus. HealthKit requires the reason, so writeHealthData '
+          'refuses this type on iOS.',
       methods: const ['writeInsulinDelivery'],
       platforms: const {HealthPlatformType.appleHealth},
       builder: (context) => const InsulinDeliveryForm(),
@@ -164,11 +153,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.audiogram,
       HealthDataType.AUDIOGRAM,
       title: 'Audiogram',
-      summary: 'Hearing thresholds per frequency',
       description:
-          'Writes a hearing test: the threshold of each ear at each frequency, in dB HL. HealthKit takes at '
-          'most 30 frequencies, unique and ascending, from 0 to 30,000 Hz, with thresholds from -20 to '
-          '160 dB HL.',
+          'Writes the hearing threshold of each ear per frequency, in dB HL. HealthKit takes at most 30 ascending '
+          'frequencies up to 30,000 Hz, with thresholds from -20 to 160 dB HL.',
       methods: const ['writeAudiogram'],
       platforms: const {HealthPlatformType.appleHealth},
       builder: (context) => const AudiogramForm(),
@@ -177,11 +164,9 @@ abstract final class WriteRecipes {
       WriteRecipeId.activityIntensity,
       HealthDataType.ACTIVITY_INTENSITY,
       title: 'Activity intensity',
-      summary: 'Moderate or vigorous activity',
       description:
-          'Writes a period of moderate or vigorous activity, from which Health Connect counts activity '
-          'minutes. Health Connect added activity intensity in a later version, so the app checks '
-          'isActivityIntensityAvailable first.',
+          'Writes a period of moderate or vigorous activity, from which Health Connect counts activity minutes. Older '
+          'Health Connect versions lack it, so the app checks first.',
       methods: const ['writeActivityIntensity'],
       platforms: const {HealthPlatformType.googleHealthConnect},
       feature: RecipeFeature.activityIntensity,
@@ -198,7 +183,6 @@ abstract final class WriteRecipes {
     WriteRecipeId id,
     HealthDataType type, {
     required String title,
-    required String summary,
     required String description,
     required List<String> methods,
     required WidgetBuilder builder,
@@ -209,7 +193,6 @@ abstract final class WriteRecipes {
   }) => WriteRecipe(
     id: id,
     title: title,
-    summary: summary,
     description: description,
     methods: methods,
     icon: icon ?? type.icon,

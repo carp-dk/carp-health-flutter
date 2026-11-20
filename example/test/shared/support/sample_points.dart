@@ -194,6 +194,10 @@ HealthDataPoint menstruationPoint() => samplePoint(
   platform: HealthPlatformType.appleHealth,
 );
 
+/// A sexual activity entry with protection used.
+HealthDataPoint sexualActivityPoint({SexualActivityProtection protectionUsed = SexualActivityProtection.protected}) =>
+    samplePoint(HealthDataType.SEXUAL_ACTIVITY, SexualActivityHealthValue(protectionUsed: protectionUsed));
+
 /// A 4.5 IU bolus of insulin.
 HealthDataPoint insulinPoint() => samplePoint(
   HealthDataType.INSULIN_DELIVERY,
@@ -233,6 +237,7 @@ Map<String, HealthDataPoint> everyKindOfPoint() => {
   'route': routePoint(),
   'route needing consent': routeNeedingConsentPoint(),
   'menstruation': menstruationPoint(),
+  'sexual activity': sexualActivityPoint(),
   'insulin': insulinPoint(),
   'skin temperature': skinTemperaturePoint(),
   'activity intensity': activityIntensityPoint(),

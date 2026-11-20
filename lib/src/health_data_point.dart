@@ -136,6 +136,7 @@ class HealthDataPoint {
       HealthDataType.NUTRITION => NutritionHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.INSULIN_DELIVERY => InsulinDeliveryHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.MENSTRUATION_FLOW => MenstruationFlowHealthValue.fromHealthDataPoint(dataPoint),
+      HealthDataType.SEXUAL_ACTIVITY => SexualActivityHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.ACTIVITY_INTENSITY => ActivityIntensityHealthValue.fromHealthDataPoint(dataPoint),
       HealthDataType.SKIN_TEMPERATURE => SkinTemperatureHealthValue.fromHealthDataPoint(dataPoint),
       _ => NumericHealthValue.fromHealthDataPoint(dataPoint),

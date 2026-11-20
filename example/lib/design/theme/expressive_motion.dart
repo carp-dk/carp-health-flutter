@@ -108,8 +108,14 @@ abstract final class ExpressiveMotion {
   /// Slow fades, such as content appearing after a load (damping 1, stiffness 800).
   static const SpringCurve effectsSlow = SpringCurve(dampingRatio: 1, stiffness: 800, duration: effectsSlowDuration);
 
-  /// Whether the user asked the platform to reduce motion; components then skip decorative movement.
+  /// Whether the user asked the platform to reduce motion; registers a `MediaQuery` dependency so
+  /// widgets rebuild if the setting changes (call from `build` or `didChangeDependencies`).
   static bool reduceMotion(BuildContext context) => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+  /// Non-subscribing read of the reduced-motion setting, safe to call in `didUpdateWidget` and
+  /// event handlers without mutating `MediaQuery` dependents.
+  static bool isReduced(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<MediaQuery>()?.data.disableAnimations ?? false;
 
   /// Clamps an animation that a spatial spring drives (and so overshoots) to 0..1, for an opacity:
   /// `FadeTransition(opacity: animation.drive(ExpressiveMotion.clampToUnit), ...)`. A [Curve] cannot do

@@ -4,8 +4,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:health_example/design/design.dart';
 
-/// A card's title: an [icon] in an expressive [shape], an emphasized [title], an optional [subtitle] (usually
-/// the plugin method the card is about) and an optional [trailing] widget, such as a `PlatformBadge`.
+/// A card's title: an [icon] in an expressive [shape], an emphasized [title] with an [InfoButton] when there
+/// is an [info] or [code] to show, and an optional [trailing] widget, such as a status pill.
 class CardTitle extends StatelessWidget {
   /// Creates a card title.
   const CardTitle({
@@ -13,7 +13,8 @@ class CardTitle extends StatelessWidget {
     required this.icon,
     required this.title,
     this.shape = ExpressiveShape.cookie9,
-    this.subtitle,
+    this.info,
+    this.code,
     this.trailing,
   });
 
@@ -26,8 +27,11 @@ class CardTitle extends StatelessWidget {
   /// The shape behind the icon.
   final ExpressiveShape shape;
 
-  /// A line under the title.
-  final String? subtitle;
+  /// What the card does and how the plugin behaves, opened from the info button.
+  final String? info;
+
+  /// The plugin call the card makes, shown in monospace in the info sheet.
+  final String? code;
 
   /// A widget at the end, such as a badge or a count.
   final Widget? trailing;
@@ -40,15 +44,11 @@ class CardTitle extends StatelessWidget {
       children: [
         ShapedIcon(icon: icon, shape: shape, size: 40),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            spacing: 4,
             children: [
-              Text(title, style: theme.textTheme.titleMediumEmphasized),
-              if (subtitle case final subtitle?)
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall!.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
+              Flexible(child: Text(title, style: theme.textTheme.titleMediumEmphasized)),
+              if (info != null || code != null) InfoButton(title: title, message: info, code: code),
             ],
           ),
         ),

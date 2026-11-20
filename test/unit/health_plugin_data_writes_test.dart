@@ -128,6 +128,7 @@ void main() {
       for (final health in [HealthOnAndroid(), HealthOnIOS()]) {
         await expectBothThrow(health, HealthDataType.WORKOUT, argumentError);
         await expectBothThrow(health, HealthDataType.ACTIVITY_INTENSITY, argumentError);
+        await expectBothThrow(health, HealthDataType.SEXUAL_ACTIVITY, argumentError);
       }
       // HealthKit needs a delivery reason, which only writeInsulinDelivery takes.
       await expectBothThrow(HealthOnIOS(), HealthDataType.INSULIN_DELIVERY, argumentError);

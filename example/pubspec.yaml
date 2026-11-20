@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
   permission_handler: ^13.0.0
   carp_serializable: ^3.0.0 # polymorphic json serialization
   health:

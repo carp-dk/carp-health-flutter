@@ -53,7 +53,7 @@ class TypePickerHeader extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: SearchBar(
                 controller: search,
-                hintText: 'Search ${model.available.length} data types',
+                hintText: 'Search ${model.available.length} types',
                 leading: const Icon(Icons.search),
                 trailing: [
                   if (model.query.isNotEmpty)
