@@ -335,6 +335,50 @@ Map<String, dynamic> _$AudiogramHealthValueToJson(
   'rightEarSensitivities': instance.rightEarSensitivities,
 };
 
+BloodPressureHealthValue _$BloodPressureHealthValueFromJson(
+  Map<String, dynamic> json,
+) => BloodPressureHealthValue(
+  numericValue: json['numericValue'] as num,
+  bodyPosition:
+      $enumDecodeNullable(
+        _$BloodPressureBodyPositionEnumMap,
+        json['body_position'],
+      ) ??
+      BloodPressureBodyPosition.unknown,
+  measurementLocation:
+      $enumDecodeNullable(
+        _$BloodPressureMeasurementLocationEnumMap,
+        json['measurement_location'],
+      ) ??
+      BloodPressureMeasurementLocation.unknown,
+)..$type = json['__type'] as String?;
+
+Map<String, dynamic> _$BloodPressureHealthValueToJson(
+  BloodPressureHealthValue instance,
+) => <String, dynamic>{
+  '__type': ?instance.$type,
+  'numericValue': instance.numericValue,
+  'body_position': _$BloodPressureBodyPositionEnumMap[instance.bodyPosition]!,
+  'measurement_location':
+      _$BloodPressureMeasurementLocationEnumMap[instance.measurementLocation]!,
+};
+
+const _$BloodPressureBodyPositionEnumMap = {
+  BloodPressureBodyPosition.unknown: 'unknown',
+  BloodPressureBodyPosition.standingUp: 'standingUp',
+  BloodPressureBodyPosition.sittingDown: 'sittingDown',
+  BloodPressureBodyPosition.lyingDown: 'lyingDown',
+  BloodPressureBodyPosition.reclining: 'reclining',
+};
+
+const _$BloodPressureMeasurementLocationEnumMap = {
+  BloodPressureMeasurementLocation.unknown: 'unknown',
+  BloodPressureMeasurementLocation.leftWrist: 'leftWrist',
+  BloodPressureMeasurementLocation.rightWrist: 'rightWrist',
+  BloodPressureMeasurementLocation.leftUpperArm: 'leftUpperArm',
+  BloodPressureMeasurementLocation.rightUpperArm: 'rightUpperArm',
+};
+
 ElectrocardiogramHealthValue _$ElectrocardiogramHealthValueFromJson(
   Map<String, dynamic> json,
 ) => ElectrocardiogramHealthValue(

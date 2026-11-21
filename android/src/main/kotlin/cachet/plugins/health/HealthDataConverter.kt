@@ -116,7 +116,10 @@ class HealthDataConverter {
                         record.diastolic.inMillimetersOfMercury 
                     else 
                         record.systolic.inMillimetersOfMercury
-                )
+                ).toMutableMap().apply {
+                    put("body_position", record.bodyPosition)
+                    put("measurement_location", record.measurementLocation)
+                }
             )
             
             is HeartRateRecord -> record.samples.filter { inWindow(it.time, from, to) }.map { sample ->

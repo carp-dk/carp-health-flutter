@@ -10,7 +10,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-/** Writes a systolic and a diastolic pressure (mmHg) as one blood pressure record, for writeBloodPressure. */
+/**
+ * Writes a systolic and a diastolic pressure (mmHg) as one blood pressure record, for writeBloodPressure, with
+ * the optional body position and measurement location (Health Connect constants, unknown when missing).
+ */
 internal class BloodPressureWriter(
     private val healthConnectClient: HealthConnectClient,
     private val scope: CoroutineScope,
@@ -21,6 +24,9 @@ internal class BloodPressureWriter(
         val startTime = Instant.ofEpochMilli(call.argument<Long>("startTime")!!)
         val recordingMethod = call.argument<Int>("recordingMethod")!!
         val metadata = call.recordMetadata(recordingMethod)
+        val bodyPosition = call.argument<Int>("bodyPosition") ?: BloodPressureRecord.BODY_POSITION_UNKNOWN
+        val measurementLocation =
+            call.argument<Int>("measurementLocation") ?: BloodPressureRecord.MEASUREMENT_LOCATION_UNKNOWN
 
         scope.launch {
             try {
@@ -30,6 +36,8 @@ internal class BloodPressureWriter(
                             time = startTime,
                             systolic = Pressure.millimetersOfMercury(systolic),
                             diastolic = Pressure.millimetersOfMercury(diastolic),
+                            bodyPosition = bodyPosition,
+                            measurementLocation = measurementLocation,
                             zoneOffset = null,
                             metadata = metadata,
                         ),

@@ -18,6 +18,10 @@ mixin HealthMeasurementWrites on _HealthSupport {
   ///    Simply set [endTime] equal to [startTime] if the blood pressure is measured
   ///    only at a specific point in time. If omitted, [endTime] is set to [startTime].
   ///  * [recordingMethod] - the recording method of the data point.
+  ///  * [bodyPosition] - the body position of the user during the measurement.
+  ///    Android only, ignored on iOS.
+  ///  * [measurementLocation] - the arm and part of the arm where the
+  ///    measurement was taken. Android only, ignored on iOS.
   Future<bool> writeBloodPressure({
     required int systolic,
     required int diastolic,
@@ -26,6 +30,8 @@ mixin HealthMeasurementWrites on _HealthSupport {
     double? clientRecordVersion,
     DateTime? endTime,
     RecordingMethod recordingMethod = RecordingMethod.automatic,
+    BloodPressureBodyPosition bodyPosition = BloodPressureBodyPosition.unknown,
+    BloodPressureMeasurementLocation measurementLocation = BloodPressureMeasurementLocation.unknown,
   }) async {
     await _checkIfHealthConnectAvailableOnAndroid();
     if (Platform.isIOS && [RecordingMethod.active, RecordingMethod.unknown].contains(recordingMethod)) {
@@ -40,6 +46,8 @@ mixin HealthMeasurementWrites on _HealthSupport {
     Map<String, dynamic> args = {
       'systolic': systolic,
       'diastolic': diastolic,
+      'bodyPosition': bodyPosition.toAndroidValue(),
+      'measurementLocation': measurementLocation.toAndroidValue(),
       'startTime': startTime.millisecondsSinceEpoch,
       'endTime': endTime.millisecondsSinceEpoch,
       'recordingMethod': recordingMethod.toInt(),

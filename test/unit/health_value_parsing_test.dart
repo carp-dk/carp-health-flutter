@@ -149,5 +149,76 @@ void main() {
       expect(value.workoutUuid, 'workout-uuid-1');
       expect(value.locations.first.latitude, 37.3349);
     });
+
+    for (final type in [HealthDataType.BLOOD_PRESSURE_SYSTOLIC, HealthDataType.BLOOD_PRESSURE_DIASTOLIC]) {
+      test('parses body position and measurement location for ${type.name}', () {
+        final point = HealthDataPoint.fromHealthDataPoint(type, {
+          ...HealthFixtures.numericPoint(value: 120),
+          'body_position': 3,
+          'measurement_location': 2,
+        }, HealthDataUnit.MILLIMETER_OF_MERCURY.name);
+
+        expect(point.value, isA<BloodPressureHealthValue>());
+        final value = point.value as BloodPressureHealthValue;
+        expect(value.numericValue, 120);
+        expect(value.bodyPosition, BloodPressureBodyPosition.lyingDown);
+        expect(value.measurementLocation, BloodPressureMeasurementLocation.rightWrist);
+      });
+    }
+
+    test('parses missing blood pressure body position and measurement location as unknown', () {
+      final point = HealthDataPoint.fromHealthDataPoint(
+        HealthDataType.BLOOD_PRESSURE_SYSTOLIC,
+        HealthFixtures.numericPoint(value: 120),
+        HealthDataUnit.MILLIMETER_OF_MERCURY.name,
+      );
+
+      final value = point.value as BloodPressureHealthValue;
+      expect(value.bodyPosition, BloodPressureBodyPosition.unknown);
+      expect(value.measurementLocation, BloodPressureMeasurementLocation.unknown);
+    });
+
+    test('blood pressure value survives a JSON round trip', () {
+      final value = BloodPressureHealthValue(
+        numericValue: 80,
+        bodyPosition: BloodPressureBodyPosition.reclining,
+        measurementLocation: BloodPressureMeasurementLocation.rightUpperArm,
+      );
+
+      expect(BloodPressureHealthValue.fromJson(value.toJson()), value);
+    });
+  });
+
+  group('Blood pressure enums', () {
+    test('body position maps to and from Android values', () {
+      const expected = {
+        BloodPressureBodyPosition.unknown: 0,
+        BloodPressureBodyPosition.standingUp: 1,
+        BloodPressureBodyPosition.sittingDown: 2,
+        BloodPressureBodyPosition.lyingDown: 3,
+        BloodPressureBodyPosition.reclining: 4,
+      };
+      for (final MapEntry(:key, :value) in expected.entries) {
+        expect(key.toAndroidValue(), value);
+        expect(BloodPressureBodyPosition.fromAndroidValue(value), key);
+      }
+      expect(BloodPressureBodyPosition.fromAndroidValue(99), BloodPressureBodyPosition.unknown);
+      expect(BloodPressureBodyPosition.fromAndroidValue(null), BloodPressureBodyPosition.unknown);
+    });
+
+    test('measurement location maps to and from Android values', () {
+      const expected = {
+        BloodPressureMeasurementLocation.unknown: 0,
+        BloodPressureMeasurementLocation.leftWrist: 1,
+        BloodPressureMeasurementLocation.rightWrist: 2,
+        BloodPressureMeasurementLocation.leftUpperArm: 3,
+        BloodPressureMeasurementLocation.rightUpperArm: 4,
+      };
+      for (final MapEntry(:key, :value) in expected.entries) {
+        expect(key.toAndroidValue(), value);
+        expect(BloodPressureMeasurementLocation.fromAndroidValue(value), key);
+      }
+      expect(BloodPressureMeasurementLocation.fromAndroidValue(99), BloodPressureMeasurementLocation.unknown);
+    });
   });
 }
