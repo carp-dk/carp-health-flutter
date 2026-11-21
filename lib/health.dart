@@ -43,6 +43,7 @@ part 'src/types/platform_data_types.dart';
 part 'src/types/recording_method.dart';
 part 'src/values/activity_intensity_health_value.dart';
 part 'src/values/audiogram_health_value.dart';
+part 'src/values/blood_pressure_health_value.dart';
 part 'src/values/electrocardiogram_health_value.dart';
 part 'src/values/health_value.dart';
 part 'src/values/insulin_delivery_health_value.dart';

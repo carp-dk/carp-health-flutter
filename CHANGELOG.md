@@ -1,3 +1,9 @@
+## Unreleased
+
+### Added
+
+- Android: Blood pressure body position and measurement location (`BloodPressureRecord.bodyPosition` and `measurementLocation`). `writeBloodPressure()` takes the optional `bodyPosition` (`BloodPressureBodyPosition`) and `measurementLocation` (`BloodPressureMeasurementLocation`), both `unknown` by default, and `BLOOD_PRESSURE_SYSTOLIC` and `BLOOD_PRESSURE_DIASTOLIC` reads return a `BloodPressureHealthValue`, a `NumericHealthValue` with both fields (always `unknown` on iOS)
+
 ## 14.0.0
 
 ### Added

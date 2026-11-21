@@ -38,6 +38,32 @@ void main() {
       expect(args['systolic'], 120);
       expect(args['diastolic'], 80);
     });
+
+    test('forwards unknown body position and measurement location by default', () async {
+      ctx.channel.when('writeBloodPressure', true);
+
+      await ctx.health.writeBloodPressure(systolic: 120, diastolic: 80, startTime: HealthFixtures.start);
+
+      final args = Map<String, dynamic>.from(ctx.channel.lastCallFor('writeBloodPressure')!.arguments as Map);
+      expect(args['bodyPosition'], 0);
+      expect(args['measurementLocation'], 0);
+    });
+
+    test('forwards body position and measurement location as Android values', () async {
+      ctx.channel.when('writeBloodPressure', true);
+
+      await ctx.health.writeBloodPressure(
+        systolic: 120,
+        diastolic: 80,
+        startTime: HealthFixtures.start,
+        bodyPosition: BloodPressureBodyPosition.sittingDown,
+        measurementLocation: BloodPressureMeasurementLocation.leftUpperArm,
+      );
+
+      final args = Map<String, dynamic>.from(ctx.channel.lastCallFor('writeBloodPressure')!.arguments as Map);
+      expect(args['bodyPosition'], 2);
+      expect(args['measurementLocation'], 3);
+    });
   });
 
   group('writeBloodOxygen', () {
