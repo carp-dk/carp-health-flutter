@@ -68,12 +68,27 @@ class RecordMetadataTest {
     }
 
     @Test
-    fun theClientRecordIdIsOnlySetWithItsVersion() {
+    fun theClientRecordIdIsSetWithItsVersion() {
         val metadata = buildMetadata(RECORDING_METHOD_AUTOMATICALLY_RECORDED, clientRecordId = "id", clientRecordVersion = 2)
         assertEquals("id", metadata.clientRecordId)
         assertEquals(2L, metadata.clientRecordVersion)
+    }
 
-        assertNull(buildMetadata(RECORDING_METHOD_MANUAL_ENTRY, clientRecordId = "id").clientRecordId)
-        assertNull(buildMetadata(RECORDING_METHOD_MANUAL_ENTRY, clientRecordVersion = 2).clientRecordId)
+    @Test
+    fun aClientRecordIdWithoutAVersionIsKeptAtVersionZero() {
+        // Without a version the id used to be dropped, so a second write with the same id added a
+        // copy and deleteByClientRecordId found neither (#537).
+        for (value in 0..3) {
+            val metadata = buildMetadata(value, clientRecordId = "meal-42")
+            assertEquals("$value", "meal-42", metadata.clientRecordId)
+            assertEquals("$value", 0L, metadata.clientRecordVersion)
+        }
+    }
+
+    @Test
+    fun aVersionWithoutAClientRecordIdIsIgnored() {
+        val metadata = buildMetadata(RECORDING_METHOD_MANUAL_ENTRY, clientRecordVersion = 2)
+        assertNull(metadata.clientRecordId)
+        assertEquals(0L, metadata.clientRecordVersion)
     }
 }
