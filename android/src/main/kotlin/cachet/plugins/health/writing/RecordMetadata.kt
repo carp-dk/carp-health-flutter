@@ -14,8 +14,8 @@ internal const val RECORDING_METHOD_MANUAL_ENTRY = Metadata.RECORDING_METHOD_MAN
 /**
  * The metadata of a record written with [recordingMethod]. Automatically and actively recorded
  * records come from a device of [deviceType] (unknown if null), as Health Connect requires a device
- * for them; manual and unknown ones name no device. The client record id is only set together with
- * its version.
+ * for them; manual and unknown ones name no device. A [clientRecordId] given without a
+ * [clientRecordVersion] gets version 0, Health Connect's default, so the id is never dropped.
  */
 internal fun buildMetadata(
     recordingMethod: Int,
@@ -24,7 +24,7 @@ internal fun buildMetadata(
     deviceType: Int? = null,
 ): Metadata {
     val device = Device(type = deviceType ?: Device.TYPE_UNKNOWN)
-    if (clientRecordId == null || clientRecordVersion == null) {
+    if (clientRecordId == null) {
         return when (recordingMethod) {
             RECORDING_METHOD_MANUAL_ENTRY -> Metadata.manualEntry()
             RECORDING_METHOD_AUTOMATICALLY_RECORDED -> Metadata.autoRecorded(device)
@@ -32,18 +32,19 @@ internal fun buildMetadata(
             else -> Metadata.unknownRecordingMethod()
         }
     }
+    val version = clientRecordVersion ?: 0L
     return when (recordingMethod) {
         RECORDING_METHOD_MANUAL_ENTRY -> Metadata.manualEntry(
-            device = null, clientRecordId = clientRecordId, clientRecordVersion = clientRecordVersion,
+            device = null, clientRecordId = clientRecordId, clientRecordVersion = version,
         )
         RECORDING_METHOD_AUTOMATICALLY_RECORDED -> Metadata.autoRecorded(
-            device = device, clientRecordId = clientRecordId, clientRecordVersion = clientRecordVersion,
+            device = device, clientRecordId = clientRecordId, clientRecordVersion = version,
         )
         RECORDING_METHOD_ACTIVELY_RECORDED -> Metadata.activelyRecorded(
-            device = device, clientRecordId = clientRecordId, clientRecordVersion = clientRecordVersion,
+            device = device, clientRecordId = clientRecordId, clientRecordVersion = version,
         )
         else -> Metadata.unknownRecordingMethod(
-            device = null, clientRecordId = clientRecordId, clientRecordVersion = clientRecordVersion,
+            device = null, clientRecordId = clientRecordId, clientRecordVersion = version,
         )
     }
 }

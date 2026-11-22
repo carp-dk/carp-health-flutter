@@ -157,7 +157,7 @@ mixin HealthMeasurementWrites on _HealthSupport {
   ///  * [recordingMethod] - the recording method of the data point, automatic by default
   ///    (on iOS this must be manual or automatic).
   ///  * [clientRecordId] - **Android ONLY** client-assigned record ID for idempotent writes.
-  ///  * [clientRecordVersion] - **Android ONLY** version associated with [clientRecordId].
+  ///  * [clientRecordVersion] - **Android ONLY** version associated with [clientRecordId], 0 if omitted.
   Future<bool> writeSexualActivity({
     SexualActivityProtection protectionUsed = SexualActivityProtection.unknown,
     required DateTime startTime,
