@@ -2,10 +2,12 @@ import HealthKit
 
 extension HealthDataReader {
     /// Converts samples of one data type to the maps the Dart side parses, in the samples' order.
-    /// ECGs and workout routes take one more query per sample (voltages, locations); if one of
-    /// those fails, the conversion fails instead of dropping the sample.
+    /// ECGs and workout routes take one more query per sample (voltages, locations), and quantity
+    /// samples that hold a series one more query for all of them (their readings, see [series]);
+    /// if one of those fails, the conversion fails instead of dropping the sample.
     func convertSamples(
         _ samples: [HKSample], dataTypeKey: String, unit: HKUnit?, includeManualEntry: Bool,
+        series: SeriesExpansion = .summary,
         completion: @escaping (Result<[Any], Error>) -> Void
     ) {
         if dataTypeKey == HealthConstants.WORKOUT_ROUTE {
@@ -19,6 +21,15 @@ extension HealthDataReader {
             } else {
                 print("Error getting ECG - only available on iOS 14.0 and above!")
                 completion(.success([]))
+            }
+        } else if case let .readings(newestFirst) = series,
+                  let quantitySamples = samples as? [HKQuantitySample],
+                  quantitySamples.contains(where: { $0.count > 1 })
+        {
+            seriesReadings(of: quantitySamples) { result in
+                completion(result.map {
+                    self.quantityDictionaries(quantitySamples, unit: unit, readings: $0, newestFirst: newestFirst)
+                })
             }
         } else {
             completion(.success(sampleDictionaries(samples, dataTypeKey: dataTypeKey, unit: unit)))
@@ -41,26 +52,49 @@ extension HealthDataReader {
         return []
     }
 
-    private func quantityDictionaries(_ samples: [HKQuantitySample], unit: HKUnit?) -> [NSDictionary] {
-        samples.map { sample -> NSDictionary in
-            [
-                "uuid": "\(sample.uuid)",
-                "value": sample.quantity.doubleValue(
-                    for: unit ?? HKUnit.internationalUnit()
-                ),
-                "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
-                "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
-                "source_id": sample.sourceRevision.source.bundleIdentifier,
-                "source_name": sample.sourceRevision.source.name,
-                "device_model": sample.device?.model as Any,
-                "recording_method":
-                    (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
-                    ? HealthConstants.RecordingMethod.manual.rawValue
-                    : HealthConstants.RecordingMethod.automatic.rawValue,
-                "dataUnitKey": unit?.unitString as Any,
-                "metadata": HealthUtilities.sanitizeMetadata(sample.metadata),
-            ]
+    /// The maps of quantity samples: one for each of a sample's [readings] (by sample UUID), in
+    /// the order [newestFirst] gives, and the sample's own for a sample without readings.
+    /// Readings keep their sample's UUID, source and metadata, as the samples of a series record
+    /// do on Android.
+    func quantityDictionaries(
+        _ samples: [HKQuantitySample], unit: HKUnit?, readings: [UUID: [SeriesReading]] = [:],
+        newestFirst: Bool = true
+    ) -> [NSDictionary] {
+        samples.flatMap { sample -> [NSDictionary] in
+            guard let sampleReadings = readings[sample.uuid], !sampleReadings.isEmpty else {
+                return [
+                    quantityDictionary(
+                        sample, quantity: sample.quantity, start: sample.startDate, end: sample.endDate, unit: unit
+                    ),
+                ]
+            }
+            let ordered = sampleReadings.sorted {
+                newestFirst ? $0.interval.end > $1.interval.end : $0.interval.end < $1.interval.end
+            }
+            return ordered.map {
+                quantityDictionary(sample, quantity: $0.quantity, start: $0.interval.start, end: $0.interval.end, unit: unit)
+            }
         }
+    }
+
+    private func quantityDictionary(
+        _ sample: HKQuantitySample, quantity: HKQuantity, start: Date, end: Date, unit: HKUnit?
+    ) -> NSDictionary {
+        [
+            "uuid": "\(sample.uuid)",
+            "value": quantity.doubleValue(for: unit ?? HKUnit.internationalUnit()),
+            "date_from": Int(start.timeIntervalSince1970 * 1000),
+            "date_to": Int(end.timeIntervalSince1970 * 1000),
+            "source_id": sample.sourceRevision.source.bundleIdentifier,
+            "source_name": sample.sourceRevision.source.name,
+            "device_model": sample.device?.model as Any,
+            "recording_method":
+                (sample.metadata?[HKMetadataKeyWasUserEntered] as? Bool == true)
+                ? HealthConstants.RecordingMethod.manual.rawValue
+                : HealthConstants.RecordingMethod.automatic.rawValue,
+            "dataUnitKey": unit?.unitString as Any,
+            "metadata": HealthUtilities.sanitizeMetadata(sample.metadata),
+        ]
     }
 
     private func categoryDictionaries(_ samples: [HKCategorySample], dataTypeKey: String) -> [NSDictionary] {

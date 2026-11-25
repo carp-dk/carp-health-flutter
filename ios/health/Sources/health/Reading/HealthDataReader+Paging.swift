@@ -7,6 +7,8 @@ extension HealthDataReader {
     /// newest first (getData's order) or oldest first, and the page token holds the end date
     /// the next page continues past. A page whose last sample shares its end date with samples
     /// beyond the page is completed with them, so no sample is skipped or read twice.
+    /// A quantity sample that holds a series gives one point per reading, and pages are cut so
+    /// they hold at most pageSize points (at least one sample, however many readings it has).
     /// Characteristics (BIRTH_DATE, GENDER, BLOOD_TYPE) are a single page whatever the window.
     /// Replies go out from HealthKit's queues: encoding a large reply on the main thread would
     /// stall the UI.
@@ -73,7 +75,8 @@ extension HealthDataReader {
 
         let reply: ([HKSample], Date?) -> Void = { samples, nextPageEdge in
             self.convertSamples(
-                samples, dataTypeKey: dataTypeKey, unit: unit, includeManualEntry: request.includeManualEntry
+                samples, dataTypeKey: dataTypeKey, unit: unit, includeManualEntry: request.includeManualEntry,
+                series: .readings(newestFirst: request.newestFirst)
             ) { converted in
                 switch converted {
                 case let .success(data):
@@ -99,13 +102,16 @@ extension HealthDataReader {
                 return
             }
             let samples = samplesOrNil ?? []
-            guard samples.count > limit else {
+            let length = HealthDataReader.pageLength(
+                pointCounts: samples.map(HealthDataReader.pointCount(of:)), limit: limit
+            )
+            guard length < samples.count else {
                 reply(samples, nil)
                 return
             }
-            let page = Array(samples.prefix(limit))
-            let boundary = page[limit - 1].endDate
-            guard samples[limit].endDate == boundary else {
+            let page = Array(samples.prefix(length))
+            let boundary = page[length - 1].endDate
+            guard samples[length].endDate == boundary else {
                 reply(page, boundary)
                 return
             }

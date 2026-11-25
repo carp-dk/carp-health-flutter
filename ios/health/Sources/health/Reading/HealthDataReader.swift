@@ -119,7 +119,8 @@ class HealthDataReader {
             }
 
             self.convertSamples(
-                samplesOrNil ?? [], dataTypeKey: dataTypeKey, unit: unit, includeManualEntry: includeManualEntry
+                samplesOrNil ?? [], dataTypeKey: dataTypeKey, unit: unit, includeManualEntry: includeManualEntry,
+                series: .readings(newestFirst: true)
             ) { converted in
                 switch converted {
                 case let .success(data):
@@ -194,6 +195,7 @@ class HealthDataReader {
                 return
             }
 
+            // One UUID is one sample, so a series sample gives its summary value.
             self.convertSamples(
                 samplesOrNil ?? [], dataTypeKey: dataTypeKey, unit: unit, includeManualEntry: true
             ) { converted in

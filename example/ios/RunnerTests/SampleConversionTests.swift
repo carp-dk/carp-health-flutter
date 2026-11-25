@@ -65,6 +65,58 @@ class SampleConversionTests: XCTestCase {
     }
   }
 
+  func testSeriesSamplesGiveAPointPerReading() throws {
+    let bpm = HKUnit.count().unitDivided(by: .minute())
+    func sample(average: Double, from: TimeInterval, to: TimeInterval) -> HKQuantitySample {
+      HKQuantitySample(
+        type: HKQuantityType(.heartRate), quantity: HKQuantity(unit: bpm, doubleValue: average),
+        start: start + from, end: start + to, metadata: [HKMetadataKeyHeartRateMotionContext: 2]
+      )
+    }
+    func reading(_ value: Double, from: TimeInterval, to: TimeInterval) -> SeriesReading {
+      SeriesReading(
+        quantity: HKQuantity(unit: bpm, doubleValue: value),
+        interval: DateInterval(start: start + from, end: start + to)
+      )
+    }
+    let series = sample(average: 150, from: 0, to: 300)
+    let single = sample(average: 160, from: 300, to: 300)
+    // HealthKit merges equal consecutive readings into one interval.
+    let readings = [series.uuid: [reading(140, from: 0, to: 0), reading(155, from: 5, to: 20), reading(169, from: 300, to: 300)]]
+
+    let oldestFirst = reader.quantityDictionaries(
+      [series, single], unit: bpm, readings: readings, newestFirst: false
+    )
+    XCTAssertEqual(oldestFirst.map { $0["value"] as? Double }, [140, 155, 169, 160])
+    XCTAssertEqual(oldestFirst.map { $0["date_from"] as? Int }, [0, 5, 300, 300].map(millis))
+    XCTAssertEqual(oldestFirst.map { $0["date_to"] as? Int }, [0, 20, 300, 300].map(millis))
+    // A reading keeps its sample's UUID and metadata.
+    XCTAssertEqual(oldestFirst[1]["uuid"] as? String, "\(series.uuid)")
+    XCTAssertEqual((oldestFirst[1]["metadata"] as? [String: Any])?[HKMetadataKeyHeartRateMotionContext] as? Int, 2)
+
+    let newestFirst = reader.quantityDictionaries(
+      [single, series], unit: bpm, readings: readings, newestFirst: true
+    )
+    XCTAssertEqual(newestFirst.map { $0["value"] as? Double }, [160, 169, 155, 140])
+
+    // Without readings, e.g. for a read by UUID, a sample gives its summary value.
+    XCTAssertEqual(reader.quantityDictionaries([series], unit: bpm).map { $0["value"] as? Double }, [150])
+  }
+
+  func testPagesHoldAtMostPageSizePoints() {
+    XCTAssertEqual(HealthDataReader.pageLength(pointCounts: [1, 1, 1], limit: 3), 3)
+    XCTAssertEqual(HealthDataReader.pageLength(pointCounts: [1, 1, 1, 1], limit: 3), 3)
+    XCTAssertEqual(HealthDataReader.pageLength(pointCounts: [60, 60, 60], limit: 130), 2)
+    XCTAssertEqual(HealthDataReader.pageLength(pointCounts: [60, 60, 10], limit: 130), 3)
+    // A page holds its first sample, however many readings it has.
+    XCTAssertEqual(HealthDataReader.pageLength(pointCounts: [60, 1], limit: 10), 1)
+    XCTAssertEqual(HealthDataReader.pageLength(pointCounts: [], limit: 10), 0)
+  }
+
+  private func millis(_ offset: TimeInterval) -> Int {
+    Int((start + offset).timeIntervalSince1970 * 1000)
+  }
+
   /// The maps that getHealthDataFromTypes sends for [samples] of the data type [type].
   private func maps(of samples: [HKSample], type: String, unit: HKUnit? = nil) throws -> [NSDictionary] {
     var result: Result<[Any], Error>?

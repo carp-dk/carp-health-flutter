@@ -13,6 +13,10 @@ mixin HealthDataReads on _HealthPageReads {
   ///
   /// Assuming above data are coming from your database.
   ///
+  /// On iOS, a sample that holds a series of readings, such as heart rate
+  /// recorded in a workout, gives one point with the series' average (or sum,
+  /// for cumulative types), while range reads return each reading.
+  ///
   /// Without the read permission for [type], this returns the app's own
   /// records and `null` for those of other apps: on Android with the type's
   /// write permission (without it, it throws a [HealthPlatformException] with
@@ -55,7 +59,8 @@ mixin HealthDataReads on _HealthPageReads {
   /// Types are read in the order of [types], each type once. Within a type,
   /// points are oldest first on Android (by the start time of their record:
   /// the stages of a sleep session come together) and newest first on iOS (by
-  /// end time), without duplicates.
+  /// the end time of their sample: the readings of a series sample, such as
+  /// heart rate recorded in a workout, come together), without duplicates.
   ///
   /// With a [limit], at most that many of the newest points of each type come
   /// back, newest end time first, for example the latest height or weight,

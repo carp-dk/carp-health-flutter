@@ -1,3 +1,7 @@
+## 14.0.1
+
+* iOS: Reads in a range now return every reading of quantity samples that hold a series (HealthKit `count` > 1, read with `HKQuantitySeriesSampleQuery`) instead of only the series' average or sum. HealthKit stores heart rate this way for workouts recorded on iOS (e.g. the Workout app with AirPods or a chest strap) and for condensed Apple Watch workouts, so such workouts had one heart rate value per ~5 minutes. Readings share their sample's `uuid`, pages hold at most `pageSize` points counting readings, and `getHealthDataByUUID` still returns the sample's single value - Fixes [endurain-flutter#39](https://github.com/endurain-project/endurain-flutter/issues/39)
+
 ## 14.0.0
 
 ### Added
