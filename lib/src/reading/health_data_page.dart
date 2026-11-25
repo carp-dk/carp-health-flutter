@@ -15,7 +15,8 @@ final class HealthDataPage {
 
   /// The data points, without duplicates and oldest first: on Android by the
   /// start time of their record (the samples of a series record and the stages
-  /// of a sleep session come together), on iOS by end time.
+  /// of a sleep session come together), on iOS by the end time of their sample
+  /// (the readings of a series sample come together).
   final List<HealthDataPoint> points;
 
   /// Whether this is the last page for [type]. Every requested type ends with
